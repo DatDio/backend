@@ -1,0 +1,12 @@
+# Docker files
+.env
+
+# Logs
+logs/
+*.log
+
+# Oracle data
+oracle-data/
+
+# Redis data
+redis-data/
