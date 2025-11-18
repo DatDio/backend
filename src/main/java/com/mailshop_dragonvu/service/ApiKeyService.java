@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.request.ApiKeyGenerateRequest;
-import com.mailshop_dragonvu.dto.response.ApiKeyGeneratedResponse;
-import com.mailshop_dragonvu.dto.response.ApiKeyResponse;
+import com.mailshop_dragonvu.dto.apikeys.ApiKeyGenerateRequest;
+import com.mailshop_dragonvu.dto.apikeys.ApiKeyGeneratedResponse;
+import com.mailshop_dragonvu.dto.apikeys.ApiKeyResponse;
 import com.mailshop_dragonvu.entity.User;
 
 import java.util.List;
@@ -21,12 +21,12 @@ public interface ApiKeyService {
     /**
      * Revoke (deactivate) an API key
      */
-    ApiKeyResponse revokeApiKey(UUID keyId, Long userId);
+    ApiKeyResponse revokeApiKey(Long keyId, Long userId);
 
     /**
      * Activate an API key
      */
-    ApiKeyResponse activateApiKey(UUID keyId, Long userId);
+    ApiKeyResponse activateApiKey(Long keyId, Long userId);
 
     /**
      * Get all API keys for a user
@@ -36,7 +36,7 @@ public interface ApiKeyService {
     /**
      * Get API key by ID
      */
-    ApiKeyResponse getApiKeyById(UUID keyId, Long userId);
+    ApiKeyResponse getApiKeyById(Long keyId, Long userId);
 
     /**
      * Validate API key and return associated user
@@ -46,7 +46,7 @@ public interface ApiKeyService {
     /**
      * Update last used timestamp for an API key
      */
-    void updateLastUsed(UUID keyId);
+    void updateLastUsed(Long keyId);
 
     /**
      * Deactivate expired API keys (scheduled task)
@@ -56,5 +56,5 @@ public interface ApiKeyService {
     /**
      * Get usage statistics for an API key
      */
-    ApiKeyResponse getUsageStats(UUID keyId, Long userId);
+    ApiKeyResponse getUsageStats(Long keyId, Long userId);
 }

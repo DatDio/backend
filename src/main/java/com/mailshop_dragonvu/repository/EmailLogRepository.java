@@ -5,18 +5,20 @@ import com.mailshop_dragonvu.enums.EmailStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Email Log Repository
  */
 @Repository
-public interface EmailLogRepository extends JpaRepository<EmailLog, Long> {
+public interface EmailLogRepository extends JpaRepository<EmailLog, Long>, JpaSpecificationExecutor<EmailLog> {
 
     /**
      * Find email logs by status
@@ -52,4 +54,5 @@ public interface EmailLogRepository extends JpaRepository<EmailLog, Long> {
      * Count emails by status
      */
     Long countByEmailStatus(EmailStatus status);
+
 }

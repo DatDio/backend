@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.request.OrderCreateRequest;
-import com.mailshop_dragonvu.dto.request.OrderUpdateRequest;
-import com.mailshop_dragonvu.dto.response.OrderResponse;
+import com.mailshop_dragonvu.dto.orders.OrderCreateRequest;
+import com.mailshop_dragonvu.dto.orders.OrderUpdateRequest;
+import com.mailshop_dragonvu.dto.orders.OrderResponse;
 import com.mailshop_dragonvu.entity.Order;
 import com.mailshop_dragonvu.entity.OrderItem;
 import com.mailshop_dragonvu.entity.User;
@@ -56,8 +56,6 @@ public class OrderServiceImpl implements OrderService {
         // Set discount and tax amounts
         order.setDiscountAmount(request.getDiscountAmount() != null ? 
                 request.getDiscountAmount() : BigDecimal.ZERO);
-        order.setTaxAmount(request.getTaxAmount() != null ? 
-                request.getTaxAmount() : BigDecimal.ZERO);
 
         // Add order items
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -68,11 +66,7 @@ public class OrderServiceImpl implements OrderService {
             if (orderItem.getDiscountAmount() == null) {
                 orderItem.setDiscountAmount(BigDecimal.ZERO);
             }
-            if (orderItem.getTaxAmount() == null) {
-                orderItem.setTaxAmount(BigDecimal.ZERO);
-            }
-            
-            orderItem.calculateTotalPrice();
+
             order.addOrderItem(orderItem);
             totalAmount = totalAmount.add(orderItem.getTotalPrice());
         }
@@ -232,49 +226,6 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     @CacheEvict(value = "orders", key = "#id")
-    public OrderResponse shipOrder(Long id) {
-        log.info("Shipping order ID: {}", id);
-
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (!order.getOrderStatus().equals(OrderStatus.CONFIRMED) && 
-            !order.getOrderStatus().equals(OrderStatus.PROCESSING)) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
-        }
-
-        order.setOrderStatus(OrderStatus.SHIPPED);
-        order.setShippedDate(LocalDateTime.now());
-        order = orderRepository.save(order);
-
-        log.info("Order shipped successfully: {}", id);
-        return orderMapper.toResponse(order);
-    }
-
-    @Override
-    @Transactional
-    @CacheEvict(value = "orders", key = "#id")
-    public OrderResponse deliverOrder(Long id) {
-        log.info("Delivering order ID: {}", id);
-
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (!order.getOrderStatus().equals(OrderStatus.SHIPPED)) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
-        }
-
-        order.setOrderStatus(OrderStatus.DELIVERED);
-        order.setDeliveredDate(LocalDateTime.now());
-        order = orderRepository.save(order);
-
-        log.info("Order delivered successfully: {}", id);
-        return orderMapper.toResponse(order);
-    }
-
-    @Override
-    @Transactional
-    @CacheEvict(value = "orders", key = "#id")
     public OrderResponse cancelOrder(Long id, String reason, Long userId) {
         log.info("Cancelling order ID: {} by user ID: {}", id, userId);
 
@@ -290,9 +241,6 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(ErrorCode.ORDER_ALREADY_CANCELLED);
         }
 
-        if (order.getOrderStatus().equals(OrderStatus.DELIVERED)) {
-            throw new BusinessException(ErrorCode.ORDER_CANNOT_BE_MODIFIED);
-        }
 
         order.setOrderStatus(OrderStatus.CANCELLED);
         order.setCancelledDate(LocalDateTime.now());
@@ -312,7 +260,7 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
-        order.setStatus("DELETED");
+        order.setOrderStatus(OrderStatus.DELETED);
         orderRepository.save(order);
 
         log.info("Order deleted successfully with ID: {}", id);

@@ -1,6 +1,6 @@
 package com.mailshop_dragonvu.mapper;
 
-import com.mailshop_dragonvu.dto.response.WalletResponse;
+import com.mailshop_dragonvu.dto.wallets.WalletResponse;
 import com.mailshop_dragonvu.entity.Wallet;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

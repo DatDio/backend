@@ -7,7 +7,9 @@ package com.mailshop_dragonvu.enums;
 public enum OrderStatus {
     PENDING,        // Đang chờ thanh toán
     PAID,           // Đã thanh toán, chờ xử lý
+    CONFIRMED,
     COMPLETED,      // Đã giao tài khoản (instant delivery)
     CANCELLED,      // Đã hủy
-    REFUNDED        // Đã hoàn tiền
+    REFUNDED,       // Đã hoàn tiền
+    DELETED
 }

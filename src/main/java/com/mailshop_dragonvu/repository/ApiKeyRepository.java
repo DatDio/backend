@@ -16,7 +16,7 @@ import java.util.UUID;
  * API Key Repository
  */
 @Repository
-public interface ApiKeyRepository extends JpaRepository<ApiKey, UUID> {
+public interface ApiKeyRepository extends JpaRepository<ApiKey, Long> {
 
     /**
      * Find all API keys for a user
@@ -44,7 +44,7 @@ public interface ApiKeyRepository extends JpaRepository<ApiKey, UUID> {
     /**
      * Find API key by ID and user
      */
-    Optional<ApiKey> findByIdAndUser(UUID id, User user);
+    Optional<ApiKey> findByIdAndUser(Long id, User user);
 
     /**
      * Check if user has any active API keys

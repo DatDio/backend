@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.request.ApiKeyGenerateRequest;
-import com.mailshop_dragonvu.dto.response.ApiKeyGeneratedResponse;
-import com.mailshop_dragonvu.dto.response.ApiKeyResponse;
+import com.mailshop_dragonvu.dto.apikeys.ApiKeyGenerateRequest;
+import com.mailshop_dragonvu.dto.apikeys.ApiKeyGeneratedResponse;
+import com.mailshop_dragonvu.dto.apikeys.ApiKeyResponse;
 import com.mailshop_dragonvu.entity.ApiKey;
 import com.mailshop_dragonvu.entity.User;
 import com.mailshop_dragonvu.enums.ApiKeyStatus;
@@ -21,7 +21,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -61,22 +60,19 @@ public class ApiKeyServiceImpl implements ApiKeyService {
         // Generate plaintext API key
         String plaintextKey = apiKeyGenerator.generateApiKey();
 
-        // Hash the API key before storing
+        // Mã hóa apikey trước khi lưu vào db
         String keyHash = passwordEncoder.encode(plaintextKey);
 
-        // Create API key entity
+
         ApiKey apiKey = ApiKey.builder()
-                .user(user)
-                .keyHash(keyHash)
-                .name(request.getName())
-                .description(request.getDescription())
-                .permission(request.getPermission())
-                .status(ApiKeyStatus.ACTIVE)
-                .expiredAt(request.getExpiredAt())
-                .build();
+            .user(user)
+            .keyHash(keyHash)
+            .name(request.getName())
+            .status(ApiKeyStatus.ACTIVE)
+            .expiredAt(request.getExpiredAt())
+            .build();
 
         apiKey = apiKeyRepository.save(apiKey);
-        log.info("API key generated successfully with ID: {} for user: {}", apiKey.getId(), userId);
 
         ApiKeyResponse metadata = apiKeyMapper.toResponse(apiKey);
         return ApiKeyGeneratedResponse.of(metadata, plaintextKey);
@@ -85,8 +81,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
     @Override
     @Transactional
     @CacheEvict(value = "apikeys", allEntries = true)
-    public ApiKeyResponse revokeApiKey(UUID keyId, Long userId) {
-        log.info("Revoking API key ID: {} for user ID: {}", keyId, userId);
+    public ApiKeyResponse revokeApiKey(Long keyId, Long userId) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -97,15 +92,13 @@ public class ApiKeyServiceImpl implements ApiKeyService {
         apiKey.setStatus(ApiKeyStatus.INACTIVE);
         apiKey = apiKeyRepository.save(apiKey);
 
-        log.info("API key revoked successfully: {}", keyId);
         return apiKeyMapper.toResponse(apiKey);
     }
 
     @Override
     @Transactional
     @CacheEvict(value = "apikeys", allEntries = true)
-    public ApiKeyResponse activateApiKey(UUID keyId, Long userId) {
-        log.info("Activating API key ID: {} for user ID: {}", keyId, userId);
+    public ApiKeyResponse activateApiKey(Long keyId, Long userId) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -128,7 +121,6 @@ public class ApiKeyServiceImpl implements ApiKeyService {
         apiKey.setStatus(ApiKeyStatus.ACTIVE);
         apiKey = apiKeyRepository.save(apiKey);
 
-        log.info("API key activated successfully: {}", keyId);
         return apiKeyMapper.toResponse(apiKey);
     }
 
@@ -145,7 +137,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
     @Override
     @Transactional(readOnly = true)
-    public ApiKeyResponse getApiKeyById(UUID keyId, Long userId) {
+    public ApiKeyResponse getApiKeyById(Long keyId, Long userId) {
         log.debug("Fetching API key by ID: {} for user ID: {}", keyId, userId);
 
         User user = userRepository.findById(userId)
@@ -192,7 +184,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
     @Override
     @Transactional
-    public void updateLastUsed(UUID keyId) {
+    public void updateLastUsed(Long keyId) {
         apiKeyRepository.findById(keyId).ifPresent(apiKey -> {
             apiKey.updateLastUsed();
             apiKeyRepository.save(apiKey);
@@ -217,7 +209,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
     @Override
     @Transactional(readOnly = true)
-    public ApiKeyResponse getUsageStats(UUID keyId, Long userId) {
+    public ApiKeyResponse getUsageStats(Long keyId, Long userId) {
         log.debug("Fetching usage stats for API key ID: {}", keyId);
 
         User user = userRepository.findById(userId)

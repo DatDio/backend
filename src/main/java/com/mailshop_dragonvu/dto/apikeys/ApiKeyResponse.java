@@ -1,4 +1,4 @@
-package com.mailshop_dragonvu.dto.response;
+package com.mailshop_dragonvu.dto.apikeys;
 
 import com.mailshop_dragonvu.enums.ApiKeyStatus;
 import lombok.AllArgsConstructor;
@@ -18,7 +18,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class ApiKeyResponse {
 
-    private UUID id;
+    private Long id;
     private String name;
     private ApiKeyStatus status;
     private LocalDateTime createdAt;

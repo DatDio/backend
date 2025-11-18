@@ -1,4 +1,4 @@
-package com.mailshop_dragonvu.dto.request;
+package com.mailshop_dragonvu.dto.users;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

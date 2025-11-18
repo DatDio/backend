@@ -1,4 +1,4 @@
-package com.mailshop_dragonvu.dto.request;
+package com.mailshop_dragonvu.dto.payos;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;

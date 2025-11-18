@@ -1,7 +1,7 @@
 package com.mailshop_dragonvu.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mailshop_dragonvu.dto.response.ApiResponse;
+import com.mailshop_dragonvu.dto.ApiResponse;
 import com.mailshop_dragonvu.exception.ErrorCode;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

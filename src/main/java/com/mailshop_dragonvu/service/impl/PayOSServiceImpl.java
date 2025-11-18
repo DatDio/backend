@@ -1,10 +1,13 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.response.PayOSPaymentResponse;
+import com.mailshop_dragonvu.dto.payos.PayOSPaymentResponse;
+import com.mailshop_dragonvu.exception.BusinessException;
+import com.mailshop_dragonvu.exception.ErrorCode;
 import com.mailshop_dragonvu.service.PayOSService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -25,20 +28,23 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class PayOSServiceImpl implements PayOSService {
+    private static final String X_CLIENT_ID = "x-client-id";
+    private static final String X_API_KEY = "x-api-key";
 
     private final RestTemplate restTemplate;
 
-    @Value("${payos.api.url:https://api-merchant.payos.vn}")
+    @Value("${payos.api-url:https://api-merchant.payos.vn}")
     private String payosApiUrl;
 
-    @Value("${payos.client.id}")
+    @Value("${payos.client-id}")
     private String clientId;
 
-    @Value("${payos.api.key}")
+    @Value("${payos.api-key}")
     private String apiKey;
 
-    @Value("${payos.checksum.key}")
+    @Value("${payos.checksum-key}")
     private String checksumKey;
+
 
     @Override
     public PayOSPaymentResponse createPaymentLink(Long orderCode, BigDecimal amount, 
@@ -61,17 +67,19 @@ public class PayOSServiceImpl implements PayOSService {
             // Set headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("x-client-id", clientId);
-            headers.set("x-api-key", apiKey);
+            headers.set(X_CLIENT_ID, clientId);
+            headers.set(X_API_KEY, apiKey);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
             // Call PayOS API
-            ResponseEntity<Map> response = restTemplate.postForEntity(
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     payosApiUrl + "/v2/payment-requests",
+                    HttpMethod.POST,
                     request,
-                    Map.class
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
             );
+
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 Map<String, Object> responseData = (Map<String, Object>) response.getBody().get("data");
@@ -88,11 +96,11 @@ public class PayOSServiceImpl implements PayOSService {
                         .build();
             }
 
-            throw new RuntimeException("Failed to create PayOS payment link");
+            throw new BusinessException(ErrorCode.PAYMENT_CREATION_FAILED);
 
         } catch (Exception e) {
             log.error("Error creating PayOS payment: {}", e.getMessage(), e);
-            throw new RuntimeException("PayOS payment creation failed: " + e.getMessage());
+            throw new BusinessException(ErrorCode.PAYMENT_CREATION_FAILED, e);
         }
     }
 
@@ -102,17 +110,18 @@ public class PayOSServiceImpl implements PayOSService {
 
         try {
             HttpHeaders headers = new HttpHeaders();
-            headers.set("x-client-id", clientId);
-            headers.set("x-api-key", apiKey);
+            headers.set(X_CLIENT_ID, clientId);
+            headers.set(X_API_KEY, apiKey);
 
             HttpEntity<Void> request = new HttpEntity<>(headers);
 
-            ResponseEntity<Map> response = restTemplate.exchange(
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     payosApiUrl + "/v2/payment-requests/" + orderCode,
                     HttpMethod.GET,
                     request,
-                    Map.class
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
             );
+
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 Map<String, Object> responseData = (Map<String, Object>) response.getBody().get("data");
@@ -151,8 +160,8 @@ public class PayOSServiceImpl implements PayOSService {
 
         try {
             HttpHeaders headers = new HttpHeaders();
-            headers.set("x-client-id", clientId);
-            headers.set("x-api-key", apiKey);
+            headers.set(X_CLIENT_ID, clientId);
+            headers.set(X_API_KEY, apiKey);
 
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("cancellationReason", "User cancelled");
@@ -191,7 +200,7 @@ public class PayOSServiceImpl implements PayOSService {
             byte[] hash = sha256Hmac.doFinal(data.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(hash);
         } catch (Exception e) {
-            throw new RuntimeException("Error generating HMAC SHA256", e);
+            throw new BusinessException(ErrorCode.HMAC_GENERATION_FAILED, e);
         }
     }
 }

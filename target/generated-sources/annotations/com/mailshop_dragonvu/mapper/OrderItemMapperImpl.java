@@ -1,14 +1,14 @@
 package com.mailshop_dragonvu.mapper;
 
-import com.mailshop_dragonvu.dto.request.OrderItemRequest;
-import com.mailshop_dragonvu.dto.response.OrderItemResponse;
+import com.mailshop_dragonvu.dto.orderitems.OrderItemRequest;
+import com.mailshop_dragonvu.dto.orderitems.OrderItemResponse;
 import com.mailshop_dragonvu.entity.OrderItem;
 import javax.annotation.processing.Generated;
 import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-17T22:47:05+0700",
+    date = "2025-11-18T16:28:06+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
@@ -24,11 +24,8 @@ public class OrderItemMapperImpl implements OrderItemMapper {
 
         orderItem.productId( request.getProductId() );
         orderItem.productName( request.getProductName() );
-        orderItem.productSku( request.getProductSku() );
         orderItem.quantity( request.getQuantity() );
-        orderItem.unitPrice( request.getUnitPrice() );
         orderItem.discountAmount( request.getDiscountAmount() );
-        orderItem.taxAmount( request.getTaxAmount() );
         orderItem.notes( request.getNotes() );
 
         return orderItem.build();
@@ -45,11 +42,8 @@ public class OrderItemMapperImpl implements OrderItemMapper {
         orderItemResponse.id( orderItem.getId() );
         orderItemResponse.productId( orderItem.getProductId() );
         orderItemResponse.productName( orderItem.getProductName() );
-        orderItemResponse.productSku( orderItem.getProductSku() );
         orderItemResponse.quantity( orderItem.getQuantity() );
-        orderItemResponse.unitPrice( orderItem.getUnitPrice() );
         orderItemResponse.discountAmount( orderItem.getDiscountAmount() );
-        orderItemResponse.taxAmount( orderItem.getTaxAmount() );
         orderItemResponse.totalPrice( orderItem.getTotalPrice() );
         orderItemResponse.notes( orderItem.getNotes() );
         orderItemResponse.createdAt( orderItem.getCreatedAt() );
@@ -69,20 +63,11 @@ public class OrderItemMapperImpl implements OrderItemMapper {
         if ( request.getProductName() != null ) {
             orderItem.setProductName( request.getProductName() );
         }
-        if ( request.getProductSku() != null ) {
-            orderItem.setProductSku( request.getProductSku() );
-        }
         if ( request.getQuantity() != null ) {
             orderItem.setQuantity( request.getQuantity() );
         }
-        if ( request.getUnitPrice() != null ) {
-            orderItem.setUnitPrice( request.getUnitPrice() );
-        }
         if ( request.getDiscountAmount() != null ) {
             orderItem.setDiscountAmount( request.getDiscountAmount() );
-        }
-        if ( request.getTaxAmount() != null ) {
-            orderItem.setTaxAmount( request.getTaxAmount() );
         }
         if ( request.getNotes() != null ) {
             orderItem.setNotes( request.getNotes() );

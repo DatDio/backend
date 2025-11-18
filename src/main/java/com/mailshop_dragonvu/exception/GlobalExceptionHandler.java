@@ -1,6 +1,6 @@
 package com.mailshop_dragonvu.exception;
 
-import com.mailshop_dragonvu.dto.response.ApiResponse;
+import com.mailshop_dragonvu.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -1,9 +1,9 @@
 package com.mailshop_dragonvu.controller;
 
 import com.mailshop_dragonvu.dto.ApiResponse;
-import com.mailshop_dragonvu.dto.request.ApiKeyGenerateRequest;
-import com.mailshop_dragonvu.dto.response.ApiKeyGeneratedResponse;
-import com.mailshop_dragonvu.dto.response.ApiKeyResponse;
+import com.mailshop_dragonvu.dto.apikeys.ApiKeyGenerateRequest;
+import com.mailshop_dragonvu.dto.apikeys.ApiKeyGeneratedResponse;
+import com.mailshop_dragonvu.dto.apikeys.ApiKeyResponse;
 import com.mailshop_dragonvu.security.UserPrincipal;
 import com.mailshop_dragonvu.service.ApiKeyService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,8 +42,7 @@ public class ApiKeyController {
     public ResponseEntity<ApiResponse<ApiKeyGeneratedResponse>> generateApiKey(
             @Valid @RequestBody ApiKeyGenerateRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
-        
-        log.info("User {} generating new API key", currentUser.getId());
+
         ApiKeyGeneratedResponse response = apiKeyService.generateApiKey(request, currentUser.getId());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -55,7 +54,7 @@ public class ApiKeyController {
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Revoke API key", description = "Deactivate an existing API key")
     public ResponseEntity<ApiResponse<ApiKeyResponse>> revokeApiKey(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         
         log.info("User {} revoking API key {}", currentUser.getId(), id);
@@ -70,7 +69,7 @@ public class ApiKeyController {
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Activate API key", description = "Activate an inactive API key")
     public ResponseEntity<ApiResponse<ApiKeyResponse>> activateApiKey(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         
         log.info("User {} activating API key {}", currentUser.getId(), id);
@@ -99,7 +98,7 @@ public class ApiKeyController {
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get API key usage statistics", description = "Get usage statistics for a specific API key (placeholder for future implementation)")
     public ResponseEntity<ApiResponse<ApiKeyResponse>> getUsageStats(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         
         log.info("User {} fetching usage stats for API key {}", currentUser.getId(), id);
@@ -114,7 +113,7 @@ public class ApiKeyController {
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get API key by ID", description = "Get API key metadata by ID")
     public ResponseEntity<ApiResponse<ApiKeyResponse>> getApiKeyById(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         
         log.info("User {} fetching API key {}", currentUser.getId(), id);

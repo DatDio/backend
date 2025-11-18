@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.mapper;
 
-import com.mailshop_dragonvu.dto.request.OrderCreateRequest;
-import com.mailshop_dragonvu.dto.request.OrderUpdateRequest;
-import com.mailshop_dragonvu.dto.response.OrderResponse;
+import com.mailshop_dragonvu.dto.orders.OrderCreateRequest;
+import com.mailshop_dragonvu.dto.orders.OrderUpdateRequest;
+import com.mailshop_dragonvu.dto.orders.OrderResponse;
 import com.mailshop_dragonvu.entity.Order;
 import org.mapstruct.*;
 
@@ -11,7 +11,6 @@ public interface OrderMapper {
 
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "orderItems", ignore = true)
-    @Mapping(target = "invoice", ignore = true)
     @Mapping(target = "orderNumber", ignore = true)
     @Mapping(target = "orderStatus", ignore = true)
     Order toEntity(OrderCreateRequest request);
@@ -24,7 +23,6 @@ public interface OrderMapper {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "orderItems", ignore = true)
-    @Mapping(target = "invoice", ignore = true)
     @Mapping(target = "orderNumber", ignore = true)
     @Mapping(target = "orderStatus", ignore = true)
     void updateEntity(@MappingTarget Order order, OrderUpdateRequest request);

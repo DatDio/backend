@@ -1,11 +1,9 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.request.RoleRequest;
-import com.mailshop_dragonvu.dto.response.RoleResponse;
+import com.mailshop_dragonvu.dto.auth.RoleRequest;
+import com.mailshop_dragonvu.dto.auth.RoleResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-
-import java.util.List;
 
 public interface RoleService {
 

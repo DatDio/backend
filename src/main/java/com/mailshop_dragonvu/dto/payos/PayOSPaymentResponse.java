@@ -1,4 +1,4 @@
-package com.mailshop_dragonvu.dto.response;
+package com.mailshop_dragonvu.dto.payos;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

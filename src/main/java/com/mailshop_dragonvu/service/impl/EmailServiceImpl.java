@@ -1,7 +1,7 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.request.EmailRequest;
-import com.mailshop_dragonvu.dto.response.EmailResponse;
+import com.mailshop_dragonvu.dto.emails.EmailRequest;
+import com.mailshop_dragonvu.dto.emails.EmailResponse;
 import com.mailshop_dragonvu.entity.*;
 import com.mailshop_dragonvu.enums.EmailStatus;
 import com.mailshop_dragonvu.exception.BusinessException;
@@ -19,20 +19,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Email Service Implementation
- * Sends plain text emails (Angular frontend handles UI)
- */
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
@@ -42,11 +37,11 @@ public class EmailServiceImpl implements EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    @Value("${app.frontend.url:http://localhost:4200}")
-    private String frontendUrl;
-
     @Value("${app.email.max-retries:3}")
-    private Integer maxRetries;
+    private int maxRetries;
+
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
     @Override
     @Async
@@ -58,44 +53,18 @@ public class EmailServiceImpl implements EmailService {
                 .recipientEmail(emailRequest.getTo())
                 .subject(emailRequest.getSubject())
                 .body(emailRequest.getBody())
-                .emailStatus(EmailStatus.PENDING)
+                .status("PENDING")
                 .retryCount(0)
                 .build();
 
-        if (emailRequest.getCc() != null && emailRequest.getCc().length > 0) {
-            emailLog.setCc(String.join(",", emailRequest.getCc()));
-        }
-
-        if (emailRequest.getBcc() != null && emailRequest.getBcc().length > 0) {
-            emailLog.setBcc(String.join(",", emailRequest.getBcc()));
-        }
-
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            
-            helper.setFrom(fromEmail);
-            helper.setTo(emailRequest.getTo());
-            helper.setSubject(emailRequest.getSubject());
-            helper.setText(emailRequest.getBody(), false); // Plain text only
-
-            if (emailRequest.getCc() != null && emailRequest.getCc().length > 0) {
-                helper.setCc(emailRequest.getCc());
-            }
-
-            if (emailRequest.getBcc() != null && emailRequest.getBcc().length > 0) {
-                helper.setBcc(emailRequest.getBcc());
-            }
-
-            mailSender.send(message);
-
-            emailLog.setEmailStatus(EmailStatus.SENT);
+            sendEmailInternal(emailRequest.getTo(), emailRequest.getSubject(), emailRequest.getBody());
+            emailLog.setStatus("SENT");
             emailLog.setSentAt(LocalDateTime.now());
             log.info("Email sent successfully to: {}", emailRequest.getTo());
-
-        } catch (MessagingException e) {
-            log.error("Failed to send email to: {}, error: {}", emailRequest.getTo(), e.getMessage());
-            emailLog.setEmailStatus(EmailStatus.FAILED);
+        } catch (Exception e) {
+            log.error("Failed to send email to: {}", emailRequest.getTo(), e);
+            emailLog.setStatus("FAILED");
             emailLog.setErrorMessage(e.getMessage());
         }
 
@@ -106,22 +75,14 @@ public class EmailServiceImpl implements EmailService {
     @Override
     @Async
     public void sendWelcomeEmail(User user) {
-        log.info("Sending welcome email to user: {}", user.getEmail());
+        log.info("Sending welcome email to: {}", user.getEmail());
 
-        String body = String.format(
-            "Welcome to MailShop!\n\n" +
-            "Hello %s,\n\n" +
-            "Thank you for joining MailShop. Your account has been successfully created.\n\n" +
-            "Email: %s\n\n" +
-            "Get started: %s\n\n" +
-            "Best regards,\n" +
-            "MailShop Team",
-            user.getFullName(), user.getEmail(), frontendUrl
-        );
+        String subject = "Welcome to MailShop DragonVu!";
+        String body = buildWelcomeEmailBody(user);
 
         EmailRequest emailRequest = EmailRequest.builder()
                 .to(user.getEmail())
-                .subject("Welcome to MailShop!")
+                .subject(subject)
                 .body(body)
                 .build();
 
@@ -133,47 +94,16 @@ public class EmailServiceImpl implements EmailService {
     public void sendOrderConfirmationEmail(Order order) {
         log.info("Sending order confirmation email for order: {}", order.getOrderNumber());
 
-        StringBuilder itemsList = new StringBuilder();
-        order.getOrderItems().forEach(item -> 
-            itemsList.append(String.format("- %s x%d: $%.2f\n", 
-                item.getProductName(), item.getQuantity(), item.getTotalPrice()))
-        );
-
-        String body = String.format(
-            "Order Confirmation\n\n" +
-            "Hello %s,\n\n" +
-            "Your order has been successfully placed.\n\n" +
-            "Order Number: %s\n" +
-            "Order Date: %s\n\n" +
-            "Items:\n%s\n" +
-            "Total Amount: $%.2f\n\n" +
-            "Shipping Address: %s\n\n" +
-            "Track your order: %s/orders/%s\n\n" +
-            "Thank you for shopping with us!\n\n" +
-            "MailShop Team",
-            order.getUser().getFullName(),
-            order.getOrderNumber(),
-            order.getCreatedAt(),
-            itemsList.toString(),
-            order.getTotalAmount(),
-            order.getShippingAddress(),
-            frontendUrl,
-            order.getOrderNumber()
-        );
+        String subject = "Order Confirmation - " + order.getOrderNumber();
+        String body = buildOrderConfirmationEmailBody(order);
 
         EmailRequest emailRequest = EmailRequest.builder()
                 .to(order.getUser().getEmail())
-                .subject("Order Confirmation - " + order.getOrderNumber())
+                .subject(subject)
                 .body(body)
                 .build();
 
-        EmailResponse response = sendEmail(emailRequest);
-        
-        emailLogRepository.findById(response.getId()).ifPresent(log -> {
-            log.setOrder(order);
-            log.setUser(order.getUser());
-            emailLogRepository.save(log);
-        });
+        sendEmail(emailRequest);
     }
 
     @Override
@@ -181,307 +111,168 @@ public class EmailServiceImpl implements EmailService {
     public void sendOrderStatusUpdateEmail(Order order) {
         log.info("Sending order status update email for order: {}", order.getOrderNumber());
 
-        String body = String.format(
-            "Order Status Update\n\n" +
-            "Hello %s,\n\n" +
-            "Your order status has been updated.\n\n" +
-            "Order Number: %s\n" +
-            "New Status: %s\n\n" +
-            "Track your order: %s/orders/%s\n\n" +
-            "MailShop Team",
-            order.getUser().getFullName(),
-            order.getOrderNumber(),
-            order.getOrderStatus().name(),
-            frontendUrl,
-            order.getOrderNumber()
-        );
+        String subject = "Order Status Update - " + order.getOrderNumber();
+        String body = buildOrderStatusUpdateEmailBody(order);
 
         EmailRequest emailRequest = EmailRequest.builder()
                 .to(order.getUser().getEmail())
-                .subject("Order Status Update - " + order.getOrderNumber())
+                .subject(subject)
                 .body(body)
                 .build();
 
-        EmailResponse response = sendEmail(emailRequest);
-        
-        emailLogRepository.findById(response.getId()).ifPresent(log -> {
-            log.setOrder(order);
-            log.setUser(order.getUser());
-            emailLogRepository.save(log);
-        });
-    }
-
-    @Override
-    @Async
-    public void sendInvoiceEmail(Invoice invoice) {
-        log.info("Sending invoice email for invoice: {}", invoice.getInvoiceNumber());
-
-        String body = String.format(
-            "Invoice\n\n" +
-            "Dear %s,\n\n" +
-            "Please find your invoice details below:\n\n" +
-            "Invoice Number: %s\n" +
-            "Invoice Date: %s\n" +
-            "Due Date: %s\n" +
-            "Order Number: %s\n\n" +
-            "Total Amount: $%.2f\n" +
-            "Amount Paid: $%.2f\n" +
-            "Balance Due: $%.2f\n\n" +
-            "View invoice: %s/invoices/%s\n\n" +
-            "Thank you for your business!\n\n" +
-            "MailShop Team",
-            invoice.getUser().getFullName(),
-            invoice.getInvoiceNumber(),
-            invoice.getCreatedAt(),
-            invoice.getDueDate(),
-            invoice.getOrder().getOrderNumber(),
-            invoice.getTotalAmount(),
-            invoice.getAmountPaid(),
-            invoice.getBalanceDue(),
-            frontendUrl,
-            invoice.getInvoiceNumber()
-        );
-
-        EmailRequest emailRequest = EmailRequest.builder()
-                .to(invoice.getUser().getEmail())
-                .subject("Invoice - " + invoice.getInvoiceNumber())
-                .body(body)
-                .build();
-
-        EmailResponse response = sendEmail(emailRequest);
-        
-        emailLogRepository.findById(response.getId()).ifPresent(log -> {
-            log.setInvoice(invoice);
-            log.setUser(invoice.getUser());
-            log.setOrder(invoice.getOrder());
-            emailLogRepository.save(log);
-        });
-    }
-
-    @Override
-    @Async
-    public void sendInvoiceOverdueReminderEmail(Invoice invoice) {
-        log.info("Sending invoice overdue reminder for invoice: {}", invoice.getInvoiceNumber());
-
-        String body = String.format(
-            "Invoice Overdue Reminder\n\n" +
-            "Dear %s,\n\n" +
-            "This is a friendly reminder that your invoice is now overdue.\n\n" +
-            "Invoice Number: %s\n" +
-            "Due Date: %s\n" +
-            "Outstanding Amount: $%.2f\n\n" +
-            "Please settle this invoice at your earliest convenience.\n\n" +
-            "Pay now: %s/invoices/%s\n\n" +
-            "If you have already made the payment, please disregard this email.\n\n" +
-            "MailShop Team",
-            invoice.getUser().getFullName(),
-            invoice.getInvoiceNumber(),
-            invoice.getDueDate(),
-            invoice.getBalanceDue(),
-            frontendUrl,
-            invoice.getInvoiceNumber()
-        );
-
-        EmailRequest emailRequest = EmailRequest.builder()
-                .to(invoice.getUser().getEmail())
-                .subject("Invoice Overdue - " + invoice.getInvoiceNumber())
-                .body(body)
-                .build();
-
-        EmailResponse response = sendEmail(emailRequest);
-        
-        emailLogRepository.findById(response.getId()).ifPresent(log -> {
-            log.setInvoice(invoice);
-            log.setUser(invoice.getUser());
-            emailLogRepository.save(log);
-        });
-    }
-
-    @Override
-    @Async
-    public void sendPaymentConfirmationEmail(Payment payment) {
-        log.info("Sending payment confirmation email for payment: {}", payment.getPaymentNumber());
-
-        String body = String.format(
-            "Payment Confirmation\n\n" +
-            "Hello %s,\n\n" +
-            "Your payment has been successfully processed.\n\n" +
-            "Payment Number: %s\n" +
-            "Transaction ID: %s\n" +
-            "Amount: $%.2f\n" +
-            "Payment Method: %s\n" +
-            "Order Number: %s\n\n" +
-            "View payment details: %s/payments/%s\n\n" +
-            "Thank you for your payment!\n\n" +
-            "MailShop Team",
-            payment.getUser().getFullName(),
-            payment.getPaymentNumber(),
-            payment.getTransactionId(),
-            payment.getAmount(),
-            payment.getPaymentMethod().name(),
-            payment.getOrder().getOrderNumber(),
-            frontendUrl,
-            payment.getPaymentNumber()
-        );
-
-        EmailRequest emailRequest = EmailRequest.builder()
-                .to(payment.getUser().getEmail())
-                .subject("Payment Confirmation - " + payment.getPaymentNumber())
-                .body(body)
-                .build();
-
-        EmailResponse response = sendEmail(emailRequest);
-        
-        emailLogRepository.findById(response.getId()).ifPresent(log -> {
-            log.setPayment(payment);
-            log.setUser(payment.getUser());
-            log.setOrder(payment.getOrder());
-            emailLogRepository.save(log);
-        });
-    }
-
-    @Override
-    @Async
-    public void sendPaymentFailedEmail(Payment payment) {
-        log.info("Sending payment failed email for payment: {}", payment.getPaymentNumber());
-
-        String body = String.format(
-            "Payment Failed\n\n" +
-            "Hello %s,\n\n" +
-            "Unfortunately, your payment could not be processed.\n\n" +
-            "Payment Number: %s\n" +
-            "Order Number: %s\n" +
-            "Amount: $%.2f\n\n" +
-            "What to do next:\n" +
-            "- Verify your payment details and try again\n" +
-            "- Ensure you have sufficient funds\n" +
-            "- Contact your payment provider if the issue persists\n\n" +
-            "Try again: %s/orders/%s\n\n" +
-            "If you need assistance, please contact our support team.\n\n" +
-            "MailShop Team",
-            payment.getUser().getFullName(),
-            payment.getPaymentNumber(),
-            payment.getOrder().getOrderNumber(),
-            payment.getAmount(),
-            frontendUrl,
-            payment.getOrder().getOrderNumber()
-        );
-
-        EmailRequest emailRequest = EmailRequest.builder()
-                .to(payment.getUser().getEmail())
-                .subject("Payment Failed - " + payment.getPaymentNumber())
-                .body(body)
-                .build();
-
-        EmailResponse response = sendEmail(emailRequest);
-        
-        emailLogRepository.findById(response.getId()).ifPresent(log -> {
-            log.setPayment(payment);
-            log.setUser(payment.getUser());
-            log.setOrder(payment.getOrder());
-            emailLogRepository.save(log);
-        });
+        sendEmail(emailRequest);
     }
 
     @Override
     @Async
     public void sendPasswordResetEmail(User user, String resetToken) {
-        log.info("Sending password reset email to user: {}", user.getEmail());
+        log.info("Sending password reset email to: {}", user.getEmail());
 
-        String resetLink = frontendUrl + "/reset-password?token=" + resetToken;
-
-        String body = String.format(
-            "Password Reset Request\n\n" +
-            "Hello %s,\n\n" +
-            "We received a request to reset your password for your MailShop account.\n\n" +
-            "Click the link below to reset your password:\n" +
-            "%s\n\n" +
-            "This link will expire in 24 hours.\n\n" +
-            "If you didn't request a password reset, please ignore this email.\n\n" +
-            "For security reasons, never share this link with anyone.\n\n" +
-            "MailShop Team",
-            user.getFullName(),
-            resetLink
-        );
+        String resetUrl = frontendUrl + "/reset-password?token=" + resetToken;
+        String subject = "Password Reset Request";
+        String body = buildPasswordResetEmailBody(user, resetUrl);
 
         EmailRequest emailRequest = EmailRequest.builder()
                 .to(user.getEmail())
-                .subject("Password Reset Request")
+                .subject(subject)
                 .body(body)
                 .build();
 
-        EmailResponse response = sendEmail(emailRequest);
-        
-        emailLogRepository.findById(response.getId()).ifPresent(log -> {
-            log.setUser(user);
-            emailLogRepository.save(log);
-        });
+        sendEmail(emailRequest);
     }
 
-    @Override
-    @Scheduled(cron = "0 0 * * * *")
-    @Transactional
-    public void retryFailedEmails() {
-        log.info("Starting retry of failed emails");
-
-        List<EmailLog> failedEmails = emailLogRepository.findFailedEmailsForRetry(maxRetries);
-        
-        log.info("Found {} failed emails to retry", failedEmails.size());
-
-        for (EmailLog emailLog : failedEmails) {
-            try {
-                EmailRequest emailRequest = EmailRequest.builder()
-                        .to(emailLog.getRecipientEmail())
-                        .subject(emailLog.getSubject())
-                        .body(emailLog.getBody())
-                        .build();
-
-                sendEmail(emailRequest);
-                
-                emailLog.setRetryCount(emailLog.getRetryCount() + 1);
-                emailLogRepository.save(emailLog);
-                
-            } catch (Exception e) {
-                log.error("Failed to retry email {}: {}", emailLog.getId(), e.getMessage());
-            }
-        }
-
-        log.info("Completed retry of failed emails");
-    }
+//    @Override
+//    @Transactional
+//    public void retryFailedEmails() {
+//        log.info("Retrying failed emails...");
+//
+//        List<EmailLog> failedEmails = emailLogRepository.findByStatusAndRetryCountLessThan("FAILED", maxRetries);
+//
+//        for (EmailLog emailLog : failedEmails) {
+//            try {
+//                sendEmailInternal(emailLog.getToEmail(), emailLog.getSubject(), emailLog.getBody());
+//                emailLog.setStatus("SENT");
+//                emailLog.setSentAt(LocalDateTime.now());
+//                log.info("Retry successful for email ID: {}", emailLog.getId());
+//            } catch (Exception e) {
+//                emailLog.setRetryCount(emailLog.getRetryCount() + 1);
+//                emailLog.setErrorMessage(e.getMessage());
+//                log.error("Retry failed for email ID: {}", emailLog.getId(), e);
+//            }
+//            emailLogRepository.save(emailLog);
+//        }
+//    }
 
     @Override
-    @Transactional(readOnly = true)
     public Page<EmailResponse> getAllEmailLogs(Pageable pageable) {
         return emailLogRepository.findAll(pageable)
                 .map(emailLogMapper::toResponse);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Page<EmailResponse> getEmailLogsByStatus(String status, Pageable pageable) {
-        EmailStatus emailStatus;
-        try {
-            emailStatus = EmailStatus.valueOf(status.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException(ErrorCode.EMAIL_INVALID_STATUS);
-        }
-
+        EmailStatus emailStatus = EmailStatus.valueOf(status.toUpperCase());
         return emailLogRepository.findByEmailStatus(emailStatus, pageable)
                 .map(emailLogMapper::toResponse);
     }
 
+
     @Override
-    @Transactional(readOnly = true)
     public Page<EmailResponse> getEmailLogsByUserId(Long userId, Pageable pageable) {
         return emailLogRepository.findByUserId(userId, pageable)
                 .map(emailLogMapper::toResponse);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public EmailResponse getEmailLogById(Long id) {
         EmailLog emailLog = emailLogRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_LOG_NOT_FOUND));
         return emailLogMapper.toResponse(emailLog);
+    }
+
+    private void sendEmailInternal(String to, String subject, String body) throws MessagingException {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+        helper.setFrom(fromEmail);
+        helper.setTo(to);
+        helper.setSubject(subject);
+        helper.setText(body, true);
+
+        mailSender.send(message);
+    }
+
+    private String buildWelcomeEmailBody(User user) {
+        return """
+                <html>
+                <body>
+                    <h2>Welcome to MailShop DragonVu!</h2>
+                    <p>Hi %s,</p>
+                    <p>Thank you for registering with us. We're excited to have you on board!</p>
+                    <p>You can now browse and purchase mail accounts from our platform.</p>
+                    <p>Best regards,<br>MailShop DragonVu Team</p>
+                </body>
+                </html>
+                """.formatted(user.getFullName());
+    }
+
+    private String buildOrderConfirmationEmailBody(Order order) {
+        return """
+                <html>
+                <body>
+                    <h2>Order Confirmation</h2>
+                    <p>Hi %s,</p>
+                    <p>Your order <strong>%s</strong> has been confirmed!</p>
+                    <p>Order Details:</p>
+                    <ul>
+                        <li>Order Number: %s</li>
+                        <li>Total Amount: %s VND</li>
+                        <li>Status: %s</li>
+                    </ul>
+                    <p>You can view your order details in your account dashboard.</p>
+                    <p>Best regards,<br>MailShop DragonVu Team</p>
+                </body>
+                </html>
+                """.formatted(
+                order.getUser().getFullName(),
+                order.getOrderNumber(),
+                order.getOrderNumber(),
+                order.getFinalAmount(),
+                order.getOrderStatus()
+        );
+    }
+
+    private String buildOrderStatusUpdateEmailBody(Order order) {
+        return """
+                <html>
+                <body>
+                    <h2>Order Status Update</h2>
+                    <p>Hi %s,</p>
+                    <p>Your order <strong>%s</strong> status has been updated to: <strong>%s</strong></p>
+                    <p>You can view your order details in your account dashboard.</p>
+                    <p>Best regards,<br>MailShop DragonVu Team</p>
+                </body>
+                </html>
+                """.formatted(
+                order.getUser().getFullName(),
+                order.getOrderNumber(),
+                order.getOrderStatus()
+        );
+    }
+
+    private String buildPasswordResetEmailBody(User user, String resetUrl) {
+        return """
+                <html>
+                <body>
+                    <h2>Password Reset Request</h2>
+                    <p>Hi %s,</p>
+                    <p>We received a request to reset your password. Click the link below to reset it:</p>
+                    <p><a href="%s">Reset Password</a></p>
+                    <p>This link will expire in 24 hours.</p>
+                    <p>If you didn't request this, please ignore this email.</p>
+                    <p>Best regards,<br>MailShop DragonVu Team</p>
+                </body>
+                </html>
+                """.formatted(user.getFullName(), resetUrl);
     }
 }

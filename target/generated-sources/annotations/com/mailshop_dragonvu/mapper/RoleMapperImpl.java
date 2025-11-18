@@ -1,26 +1,18 @@
 package com.mailshop_dragonvu.mapper;
 
-import com.mailshop_dragonvu.dto.request.RoleRequest;
-import com.mailshop_dragonvu.dto.response.PermissionResponse;
-import com.mailshop_dragonvu.dto.response.RoleResponse;
-import com.mailshop_dragonvu.entity.Permission;
+import com.mailshop_dragonvu.dto.auth.RoleRequest;
+import com.mailshop_dragonvu.dto.auth.RoleResponse;
 import com.mailshop_dragonvu.entity.Role;
-import java.util.LinkedHashSet;
-import java.util.Set;
 import javax.annotation.processing.Generated;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-17T22:47:04+0700",
+    date = "2025-11-18T16:28:07+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
 public class RoleMapperImpl implements RoleMapper {
-
-    @Autowired
-    private PermissionMapper permissionMapper;
 
     @Override
     public Role toEntity(RoleRequest request) {
@@ -47,8 +39,6 @@ public class RoleMapperImpl implements RoleMapper {
         roleResponse.id( role.getId() );
         roleResponse.name( role.getName() );
         roleResponse.description( role.getDescription() );
-        roleResponse.permissions( permissionSetToPermissionResponseSet( role.getPermissions() ) );
-        roleResponse.status( role.getStatus() );
         roleResponse.createdAt( role.getCreatedAt() );
         roleResponse.updatedAt( role.getUpdatedAt() );
 
@@ -67,18 +57,5 @@ public class RoleMapperImpl implements RoleMapper {
         if ( request.getDescription() != null ) {
             role.setDescription( request.getDescription() );
         }
-    }
-
-    protected Set<PermissionResponse> permissionSetToPermissionResponseSet(Set<Permission> set) {
-        if ( set == null ) {
-            return null;
-        }
-
-        Set<PermissionResponse> set1 = new LinkedHashSet<PermissionResponse>( Math.max( (int) ( set.size() / .75f ) + 1, 16 ) );
-        for ( Permission permission : set ) {
-            set1.add( permissionMapper.toResponse( permission ) );
-        }
-
-        return set1;
     }
 }

@@ -7,7 +7,7 @@ import lombok.experimental.SuperBuilder;
 import java.math.BigDecimal;
 
 /**
- * Wallet Entity - User balance/wallet
+ * Đối tượng ví - Số dư của người dùng
  */
 @Entity
 @Table(name = "WALLETS")
@@ -42,7 +42,7 @@ public class Wallet extends BaseEntity {
     private String lockReason;
 
     /**
-     * Add balance to wallet
+     * Thêm số dư vào ví
      */
     public void addBalance(BigDecimal amount) {
         this.balance = this.balance.add(amount);
@@ -50,11 +50,11 @@ public class Wallet extends BaseEntity {
     }
 
     /**
-     * Deduct balance from wallet
+     * Trừ số dư khỏi ví
      */
     public void deductBalance(BigDecimal amount) {
         if (this.balance.compareTo(amount) < 0) {
-            throw new IllegalStateException("Insufficient balance");
+            throw new IllegalStateException("Số dư không đủ");
         }
         this.balance = this.balance.subtract(amount);
         this.totalSpent = this.totalSpent.add(amount);

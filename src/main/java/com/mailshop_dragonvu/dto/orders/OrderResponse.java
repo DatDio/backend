@@ -1,5 +1,6 @@
-package com.mailshop_dragonvu.dto.response;
+package com.mailshop_dragonvu.dto.orders;
 
+import com.mailshop_dragonvu.dto.orderitems.OrderItemResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

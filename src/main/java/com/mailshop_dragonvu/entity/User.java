@@ -1,6 +1,7 @@
 package com.mailshop_dragonvu.entity;
 
 import com.mailshop_dragonvu.enums.AuthProvider;
+import com.mailshop_dragonvu.enums.TransactionStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -60,4 +61,6 @@ public class User extends BaseEntity {
     @Builder.Default
     private Set<RefreshToken> refreshTokens = new HashSet<>();
 
+    @Column(name = "STATUS", length = 20, nullable = false)
+    private String status = "ACTIVE";
 }

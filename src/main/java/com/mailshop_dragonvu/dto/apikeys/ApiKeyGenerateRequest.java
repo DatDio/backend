@@ -1,4 +1,4 @@
-package com.mailshop_dragonvu.dto.request;
+package com.mailshop_dragonvu.dto.apikeys;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -24,9 +24,6 @@ public class ApiKeyGenerateRequest {
 
     @Size(max = 500, message = "Description must not exceed 500 characters")
     private String description;
-
-    @Builder.Default
-    private ApiKeyPermission permission = ApiKeyPermission.READ_ONLY;
 
     private LocalDateTime expiredAt;
 }

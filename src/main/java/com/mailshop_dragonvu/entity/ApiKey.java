@@ -1,6 +1,5 @@
 package com.mailshop_dragonvu.entity;
 
-import com.mailshop_dragonvu.enums.ApiKeyPermission;
 import com.mailshop_dragonvu.enums.ApiKeyStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,11 +23,6 @@ import java.util.UUID;
 @AllArgsConstructor
 public class ApiKey extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "ID")
-    private UUID id;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "USER_ID", nullable = false)
     private User user;
@@ -36,10 +30,6 @@ public class ApiKey extends BaseEntity {
     @Column(name = "KEY_HASH", nullable = false, length = 255)
     private String keyHash;
 
-    @Column(name = "PERMISSION", nullable = false)
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private ApiKeyPermission permission = ApiKeyPermission.READ_ONLY;
 
     @Column(name = "STATUS", nullable = false)
     @Enumerated(EnumType.STRING)
@@ -55,8 +45,6 @@ public class ApiKey extends BaseEntity {
     @Column(name = "NAME", length = 100)
     private String name;
 
-    @Column(name = "DESCRIPTION", length = 500)
-    private String description;
 
     /**
      * Check if API key is expired

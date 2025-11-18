@@ -1,15 +1,15 @@
 package com.mailshop_dragonvu.mapper;
 
-import com.mailshop_dragonvu.dto.request.UserCreateRequest;
-import com.mailshop_dragonvu.dto.request.UserUpdateRequest;
-import com.mailshop_dragonvu.dto.response.UserResponse;
+import com.mailshop_dragonvu.dto.users.UserCreateRequest;
+import com.mailshop_dragonvu.dto.users.UserResponse;
+import com.mailshop_dragonvu.dto.users.UserUpdateRequest;
 import com.mailshop_dragonvu.entity.User;
 import javax.annotation.processing.Generated;
 import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-17T22:47:05+0700",
+    date = "2025-11-18T16:28:06+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component

@@ -1,5 +1,6 @@
-package com.mailshop_dragonvu.dto.request;
+package com.mailshop_dragonvu.dto.orders;
 
+import com.mailshop_dragonvu.dto.orderitems.OrderItemRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;

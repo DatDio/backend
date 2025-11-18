@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.controller;
 
 import com.mailshop_dragonvu.dto.ApiResponse;
-import com.mailshop_dragonvu.dto.request.EmailRequest;
-import com.mailshop_dragonvu.dto.response.EmailResponse;
+import com.mailshop_dragonvu.dto.emails.EmailRequest;
+import com.mailshop_dragonvu.dto.emails.EmailResponse;
 import com.mailshop_dragonvu.service.EmailService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -110,12 +110,12 @@ public class EmailController {
     /**
      * Manually retry failed emails (Admin only)
      */
-    @PostMapping("/retry-failed")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Retry failed emails", description = "Manually trigger retry of failed emails (Admin only)")
-    public ResponseEntity<ApiResponse<String>> retryFailedEmails() {
-        log.info("Manually triggering retry of failed emails");
-        emailService.retryFailedEmails();
-        return ResponseEntity.ok(ApiResponse.success("Failed emails retry initiated"));
-    }
+//    @PostMapping("/retry-failed")
+//    @PreAuthorize("hasRole('ADMIN')")
+//    @Operation(summary = "Retry failed emails", description = "Manually trigger retry of failed emails (Admin only)")
+//    public ResponseEntity<ApiResponse<String>> retryFailedEmails() {
+//        log.info("Manually triggering retry of failed emails");
+//        emailService.retryFailedEmails();
+//        return ResponseEntity.ok(ApiResponse.success("Failed emails retry initiated"));
+//    }
 }

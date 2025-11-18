@@ -1,6 +1,6 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.response.PayOSPaymentResponse;
+import com.mailshop_dragonvu.dto.payos.PayOSPaymentResponse;
 
 import java.math.BigDecimal;
 import java.util.Map;

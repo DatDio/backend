@@ -2,43 +2,39 @@ server:
   port: 8080
   servlet:
     context-path: /api
+  error:
+    include-message: always
 
 spring:
   application:
     name: mailshop-dragonvu-backend
 
-  # MySQL Database Configuration
+  # ======================= DATABASE =======================
   datasource:
     url: jdbc:mysql://localhost:3306/mailshop_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: ${DB_USERNAME:mailshop_user}
     password: ${DB_PASSWORD:mailshop_pass}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 10
+      maximum-pool-size: 15
       minimum-idle: 5
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
 
-  # JPA Configuration for MySQL
+  # ======================= JPA =======================
   jpa:
-    database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
       ddl-auto: update
-      naming:
-        physical-strategy: org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy
-        implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
     show-sql: true
     properties:
-      hibernate:
-        format_sql: true
-        use_sql_comments: true
-        jdbc:
-          batch_size: 20
-        order_inserts: true
-        order_updates: true
+      hibernate.format_sql: true
+      hibernate.use_sql_comments: true
+      hibernate.jdbc.batch_size: 20
+      hibernate.order_inserts: true
+      hibernate.order_updates: true
 
-  # Redis Configuration
+  # ======================= REDIS + CACHE =======================
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -47,36 +43,31 @@ spring:
       timeout: 60000
       lettuce:
         pool:
-          max-active: 8
+          max-active: 10
           max-idle: 8
           min-idle: 2
-          max-wait: -1ms
 
-  # Cache Configuration
   cache:
     type: redis
     redis:
-      time-to-live: 3600000 # 1 hour in milliseconds
+      time-to-live: 3600000
       cache-null-values: false
 
-  # Mail Configuration
+  # ======================= MAIL SMTP =======================
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:your-email@gmail.com}
     password: ${MAIL_PASSWORD:your-app-password}
     properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.timeout: 5000
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.writetimeout: 5000
 
-  # OAuth2 Configuration
+  # ======================= GOOGLE OAUTH2 =======================
   security:
     oauth2:
       client:
@@ -87,7 +78,7 @@ spring:
             scope:
               - email
               - profile
-            redirect-uri: "{baseUrl}/api/auth/oauth2/callback/{registrationId}"
+            redirect-uri: "{baseUrl}/oauth2/callback/google"
         provider:
           google:
             authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
@@ -95,75 +86,62 @@ spring:
             user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
             user-name-attribute: sub
 
-# JWT Configuration
+# ======================= JWT =======================
 jwt:
-  secret: ${JWT_SECRET:mySecretKeyForJWTTokenGenerationAndValidation12345678901234567890}
-  expiration: 86400000 # 24 hours in milliseconds
-  refresh-expiration: 604800000 # 7 days in milliseconds
+  secret: ${JWT_SECRET:mySuperSecretKeyChangeThis}
+  expiration: 86400000          # 24h
+  refresh-expiration: 604800000 # 7d
 
-# Application Configuration
+# ======================= APP CONFIG =======================
 app:
   frontend:
     url: ${FRONTEND_URL:http://localhost:4200}
+
+  google:
+    clientId: ${GOOGLE_CLIENT_ID:your-google-client-id}
+    clientSecret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:4200}
+
   admin:
     default-email: ${ADMIN_EMAIL:admin@mailshop.com}
     default-password: ${ADMIN_PASSWORD:Admin@123456}
-  
-  # Payment Configuration
+
   payment:
-    min-amount: ${MIN_DEPOSIT_AMOUNT:10000}  # 10,000 VND
-    max-amount: ${MAX_DEPOSIT_AMOUNT:50000000}  # 50,000,000 VND
-  
-  # Security Configuration - Anti-DDoS & Anti-Cheat
+    min-amount: ${MIN_DEPOSIT_AMOUNT:10000}
+    max-amount: ${MAX_DEPOSIT_AMOUNT:50000000}
+
   security:
     max-pending-transactions: ${MAX_PENDING_TRANSACTIONS:3}
     transaction-timeout-minutes: ${TRANSACTION_TIMEOUT:15}
     max-transactions-per-ip-per-hour: ${MAX_TRANSACTIONS_PER_IP:10}
-  
-  # Email Configuration
+
   email:
     max-retries: 3
 
-# PayOS Payment Gateway Configuration
+# ======================= PAYOS =======================
 payos:
-  api:
-    url: ${PAYOS_API_URL:https://api-merchant.payos.vn}
-  client:
-    id: ${PAYOS_CLIENT_ID:your-payos-client-id}
-  api:
-    key: ${PAYOS_API_KEY:your-payos-api-key}
-  checksum:
-    key: ${PAYOS_CHECKSUM_KEY:your-payos-checksum-key}
+  api-url: ${PAYOS_API_URL:https://api-merchant.payos.vn}
+  client-id: ${PAYOS_CLIENT_ID:your-payos-client-id}
+  api-key: ${PAYOS_API_KEY:your-payos-api-key}
+  checksum-key: ${PAYOS_CHECKSUM_KEY:your-payos-checksum-key}
 
-# Actuator Configuration
+# ======================= ACTUATOR & MONITORING =======================
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-      base-path: /actuator
-  endpoint:
-    health:
-      show-details: when-authorized
-  metrics:
-    export:
-      prometheus:
-        enabled: true
+  endpoints.web.exposure.include: health,info,metrics,prometheus
+  endpoint.health.show-details: always
 
-# Logging Configuration
+# ======================= LOGGING =======================
 logging:
   level:
     root: INFO
     com.mailshop_dragonvu: DEBUG
-    org.springframework.security: DEBUG
+    org.springframework.security: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  file:
+    name: logs/application.log
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-  file:
-    name: logs/application.log
-    max-size: 10MB
-    max-history: 30

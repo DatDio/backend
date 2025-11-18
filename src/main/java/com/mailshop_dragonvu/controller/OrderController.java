@@ -1,9 +1,9 @@
 package com.mailshop_dragonvu.controller;
 
-import com.mailshop_dragonvu.dto.request.OrderCreateRequest;
-import com.mailshop_dragonvu.dto.request.OrderUpdateRequest;
-import com.mailshop_dragonvu.dto.response.ApiResponse;
-import com.mailshop_dragonvu.dto.response.OrderResponse;
+import com.mailshop_dragonvu.dto.orders.OrderCreateRequest;
+import com.mailshop_dragonvu.dto.orders.OrderUpdateRequest;
+import com.mailshop_dragonvu.dto.ApiResponse;
+import com.mailshop_dragonvu.dto.orders.OrderResponse;
 import com.mailshop_dragonvu.enums.OrderStatus;
 import com.mailshop_dragonvu.security.UserPrincipal;
 import com.mailshop_dragonvu.service.OrderService;
@@ -106,21 +106,6 @@ public class OrderController {
                 orderService.confirmOrder(id));
     }
 
-    @PatchMapping("/{id}/ship")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Ship order (Admin only)")
-    public ApiResponse<OrderResponse> shipOrder(@PathVariable Long id) {
-        return ApiResponse.success("Order shipped successfully", 
-                orderService.shipOrder(id));
-    }
-
-    @PatchMapping("/{id}/deliver")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Deliver order (Admin only)")
-    public ApiResponse<OrderResponse> deliverOrder(@PathVariable Long id) {
-        return ApiResponse.success("Order delivered successfully", 
-                orderService.deliverOrder(id));
-    }
 
     @PatchMapping("/{id}/cancel")
     @Operation(summary = "Cancel order")

@@ -1,7 +1,7 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.request.RoleRequest;
-import com.mailshop_dragonvu.dto.response.RoleResponse;
+import com.mailshop_dragonvu.dto.auth.RoleRequest;
+import com.mailshop_dragonvu.dto.auth.RoleResponse;
 import com.mailshop_dragonvu.entity.Role;
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
@@ -16,8 +16,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Slf4j
 @Service
@@ -53,10 +51,8 @@ public class RoleServiceImpl implements RoleService {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND));
 
-        if (request.getName() != null && !request.getName().equals(role.getName())) {
-            if (roleRepository.existsByName(request.getName())) {
-                throw new BusinessException(ErrorCode.ROLE_ALREADY_EXISTS);
-            }
+        if (request.getName() != null && !request.getName().equals(role.getName()) && roleRepository.existsByName(request.getName())) {
+            throw new BusinessException(ErrorCode.ROLE_ALREADY_EXISTS);
         }
 
         roleMapper.updateEntity(role, request);
@@ -103,11 +99,7 @@ public class RoleServiceImpl implements RoleService {
 
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND));
-
-        role.setStatus("DELETED");
         roleRepository.save(role);
-
-        log.info("Role deleted successfully with ID: {}", id);
     }
 
 }

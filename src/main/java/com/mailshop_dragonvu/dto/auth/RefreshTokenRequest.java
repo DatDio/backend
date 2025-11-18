@@ -1,4 +1,4 @@
-package com.mailshop_dragonvu.dto.request;
+package com.mailshop_dragonvu.dto.auth;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;

@@ -1,9 +1,9 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.request.DepositRequest;
-import com.mailshop_dragonvu.dto.response.PayOSPaymentResponse;
-import com.mailshop_dragonvu.dto.response.TransactionResponse;
-import com.mailshop_dragonvu.dto.response.WalletResponse;
+import com.mailshop_dragonvu.dto.payos.DepositRequest;
+import com.mailshop_dragonvu.dto.payos.PayOSPaymentResponse;
+import com.mailshop_dragonvu.dto.transactions.TransactionResponse;
+import com.mailshop_dragonvu.dto.wallets.WalletResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

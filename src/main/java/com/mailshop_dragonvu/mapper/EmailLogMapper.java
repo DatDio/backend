@@ -1,6 +1,6 @@
 package com.mailshop_dragonvu.mapper;
 
-import com.mailshop_dragonvu.dto.response.EmailResponse;
+import com.mailshop_dragonvu.dto.emails.EmailResponse;
 import com.mailshop_dragonvu.entity.EmailLog;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

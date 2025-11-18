@@ -26,21 +26,15 @@ public class UserPrincipal implements UserDetails {
 
     public static UserPrincipal create(User user) {
         Collection<GrantedAuthority> authorities = user.getRoles().stream()
-                .flatMap(role -> role.getPermissions().stream())
-                .map(permission -> new SimpleGrantedAuthority(permission.getName()))
-                .collect(Collectors.toSet());
-
-        // Also add roles as authorities with ROLE_ prefix
-        user.getRoles().forEach(role ->
-                authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()))
-        );
+            .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName()))
+            .collect(Collectors.toSet());
 
         return new UserPrincipal(
-                user.getId(),
-                user.getEmail(),
-                user.getFullName(),
-                user.getPassword(),
-                authorities
+            user.getId(),
+            user.getEmail(),
+            user.getFullName(),
+            user.getPassword(),
+            authorities
         );
     }
 

@@ -1,7 +1,7 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.request.EmailRequest;
-import com.mailshop_dragonvu.dto.response.EmailResponse;
+import com.mailshop_dragonvu.dto.emails.EmailRequest;
+import com.mailshop_dragonvu.dto.emails.EmailResponse;
 import com.mailshop_dragonvu.entity.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,26 +32,6 @@ public interface EmailService {
     void sendOrderStatusUpdateEmail(Order order);
 
     /**
-     * Send invoice email
-     */
-    void sendInvoiceEmail(Invoice invoice);
-
-    /**
-     * Send invoice overdue reminder
-     */
-    void sendInvoiceOverdueReminderEmail(Invoice invoice);
-
-    /**
-     * Send payment confirmation email
-     */
-    void sendPaymentConfirmationEmail(Payment payment);
-
-    /**
-     * Send payment failed email
-     */
-    void sendPaymentFailedEmail(Payment payment);
-
-    /**
      * Send password reset email
      */
     void sendPasswordResetEmail(User user, String resetToken);
@@ -59,7 +39,7 @@ public interface EmailService {
     /**
      * Retry failed emails
      */
-    void retryFailedEmails();
+    //void retryFailedEmails();
 
     /**
      * Get all email logs with pagination

@@ -1,9 +1,9 @@
 package com.mailshop_dragonvu.controller;
 
-import com.mailshop_dragonvu.dto.request.UserCreateRequest;
-import com.mailshop_dragonvu.dto.request.UserUpdateRequest;
-import com.mailshop_dragonvu.dto.response.ApiResponse;
-import com.mailshop_dragonvu.dto.response.UserResponse;
+import com.mailshop_dragonvu.dto.users.UserCreateRequest;
+import com.mailshop_dragonvu.dto.users.UserUpdateRequest;
+import com.mailshop_dragonvu.dto.ApiResponse;
+import com.mailshop_dragonvu.dto.users.UserResponse;
 import com.mailshop_dragonvu.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;

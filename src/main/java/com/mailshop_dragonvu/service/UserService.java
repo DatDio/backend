@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.request.UserCreateRequest;
-import com.mailshop_dragonvu.dto.request.UserUpdateRequest;
-import com.mailshop_dragonvu.dto.response.UserResponse;
+import com.mailshop_dragonvu.dto.users.UserCreateRequest;
+import com.mailshop_dragonvu.dto.users.UserUpdateRequest;
+import com.mailshop_dragonvu.dto.users.UserResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

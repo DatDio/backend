@@ -1,7 +1,7 @@
 package com.mailshop_dragonvu.mapper;
 
-import com.mailshop_dragonvu.dto.request.OrderItemRequest;
-import com.mailshop_dragonvu.dto.response.OrderItemResponse;
+import com.mailshop_dragonvu.dto.orderitems.OrderItemRequest;
+import com.mailshop_dragonvu.dto.orderitems.OrderItemResponse;
 import com.mailshop_dragonvu.entity.OrderItem;
 import org.mapstruct.*;
 

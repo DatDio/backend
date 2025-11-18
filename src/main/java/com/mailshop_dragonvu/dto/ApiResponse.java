@@ -1,4 +1,4 @@
-package com.mailshop_dragonvu.dto.response;
+package com.mailshop_dragonvu.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;

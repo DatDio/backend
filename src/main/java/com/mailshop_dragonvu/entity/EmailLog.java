@@ -56,4 +56,8 @@ public class EmailLog extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ORDER_ID")
     private Order order;
+
+
+    @Column(name = "STATUS", length = 20, nullable = false)
+    private String status = "ACTIVE";
 }

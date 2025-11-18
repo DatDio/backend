@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.controller;
 
-import com.mailshop_dragonvu.dto.request.RoleRequest;
-import com.mailshop_dragonvu.dto.response.ApiResponse;
-import com.mailshop_dragonvu.dto.response.RoleResponse;
+import com.mailshop_dragonvu.dto.auth.RoleRequest;
+import com.mailshop_dragonvu.dto.ApiResponse;
+import com.mailshop_dragonvu.dto.auth.RoleResponse;
 import com.mailshop_dragonvu.service.RoleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -14,8 +14,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/roles")

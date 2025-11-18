@@ -1,6 +1,6 @@
 package com.mailshop_dragonvu.mapper;
 
-import com.mailshop_dragonvu.dto.response.ApiKeyResponse;
+import com.mailshop_dragonvu.dto.apikeys.ApiKeyResponse;
 import com.mailshop_dragonvu.entity.ApiKey;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

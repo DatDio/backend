@@ -1,4 +1,4 @@
-package com.mailshop_dragonvu.dto.request;
+package com.mailshop_dragonvu.dto.orders;
 
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;

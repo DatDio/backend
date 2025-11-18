@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.mapper;
 
-import com.mailshop_dragonvu.dto.request.UserCreateRequest;
-import com.mailshop_dragonvu.dto.request.UserUpdateRequest;
-import com.mailshop_dragonvu.dto.response.UserResponse;
+import com.mailshop_dragonvu.dto.users.UserCreateRequest;
+import com.mailshop_dragonvu.dto.users.UserUpdateRequest;
+import com.mailshop_dragonvu.dto.users.UserResponse;
 import com.mailshop_dragonvu.entity.Role;
 import com.mailshop_dragonvu.entity.User;
 import org.mapstruct.*;

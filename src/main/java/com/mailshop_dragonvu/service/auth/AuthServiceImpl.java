@@ -1,10 +1,10 @@
-package com.mailshop_dragonvu.service.impl;
+package com.mailshop_dragonvu.service.auth;
 
 import com.mailshop_dragonvu.dto.auth.LoginRequest;
-import com.mailshop_dragonvu.dto.request.RefreshTokenRequest;
-import com.mailshop_dragonvu.dto.request.RegisterRequest;
-import com.mailshop_dragonvu.dto.response.AuthResponse;
-import com.mailshop_dragonvu.dto.response.UserResponse;
+import com.mailshop_dragonvu.dto.auth.RefreshTokenRequest;
+import com.mailshop_dragonvu.dto.auth.RegisterRequest;
+import com.mailshop_dragonvu.dto.auth.AuthResponse;
+import com.mailshop_dragonvu.dto.users.UserResponse;
 import com.mailshop_dragonvu.entity.RefreshToken;
 import com.mailshop_dragonvu.entity.Role;
 import com.mailshop_dragonvu.entity.User;
@@ -16,7 +16,6 @@ import com.mailshop_dragonvu.repository.RefreshTokenRepository;
 import com.mailshop_dragonvu.repository.RoleRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.security.JwtTokenProvider;
-import com.mailshop_dragonvu.service.AuthService;
 import com.mailshop_dragonvu.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +43,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final GoogleTokenVerifier googleTokenVerifier;
 
     @Value("${jwt.refresh-expiration}")
     private long refreshExpirationMs;
@@ -144,6 +144,63 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshTokenStr)
                 .user(userResponse)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse googleLogin(String idToken) {
+
+        var payload = googleTokenVerifier.verify(idToken);
+        if (payload == null) {
+            throw new BusinessException(ErrorCode.INVALID_GOOGLE_TOKEN);
+        }
+
+        String email = payload.getEmail();
+        String fullName = (String) payload.get("name");
+        String avatarUrl = (String) payload.get("picture");
+        String googleId = payload.getSubject();
+
+        // Find or create user
+        User user = userRepository.findByEmail(email)
+                .orElseGet(() -> {
+                    User newUser = User.builder()
+                            .email(email)
+                            .fullName(fullName)
+                            .avatarUrl(avatarUrl)
+                            .authProvider(AuthProvider.GOOGLE)
+                            .providerId(googleId)
+                            .emailVerified(true)
+                            .build();
+
+                    Role userRole = roleRepository.findByName("USER")
+                            .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND));
+                    newUser.getRoles().add(userRole);
+
+                    return userRepository.save(newUser);
+                });
+
+        // ---- JWT + Refresh token ----
+        String authorities = user.getRoles().stream()
+                .map(role -> "ROLE_" + role.getName())
+                .collect(Collectors.joining(","));
+
+        String accessToken = jwtTokenProvider.generateTokenFromUserId(
+                user.getId(), user.getEmail(), authorities);
+
+        String refreshTokenStr = jwtTokenProvider.generateRefreshToken(user.getId());
+        refreshTokenRepository.save(
+                RefreshToken.builder()
+                        .token(refreshTokenStr)
+                        .user(user)
+                        .expiryDate(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000))
+                        .build()
+        );
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshTokenStr)
+                .user(userMapper.toResponse(user))
                 .build();
     }
 

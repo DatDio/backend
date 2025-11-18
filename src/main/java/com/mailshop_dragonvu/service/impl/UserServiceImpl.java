@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.request.UserCreateRequest;
-import com.mailshop_dragonvu.dto.request.UserUpdateRequest;
-import com.mailshop_dragonvu.dto.response.UserResponse;
+import com.mailshop_dragonvu.dto.users.UserCreateRequest;
+import com.mailshop_dragonvu.dto.users.UserUpdateRequest;
+import com.mailshop_dragonvu.dto.users.UserResponse;
 import com.mailshop_dragonvu.entity.Role;
 import com.mailshop_dragonvu.entity.User;
 import com.mailshop_dragonvu.exception.BusinessException;
@@ -39,7 +39,6 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @CacheEvict(value = "users", allEntries = true)
     public UserResponse createUser(UserCreateRequest request) {
-        log.info("Creating new user with email: {}", request.getEmail());
 
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
@@ -114,7 +113,6 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @CacheEvict(value = "users", key = "#id")
     public void deleteUser(Long id) {
-        log.info("Deleting user with ID: {}", id);
 
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -122,7 +120,6 @@ public class UserServiceImpl implements UserService {
         user.setStatus("DELETED");
         userRepository.save(user);
 
-        log.info("User deleted successfully with ID: {}", id);
     }
 
     @Override

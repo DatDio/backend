@@ -1,11 +1,11 @@
 package com.mailshop_dragonvu.controller;
-
-import com.mailshop_dragonvu.dto.request.LoginRequest;
-import com.mailshop_dragonvu.dto.request.RefreshTokenRequest;
-import com.mailshop_dragonvu.dto.request.RegisterRequest;
-import com.mailshop_dragonvu.dto.response.ApiResponse;
-import com.mailshop_dragonvu.dto.response.AuthResponse;
-import com.mailshop_dragonvu.service.AuthService;
+import com.mailshop_dragonvu.dto.auth.LoginRequest;
+import com.mailshop_dragonvu.dto.auth.RefreshTokenRequest;
+import com.mailshop_dragonvu.dto.auth.RegisterRequest;
+import com.mailshop_dragonvu.dto.ApiResponse;
+import com.mailshop_dragonvu.dto.auth.AuthResponse;
+import com.mailshop_dragonvu.service.auth.AuthService;
+import com.mailshop_dragonvu.util.Constants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -13,35 +13,44 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
-@RequestMapping("/auth")
+@RequestMapping(Constants.API_PATH.AUTH)
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "Authentication APIs")
+@Tag(name = "Xác thực", description = "Các API liên quan đến xác thực")
 public class AuthController {
 
     private final AuthService authService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Register a new user")
+    @Operation(summary = "Đăng ký người dùng mới")
     public ApiResponse<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ApiResponse.success("User registered successfully", authService.register(request));
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Login user")
+    @Operation(summary = "Đăng nhập người dùng")
     public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success("Login successful", authService.login(request));
     }
 
+    @PostMapping("/google")
+    @Operation(summary = "Đăng nhập bằng Google token")
+    public ApiResponse<AuthResponse> googleLogin(@RequestBody Map<String, String> body) {
+        String idToken = body.get("idToken");
+        return ApiResponse.success("Google login successful", authService.googleLogin(idToken));
+    }
+
     @PostMapping("/refresh")
-    @Operation(summary = "Refresh access token")
+    @Operation(summary = "Làm mới access token")
     public ApiResponse<AuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
         return ApiResponse.success("Token refreshed successfully", authService.refreshToken(request));
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "Logout user")
+    @Operation(summary = "Đăng xuất người dùng")
     public ApiResponse<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
         authService.logout(request.getRefreshToken());
         return ApiResponse.success("Logout successful");

@@ -1,10 +1,10 @@
 package com.mailshop_dragonvu.controller;
 
 import com.mailshop_dragonvu.dto.ApiResponse;
-import com.mailshop_dragonvu.dto.request.DepositRequest;
-import com.mailshop_dragonvu.dto.response.PayOSPaymentResponse;
-import com.mailshop_dragonvu.dto.response.TransactionResponse;
-import com.mailshop_dragonvu.dto.response.WalletResponse;
+import com.mailshop_dragonvu.dto.payos.DepositRequest;
+import com.mailshop_dragonvu.dto.payos.PayOSPaymentResponse;
+import com.mailshop_dragonvu.dto.transactions.TransactionResponse;
+import com.mailshop_dragonvu.dto.wallets.WalletResponse;
 import com.mailshop_dragonvu.security.UserPrincipal;
 import com.mailshop_dragonvu.service.WalletService;
 import com.mailshop_dragonvu.util.SecurityUtils;
