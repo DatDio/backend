@@ -14,16 +14,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class RegisterRequest {
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email should be valid")
+    @NotBlank(message = "Vui lòng nhập email")
+    @Email(message = "Email không hợp lệ")
     private String email;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters")
+    @NotBlank(message = "Vui lòng nhập mật khẩu")
+    @Size(min = 8, message = "Mật khẩu phải có ít nhất 8 ký tự")
     private String password;
 
-    @NotBlank(message = "Full name is required")
-    @Size(max = 100, message = "Full name cannot exceed 100 characters")
+    @NotBlank(message = "Vui lòng nhập họ tên")
+    @Size(max = 100, message = "Họ tên không được vượt quá 100 ký tự")
     private String fullName;
 
     private String phone;

@@ -1,6 +1,6 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.request.LoginRequest;
+import com.mailshop_dragonvu.dto.auth.LoginRequest;
 import com.mailshop_dragonvu.dto.request.RefreshTokenRequest;
 import com.mailshop_dragonvu.dto.request.RegisterRequest;
 import com.mailshop_dragonvu.dto.response.AuthResponse;
@@ -24,7 +24,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,7 +51,6 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        log.info("Registering new user: {}", request.getEmail());
 
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
@@ -74,12 +72,10 @@ public class AuthServiceImpl implements AuthService {
         user.getRoles().add(userRole);
 
         user = userRepository.save(user);
-        log.info("User registered successfully with ID: {}", user.getId());
 
         // Generate tokens
         String authorities = user.getRoles().stream()
-                .flatMap(role -> role.getPermissions().stream())
-                .map(permission -> permission.getName())
+                .map(role -> "ROLE_" + role.getName())
                 .collect(Collectors.joining(","));
 
         String accessToken = jwtTokenProvider.generateTokenFromUserId(
@@ -117,7 +113,6 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        log.info("User login attempt: {}", request.getEmail());
 
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -172,8 +167,7 @@ public class AuthServiceImpl implements AuthService {
         User user = refreshToken.getUser();
 
         String authorities = user.getRoles().stream()
-                .flatMap(role -> role.getPermissions().stream())
-                .map(permission -> permission.getName())
+                .map(role -> "ROLE_" + role.getName())
                 .collect(Collectors.joining(","));
 
         String accessToken = jwtTokenProvider.generateTokenFromUserId(

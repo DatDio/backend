@@ -15,11 +15,11 @@ import java.util.Set;
 @AllArgsConstructor
 public class RoleRequest {
 
-    @NotBlank(message = "Role name is required")
-    @Size(max = 50, message = "Role name cannot exceed 50 characters")
+    @NotBlank(message = "Vui lòng nhập tên vai trò")
+    @Size(max = 50, message = "Tên vai trò không được vượt quá 50 ký tự")
     private String name;
 
-    @Size(max = 255, message = "Description cannot exceed 255 characters")
+    @Size(max = 255, message = "Mô tả không được vượt quá 255 ký tự")
     private String description;
 
 }

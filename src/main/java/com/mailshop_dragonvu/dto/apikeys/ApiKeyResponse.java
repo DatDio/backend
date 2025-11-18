@@ -1,6 +1,5 @@
 package com.mailshop_dragonvu.dto.response;
 
-import com.mailshop_dragonvu.enums.ApiKeyPermission;
 import com.mailshop_dragonvu.enums.ApiKeyStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,8 +20,6 @@ public class ApiKeyResponse {
 
     private UUID id;
     private String name;
-    private String description;
-    private ApiKeyPermission permission;
     private ApiKeyStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime expiredAt;

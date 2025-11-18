@@ -1,6 +1,5 @@
 package com.mailshop_dragonvu.dto.request;
 
-import com.mailshop_dragonvu.enums.ApiKeyPermission;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
