@@ -7,57 +7,49 @@ import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
-/**
- * Email Log Entity - tracks all sent emails
- */
 @Entity
-@Table(name = "EMAIL_LOGS")
+@Table(name = "email_logs")
 @Getter
 @Setter
-@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
+@SuperBuilder
 public class EmailLog extends BaseEntity {
 
-    @Column(name = "RECIPIENT_EMAIL", nullable = false)
+    @Column(name = "recipient_email", nullable = false)
     private String recipientEmail;
 
-    @Column(name = "SUBJECT", nullable = false)
+    @Column(name = "subject", nullable = false)
     private String subject;
 
-    @Column(name = "BODY", columnDefinition = "CLOB")
+    @Lob
+    @Column(name = "body", columnDefinition = "LONGTEXT")
     private String body;
 
-    @Column(name = "EMAIL_STATUS", nullable = false)
     @Enumerated(EnumType.STRING)
+    @Column(name = "email_status", nullable = false)
     @Builder.Default
     private EmailStatus emailStatus = EmailStatus.PENDING;
 
-    @Column(name = "ERROR_MESSAGE", length = 1000)
+    @Column(name = "error_message", length = 1000)
     private String errorMessage;
 
-    @Column(name = "SENT_AT")
+    @Column(name = "sent_at")
     private LocalDateTime sentAt;
 
-    @Column(name = "RETRY_COUNT")
-    @Builder.Default
-    private Integer retryCount = 0;
-
-    @Column(name = "CC")
-    private String cc;
-
-    @Column(name = "BCC")
-    private String bcc;
+    @Column(name = "retry_count")
+    private Integer retryCount;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "USER_ID")
+    @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_email_logs_user"))
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ORDER_ID")
+    @JoinColumn(name = "order_id", foreignKey = @ForeignKey(name = "fk_email_logs_order"))
     private Order order;
 
-
-    @Column(name = "STATUS", length = 20, nullable = false)
+    @Column(name = "status", length = 20, nullable = false)
+    @Builder.Default
     private String status = "ACTIVE";
 }
+

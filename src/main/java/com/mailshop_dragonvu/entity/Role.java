@@ -7,23 +7,21 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "ROLES")
+@Table(name = "roles")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SequenceGenerator(name = "base_seq_gen", sequenceName = "ROLE_SEQ", allocationSize = 1)
 public class Role extends BaseEntity {
 
-    @Column(name = "NAME", nullable = false, unique = true, length = 50)
+    @Column(name = "name", nullable = false, unique = true, length = 50)
     private String name;
 
-    @Column(name = "DESCRIPTION", length = 255)
+    @Column(name = "description", length = 255)
     private String description;
 
     @ManyToMany(mappedBy = "roles")
     @Builder.Default
     private Set<User> users = new HashSet<>();
-
 }

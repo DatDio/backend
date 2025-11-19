@@ -4,13 +4,12 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import java.math.BigDecimal;
-
 /**
- * Đối tượng ví - Số dư của người dùng
+ * Đối tượng ví - Số dư của người dùng (dùng Long)
+ * Quy đổi: số tiền lưu theo VND — dùng Long cho hiệu năng + chính xác.
  */
 @Entity
-@Table(name = "WALLETS")
+@Table(name = "wallets")
 @Getter
 @Setter
 @SuperBuilder
@@ -19,51 +18,57 @@ import java.math.BigDecimal;
 public class Wallet extends BaseEntity {
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "USER_ID", nullable = false, unique = true)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @Column(name = "BALANCE", nullable = false, precision = 15, scale = 2)
+    @Column(name = "balance", nullable = false)
     @Builder.Default
-    private BigDecimal balance = BigDecimal.ZERO;
+    private Long balance = 0L;
 
-    @Column(name = "TOTAL_DEPOSITED", precision = 15, scale = 2)
+    @Column(name = "total_deposited")
     @Builder.Default
-    private BigDecimal totalDeposited = BigDecimal.ZERO;
+    private Long totalDeposited = 0L;
 
-    @Column(name = "TOTAL_SPENT", precision = 15, scale = 2)
+    @Column(name = "total_spent")
     @Builder.Default
-    private BigDecimal totalSpent = BigDecimal.ZERO;
+    private Long totalSpent = 0L;
 
-    @Column(name = "IS_LOCKED", nullable = false)
+    @Column(name = "is_locked", nullable = false)
     @Builder.Default
     private Boolean isLocked = false;
 
-    @Column(name = "LOCK_REASON", length = 500)
+    @Column(name = "lock_reason", length = 500)
     private String lockReason;
 
     /**
      * Thêm số dư vào ví
      */
-    public void addBalance(BigDecimal amount) {
-        this.balance = this.balance.add(amount);
-        this.totalDeposited = this.totalDeposited.add(amount);
+    public void addBalance(Long amount) {
+        if (amount == null || amount <= 0)
+            throw new IllegalArgumentException("Số tiền nạp không hợp lệ");
+
+        this.balance += amount;
+        this.totalDeposited += amount;
     }
 
     /**
      * Trừ số dư khỏi ví
      */
-    public void deductBalance(BigDecimal amount) {
-        if (this.balance.compareTo(amount) < 0) {
+    public void deductBalance(Long amount) {
+        if (amount == null || amount <= 0)
+            throw new IllegalArgumentException("Số tiền trừ không hợp lệ");
+
+        if (this.balance < amount)
             throw new IllegalStateException("Số dư không đủ");
-        }
-        this.balance = this.balance.subtract(amount);
-        this.totalSpent = this.totalSpent.add(amount);
+
+        this.balance -= amount;
+        this.totalSpent += amount;
     }
 
     /**
      * Check if wallet has sufficient balance
      */
-    public boolean hasSufficientBalance(BigDecimal amount) {
-        return this.balance.compareTo(amount) >= 0;
+    public boolean hasSufficientBalance(Long amount) {
+        return amount != null && this.balance >= amount;
     }
 }

@@ -1,32 +1,21 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.payos.PayOSPaymentResponse;
-
-import java.math.BigDecimal;
-import java.util.Map;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.webhooks.Webhook;
+import vn.payos.model.webhooks.WebhookData;
 
 /**
  * PayOS Service Interface - PayOS Payment Gateway Integration
  */
 public interface PayOSService {
 
-    /**
-     * Create PayOS payment link with QR code
-     */
-    PayOSPaymentResponse createPaymentLink(Long orderCode, BigDecimal amount, String description, String returnUrl, String cancelUrl);
+    //Tạo link QR thanh toán PayOS
+    CreatePaymentLinkResponse createPaymentLink(CreatePaymentLinkRequest createPaymentLinkRequest);
 
-    /**
-     * Get payment status from PayOS
-     */
-    String getPaymentStatus(Long orderCode);
+    //Webhook nhận từ PayOS
+    WebhookData verifyWebhook(Webhook webhook);
 
-    /**
-     * Verify webhook signature from PayOS
-     */
-    boolean verifyWebhookSignature(Map<String, String> webhookData, String signature);
-
-    /**
-     * Cancel payment
-     */
-    void cancelPayment(Long orderCode);
+    //Xác nhận setu thành công webhookUrl đến PayOS
+    void conFirmWebhook();
 }

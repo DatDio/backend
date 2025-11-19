@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  * Transaction Entity - Wallet transaction history
  */
 @Entity
-@Table(name = "TRANSACTIONS")
+@Table(name = "transactions")
 @Getter
 @Setter
 @SuperBuilder
@@ -21,57 +21,57 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Transaction extends BaseEntity {
 
-    @Column(name = "TRANSACTION_CODE", unique = true, nullable = false, length = 50)
+    @Column(name = "transaction_code", unique = true, nullable = false, length = 50)
     private String transactionCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "USER_ID", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "WALLET_ID", nullable = false)
+    @JoinColumn(name = "wallet_id", nullable = false)
     private Wallet wallet;
 
-    @Column(name = "TYPE", nullable = false)
+    @Column(name = "type", nullable = false)
     @Enumerated(EnumType.STRING)
     private TransactionType type;
 
-    @Column(name = "AMOUNT", nullable = false, precision = 15, scale = 2)
-    private BigDecimal amount;
+    @Column(name = "amount", nullable = false, precision = 15, scale = 2)
+    private Long amount;
 
-    @Column(name = "BALANCE_BEFORE", precision = 15, scale = 2)
-    private BigDecimal balanceBefore;
+    @Column(name = "balance_before", precision = 15, scale = 2)
+    private Long balanceBefore;
 
-    @Column(name = "BALANCE_AFTER", precision = 15, scale = 2)
-    private BigDecimal balanceAfter;
+    @Column(name = "balance_after", precision = 15, scale = 2)
+    private Long balanceAfter;
 
-    @Column(name = "STATUS", nullable = false)
+    @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private TransactionStatus status = TransactionStatus.PENDING;
 
-    @Column(name = "DESCRIPTION", length = 1000)
+    @Column(name = "description", length = 1000)
     private String description;
 
-    @Column(name = "PAYMENT_METHOD", length = 50)
+    @Column(name = "payment_method", length = 50)
     private String paymentMethod;
 
-    @Column(name = "PAYMENT_REFERENCE", length = 255)
+    @Column(name = "payment_reference", length = 255)
     private String paymentReference;
 
-    @Column(name = "PAYOS_ORDER_CODE")
+    @Column(name = "payos_order_code")
     private Long payosOrderCode;
 
-    @Column(name = "IP_ADDRESS", length = 45)
+    @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
-    @Column(name = "USER_AGENT", length = 500)
+    @Column(name = "user_agent", length = 500)
     private String userAgent;
 
-    @Column(name = "COMPLETED_AT")
+    @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
-    @Column(name = "ERROR_MESSAGE", length = 1000)
+    @Column(name = "error_message", length = 1000)
     private String errorMessage;
 
     /**

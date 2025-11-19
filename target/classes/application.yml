@@ -1,7 +1,5 @@
 server:
   port: 8080
-  servlet:
-    context-path: /api
   error:
     include-message: always
 
@@ -88,7 +86,7 @@ spring:
 
 # ======================= JWT =======================
 jwt:
-  secret: ${JWT_SECRET:mySuperSecretKeyChangeThis}
+  secret: ${JWT_SECRET:1ddbfdc05934a744b92f533954e5bdeb}
   expiration: 86400000          # 24h
   refresh-expiration: 604800000 # 7d
 
@@ -123,9 +121,9 @@ app:
 # ======================= PAYOS =======================
 payos:
   api-url: ${PAYOS_API_URL:https://api-merchant.payos.vn}
-  client-id: ${PAYOS_CLIENT_ID:your-payos-client-id}
-  api-key: ${PAYOS_API_KEY:your-payos-api-key}
-  checksum-key: ${PAYOS_CHECKSUM_KEY:your-payos-checksum-key}
+  client-id: ${PAYOS_CLIENT_ID:56bc0bcd-9bbb-418e-a267-d4ce388b1761}
+  api-key: ${PAYOS_API_KEY:205b5960-0433-4010-a504-535a224836eb}
+  checksum-key: ${PAYOS_CHECKSUM_KEY:4f35850232c1516a8ff297d1b068b2e27e24713e1904932e3ec86e175bccb228}
 
 # ======================= ACTUATOR & MONITORING =======================
 management:

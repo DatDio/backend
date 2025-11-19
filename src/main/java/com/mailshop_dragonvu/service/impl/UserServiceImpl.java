@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.users.UserCreateRequest;
-import com.mailshop_dragonvu.dto.users.UserUpdateRequest;
-import com.mailshop_dragonvu.dto.users.UserResponse;
+import com.mailshop_dragonvu.dto.users.UserCreateDTO;
+import com.mailshop_dragonvu.dto.users.UserResponseDTO;
+import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
 import com.mailshop_dragonvu.entity.Role;
 import com.mailshop_dragonvu.entity.User;
 import com.mailshop_dragonvu.exception.BusinessException;
@@ -38,7 +38,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     @CacheEvict(value = "users", allEntries = true)
-    public UserResponse createUser(UserCreateRequest request) {
+    public UserResponseDTO createUser(UserCreateDTO request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
@@ -61,7 +61,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     @CacheEvict(value = "users", key = "#id")
-    public UserResponse updateUser(Long id, UserUpdateRequest request) {
+    public UserResponseDTO updateUser(Long id, UserUpdateDTO request) {
         log.info("Updating user with ID: {}", id);
 
         User user = userRepository.findById(id)
@@ -82,7 +82,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Cacheable(value = "users", key = "#id")
-    public UserResponse getUserById(Long id) {
+    public UserResponseDTO getUserById(Long id) {
         log.debug("Fetching user by ID: {}", id);
 
         User user = userRepository.findById(id)
@@ -93,7 +93,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Cacheable(value = "users", key = "#email")
-    public UserResponse getUserByEmail(String email) {
+    public UserResponseDTO getUserByEmail(String email) {
         log.debug("Fetching user by email: {}", email);
 
         User user = userRepository.findByEmail(email)
@@ -103,7 +103,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Page<UserResponse> getAllUsers(Pageable pageable) {
+    public Page<UserResponseDTO> getAllUsers(Pageable pageable) {
         log.debug("Fetching all users with pagination");
         return userRepository.findAll(pageable)
                 .map(userMapper::toResponse);

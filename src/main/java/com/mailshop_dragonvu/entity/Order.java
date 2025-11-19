@@ -1,8 +1,10 @@
 package com.mailshop_dragonvu.entity;
 
 import com.mailshop_dragonvu.enums.OrderStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -10,82 +12,92 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "ORDERS")
+@Table(name = "orders", indexes = {
+        @Index(name = "idx_orders_user_id", columnList = "user_id"),
+        @Index(name = "idx_orders_order_number", columnList = "order_number"),
+        @Index(name = "idx_orders_status", columnList = "order_status")
+})
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-@SequenceGenerator(name = "base_seq_gen", sequenceName = "ORDER_SEQ", allocationSize = 1)
+@SuperBuilder
 public class Order extends BaseEntity {
 
-    @Column(name = "ORDER_NUMBER", nullable = false, unique = true, length = 50)
+    @Column(name = "order_number", nullable = false, unique = true, length = 50)
     private String orderNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "USER_ID", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_orders_user"))
+    @JsonIgnore
     private User user;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "ORDER_STATUS", nullable = false, length = 20)
+    @Column(name = "order_status", nullable = false, length = 20)
     @Builder.Default
     private OrderStatus orderStatus = OrderStatus.PENDING;
 
-    @Column(name = "TOTAL_AMOUNT", nullable = false, precision = 15, scale = 2)
+    @Column(name = "total_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal totalAmount;
 
-    @Column(name = "DISCOUNT_AMOUNT", precision = 15, scale = 2)
+    @Column(name = "discount_amount", precision = 15, scale = 2)
     @Builder.Default
     private BigDecimal discountAmount = BigDecimal.ZERO;
 
-    @Column(name = "FINAL_AMOUNT", nullable = false, precision = 15, scale = 2)
+    @Column(name = "final_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal finalAmount;
 
-    @Column(name = "NOTES", length = 1000)
+    @Column(name = "notes", length = 1000)
     private String notes;
 
-    @Column(name = "COMPLETED_DATE")
+    @Column(name = "completed_date")
     private LocalDateTime completedDate;
 
-    @Column(name = "CANCELLED_DATE")
+    @Column(name = "cancelled_date")
     private LocalDateTime cancelledDate;
 
-    @Column(name = "CANCELLATION_REASON", length = 500)
+    @Column(name = "cancellation_reason", length = 500)
     private String cancellationReason;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @JsonIgnore
     private List<OrderItem> orderItems = new ArrayList<>();
 
+    // ---------------- Business Logic ---------------- //
+
+    /** Add item to order & auto set relation  */
     public void addOrderItem(OrderItem item) {
-        orderItems.add(item);
-        item.setOrder(this);
+        if (!orderItems.contains(item)) {
+            orderItems.add(item);
+            item.setOrder(this);
+        }
     }
 
+    /** Remove item */
     public void removeOrderItem(OrderItem item) {
         orderItems.remove(item);
         item.setOrder(null);
     }
 
+    /** Recalculate final amount based on total - discount */
     public void calculateFinalAmount() {
-        this.finalAmount = this.totalAmount.subtract(this.discountAmount);
+        if (totalAmount == null) totalAmount = BigDecimal.ZERO;
+        if (discountAmount == null) discountAmount = BigDecimal.ZERO;
+        this.finalAmount = totalAmount.subtract(discountAmount);
     }
 
-    /**
-     * Mark order as completed (digital product delivered instantly)
-     */
+    /** Mark order as completed */
     public void markAsCompleted() {
         this.orderStatus = OrderStatus.COMPLETED;
         this.completedDate = LocalDateTime.now();
     }
 
-    /**
-     * Mark order as cancelled
-     */
+    /** Mark order as cancelled with reason */
     public void markAsCancelled(String reason) {
         this.orderStatus = OrderStatus.CANCELLED;
         this.cancelledDate = LocalDateTime.now();
         this.cancellationReason = reason;
     }
-
 }

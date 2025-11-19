@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.users.UserCreateRequest;
-import com.mailshop_dragonvu.dto.users.UserUpdateRequest;
-import com.mailshop_dragonvu.dto.users.UserResponse;
+import com.mailshop_dragonvu.dto.users.UserCreateDTO;
+import com.mailshop_dragonvu.dto.users.UserResponseDTO;
+import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -10,15 +10,15 @@ import java.util.List;
 
 public interface UserService {
 
-    UserResponse createUser(UserCreateRequest request);
+    UserResponseDTO createUser(UserCreateDTO request);
 
-    UserResponse updateUser(Long id, UserUpdateRequest request);
+    UserResponseDTO updateUser(Long id, UserUpdateDTO request);
 
-    UserResponse getUserById(Long id);
+    UserResponseDTO getUserById(Long id);
 
-    UserResponse getUserByEmail(String email);
+    UserResponseDTO getUserByEmail(String email);
 
-    Page<UserResponse> getAllUsers(Pageable pageable);
+    Page<UserResponseDTO> getAllUsers(Pageable pageable);
 
     void deleteUser(Long id);
 

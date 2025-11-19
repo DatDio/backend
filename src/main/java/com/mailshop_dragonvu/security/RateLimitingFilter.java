@@ -3,7 +3,7 @@ package com.mailshop_dragonvu.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mailshop_dragonvu.dto.ApiResponse;
 import com.mailshop_dragonvu.exception.ErrorCode;
-import com.mailshop_dragonvu.util.SecurityUtils;
+import com.mailshop_dragonvu.utils.SecurityUtils;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;

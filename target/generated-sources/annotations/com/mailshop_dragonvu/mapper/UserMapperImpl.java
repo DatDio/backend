@@ -1,22 +1,22 @@
 package com.mailshop_dragonvu.mapper;
 
-import com.mailshop_dragonvu.dto.users.UserCreateRequest;
-import com.mailshop_dragonvu.dto.users.UserResponse;
-import com.mailshop_dragonvu.dto.users.UserUpdateRequest;
+import com.mailshop_dragonvu.dto.users.UserCreateDTO;
+import com.mailshop_dragonvu.dto.users.UserResponseDTO;
+import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
 import com.mailshop_dragonvu.entity.User;
 import javax.annotation.processing.Generated;
 import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-18T16:28:06+0700",
+    date = "2025-11-19T18:10:42+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
 public class UserMapperImpl implements UserMapper {
 
     @Override
-    public User toEntity(UserCreateRequest request) {
+    public User toEntity(UserCreateDTO request) {
         if ( request == null ) {
             return null;
         }
@@ -35,32 +35,32 @@ public class UserMapperImpl implements UserMapper {
     }
 
     @Override
-    public UserResponse toResponse(User user) {
+    public UserResponseDTO toResponse(User user) {
         if ( user == null ) {
             return null;
         }
 
-        UserResponse.UserResponseBuilder userResponse = UserResponse.builder();
+        UserResponseDTO.UserResponseDTOBuilder userResponseDTO = UserResponseDTO.builder();
 
-        userResponse.id( user.getId() );
-        userResponse.email( user.getEmail() );
-        userResponse.fullName( user.getFullName() );
-        userResponse.phone( user.getPhone() );
-        userResponse.address( user.getAddress() );
-        userResponse.avatarUrl( user.getAvatarUrl() );
-        userResponse.emailVerified( user.getEmailVerified() );
-        userResponse.status( user.getStatus() );
-        userResponse.createdAt( user.getCreatedAt() );
-        userResponse.updatedAt( user.getUpdatedAt() );
+        userResponseDTO.id( user.getId() );
+        userResponseDTO.email( user.getEmail() );
+        userResponseDTO.fullName( user.getFullName() );
+        userResponseDTO.phone( user.getPhone() );
+        userResponseDTO.address( user.getAddress() );
+        userResponseDTO.avatarUrl( user.getAvatarUrl() );
+        userResponseDTO.emailVerified( user.getEmailVerified() );
+        userResponseDTO.status( user.getStatus() );
+        userResponseDTO.createdAt( user.getCreatedAt() );
+        userResponseDTO.updatedAt( user.getUpdatedAt() );
 
-        userResponse.roles( mapRolesToStrings(user.getRoles()) );
-        userResponse.authProvider( user.getAuthProvider().name() );
+        userResponseDTO.roles( mapRolesToStrings(user.getRoles()) );
+        userResponseDTO.authProvider( user.getAuthProvider().name() );
 
-        return userResponse.build();
+        return userResponseDTO.build();
     }
 
     @Override
-    public void updateEntity(User user, UserUpdateRequest request) {
+    public void updateEntity(User user, UserUpdateDTO request) {
         if ( request == null ) {
             return;
         }

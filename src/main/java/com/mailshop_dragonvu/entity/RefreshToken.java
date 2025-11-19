@@ -2,35 +2,41 @@ package com.mailshop_dragonvu.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "REFRESH_TOKENS")
+@Table(name = "refresh_tokens", indexes = {
+        @Index(name = "idx_refresh_tokens_user_id", columnList = "user_id"),
+        @Index(name = "idx_refresh_tokens_token", columnList = "token")
+})
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-@SequenceGenerator(name = "base_seq_gen", sequenceName = "REFRESH_TOKEN_SEQ", allocationSize = 1)
+@SuperBuilder
 public class RefreshToken extends BaseEntity {
 
-    @Column(name = "TOKEN", nullable = false, unique = true, length = 500)
+    @Column(name = "token", nullable = false, unique = true, length = 500)
     private String token;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "USER_ID", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "EXPIRY_DATE", nullable = false)
+    @Column(name = "expiry_date", nullable = false)
     private LocalDateTime expiryDate;
 
-    @Column(name = "REVOKED")
     @Builder.Default
+    @Column(nullable = false)
     private Boolean revoked = false;
 
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiryDate);
     }
 
+    public void revoke() {
+        this.revoked = true;
+    }
 }

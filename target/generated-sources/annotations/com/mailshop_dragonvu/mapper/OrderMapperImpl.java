@@ -1,9 +1,9 @@
 package com.mailshop_dragonvu.mapper;
 
 import com.mailshop_dragonvu.dto.orderitems.OrderItemResponse;
-import com.mailshop_dragonvu.dto.orders.OrderCreateRequest;
-import com.mailshop_dragonvu.dto.orders.OrderResponse;
-import com.mailshop_dragonvu.dto.orders.OrderUpdateRequest;
+import com.mailshop_dragonvu.dto.orders.OrderCreateDTO;
+import com.mailshop_dragonvu.dto.orders.OrderResponseDTO;
+import com.mailshop_dragonvu.dto.orders.OrderUpdateDTO;
 import com.mailshop_dragonvu.entity.Order;
 import com.mailshop_dragonvu.entity.OrderItem;
 import com.mailshop_dragonvu.entity.User;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-18T16:28:06+0700",
+    date = "2025-11-19T18:10:43+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
@@ -25,12 +25,12 @@ public class OrderMapperImpl implements OrderMapper {
     private OrderItemMapper orderItemMapper;
 
     @Override
-    public Order toEntity(OrderCreateRequest request) {
+    public Order toEntity(OrderCreateDTO request) {
         if ( request == null ) {
             return null;
         }
 
-        Order.OrderBuilder order = Order.builder();
+        Order.OrderBuilder<?, ?> order = Order.builder();
 
         order.discountAmount( request.getDiscountAmount() );
         order.notes( request.getNotes() );
@@ -39,34 +39,34 @@ public class OrderMapperImpl implements OrderMapper {
     }
 
     @Override
-    public OrderResponse toResponse(Order order) {
+    public OrderResponseDTO toResponse(Order order) {
         if ( order == null ) {
             return null;
         }
 
-        OrderResponse.OrderResponseBuilder orderResponse = OrderResponse.builder();
+        OrderResponseDTO.OrderResponseDTOBuilder orderResponseDTO = OrderResponseDTO.builder();
 
-        orderResponse.userId( orderUserId( order ) );
-        orderResponse.userEmail( orderUserEmail( order ) );
-        orderResponse.id( order.getId() );
-        orderResponse.orderNumber( order.getOrderNumber() );
-        orderResponse.totalAmount( order.getTotalAmount() );
-        orderResponse.discountAmount( order.getDiscountAmount() );
-        orderResponse.finalAmount( order.getFinalAmount() );
-        orderResponse.notes( order.getNotes() );
-        orderResponse.cancelledDate( order.getCancelledDate() );
-        orderResponse.cancellationReason( order.getCancellationReason() );
-        orderResponse.orderItems( orderItemListToOrderItemResponseList( order.getOrderItems() ) );
-        orderResponse.createdAt( order.getCreatedAt() );
-        orderResponse.updatedAt( order.getUpdatedAt() );
+        orderResponseDTO.userId( orderUserId( order ) );
+        orderResponseDTO.userEmail( orderUserEmail( order ) );
+        orderResponseDTO.id( order.getId() );
+        orderResponseDTO.orderNumber( order.getOrderNumber() );
+        orderResponseDTO.totalAmount( order.getTotalAmount() );
+        orderResponseDTO.discountAmount( order.getDiscountAmount() );
+        orderResponseDTO.finalAmount( order.getFinalAmount() );
+        orderResponseDTO.notes( order.getNotes() );
+        orderResponseDTO.cancelledDate( order.getCancelledDate() );
+        orderResponseDTO.cancellationReason( order.getCancellationReason() );
+        orderResponseDTO.orderItems( orderItemListToOrderItemResponseList( order.getOrderItems() ) );
+        orderResponseDTO.createdAt( order.getCreatedAt() );
+        orderResponseDTO.updatedAt( order.getUpdatedAt() );
 
-        orderResponse.orderStatus( order.getOrderStatus().name() );
+        orderResponseDTO.orderStatus( order.getOrderStatus().name() );
 
-        return orderResponse.build();
+        return orderResponseDTO.build();
     }
 
     @Override
-    public void updateEntity(Order order, OrderUpdateRequest request) {
+    public void updateEntity(Order order, OrderUpdateDTO request) {
         if ( request == null ) {
             return;
         }

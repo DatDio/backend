@@ -3,12 +3,13 @@ package com.mailshop_dragonvu.mapper;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
 import com.mailshop_dragonvu.entity.User;
 import com.mailshop_dragonvu.entity.Wallet;
+import java.math.BigDecimal;
 import javax.annotation.processing.Generated;
 import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-18T16:28:07+0700",
+    date = "2025-11-19T18:10:42+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
@@ -24,9 +25,15 @@ public class WalletMapperImpl implements WalletMapper {
 
         walletResponse.userId( walletUserId( wallet ) );
         walletResponse.id( wallet.getId() );
-        walletResponse.balance( wallet.getBalance() );
-        walletResponse.totalDeposited( wallet.getTotalDeposited() );
-        walletResponse.totalSpent( wallet.getTotalSpent() );
+        if ( wallet.getBalance() != null ) {
+            walletResponse.balance( BigDecimal.valueOf( wallet.getBalance() ) );
+        }
+        if ( wallet.getTotalDeposited() != null ) {
+            walletResponse.totalDeposited( BigDecimal.valueOf( wallet.getTotalDeposited() ) );
+        }
+        if ( wallet.getTotalSpent() != null ) {
+            walletResponse.totalSpent( BigDecimal.valueOf( wallet.getTotalSpent() ) );
+        }
         walletResponse.isLocked( wallet.getIsLocked() );
         walletResponse.lockReason( wallet.getLockReason() );
 

@@ -1,8 +1,6 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.payos.DepositRequest;
-import com.mailshop_dragonvu.dto.payos.PayOSPaymentResponse;
-import com.mailshop_dragonvu.dto.transactions.TransactionResponse;
+import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
 import com.mailshop_dragonvu.entity.Transaction;
 import com.mailshop_dragonvu.entity.User;
@@ -18,23 +16,25 @@ import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.repository.WalletRepository;
 import com.mailshop_dragonvu.service.PayOSService;
 import com.mailshop_dragonvu.service.WalletService;
+import com.mailshop_dragonvu.utils.DepositCodeUtil;
+import jakarta.persistence.PessimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.webhooks.Webhook;
+import vn.payos.model.webhooks.WebhookData;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Wallet Service Implementation
- * With Anti-DDoS and Anti-Cheat mechanisms
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -48,10 +48,10 @@ public class WalletServiceImpl implements WalletService {
     private final TransactionMapper transactionMapper;
 
     @Value("${app.payment.min-amount:10000}")
-    private BigDecimal minDepositAmount;
+    private Long minDepositAmount;
 
     @Value("${app.payment.max-amount:50000000}")
-    private BigDecimal maxDepositAmount;
+    private Long maxDepositAmount;
 
     @Value("${app.security.max-pending-transactions:3}")
     private Integer maxPendingTransactions;
@@ -65,6 +65,9 @@ public class WalletServiceImpl implements WalletService {
     @Value("${app.frontend.url:http://localhost:4200}")
     private String frontendUrl;
 
+    @Value("${payos.checksum-key}")
+    private String secretKey;
+
     @Override
     @Transactional(readOnly = true)
     public WalletResponse getUserWallet(Long userId) {
@@ -75,7 +78,7 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     @Transactional
-    public WalletResponse createWallet(Long userId) {
+    public void createWallet(Long userId) {
         if (walletRepository.existsByUserId(userId)) {
             throw new BusinessException(ErrorCode.WALLET_ALREADY_EXISTS);
         }
@@ -85,144 +88,124 @@ public class WalletServiceImpl implements WalletService {
 
         Wallet wallet = Wallet.builder()
                 .user(user)
-                .balance(BigDecimal.ZERO)
-                .totalDeposited(BigDecimal.ZERO)
-                .totalSpent(BigDecimal.ZERO)
+                .balance(0L)
+                .totalDeposited(0L)
+                .totalSpent(0L)
                 .isLocked(false)
                 .build();
 
-        wallet = walletRepository.save(wallet);
-        log.info("Created wallet for user: {}", userId);
-
-        return walletMapper.toResponse(wallet);
+        walletRepository.save(wallet);
     }
 
     @Override
     @Transactional
-    public PayOSPaymentResponse createDepositTransaction(Long userId, DepositRequest request, 
-                                                         String ipAddress, String userAgent) {
-        log.info("Creating deposit transaction for user: {}, amount: {}, IP: {}", userId, request.getAmount(), ipAddress);
+    public CreatePaymentLinkResponse createDepositPayOS(Long userId, CreatePaymentLinkRequest request,
+                                                        String ipAddress, String userAgent) {
 
-        // Validate user and wallet
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+                .orElseGet(() -> {
+                    createWallet(userId);
+                    return walletRepository.findByUserId(userId)
+                            .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+                });
 
-        // Check if wallet is locked
         if (wallet.getIsLocked()) {
             throw new BusinessException(ErrorCode.WALLET_LOCKED);
         }
 
-        // Anti-Cheat: Validate amount
+        // Validate
         validateDepositAmount(request.getAmount());
-
-        // Anti-DDoS: Check pending transactions limit
-        checkPendingTransactionsLimit(userId);
-
-        // Anti-DDoS: Check IP-based rate limiting
         checkIpRateLimit(ipAddress);
-
-        // Anti-Cheat: Check for duplicate transactions
+        checkPendingTransactionsLimit(userId);
         checkDuplicateTransactions(userId, request.getAmount());
 
-        // Generate unique order code
-        Long orderCode = generateOrderCode();
-        String transactionCode = "TXN" + orderCode;
+        // Tạo PayOS payment link
+        CreatePaymentLinkResponse payOS = payOSService.createPaymentLink(request);
 
-        // Create transaction record
-        Transaction transaction = Transaction.builder()
-                .transactionCode(transactionCode)
+        // Tạo giao dịch PENDING
+        Transaction txn = Transaction.builder()
+                .transactionCode("TXN" + System.currentTimeMillis())
                 .user(user)
                 .wallet(wallet)
                 .type(TransactionType.DEPOSIT)
                 .amount(request.getAmount())
                 .balanceBefore(wallet.getBalance())
                 .status(TransactionStatus.PENDING)
-                .description(request.getDescription() != null ? request.getDescription() : "Nạp tiền vào ví")
+                .description(request.getDescription() != null ? request.getDescription() : "Nạp tiền PayOS")
                 .paymentMethod("PAYOS")
-                .payosOrderCode(orderCode)
+                .payosOrderCode(payOS.getOrderCode())
                 .ipAddress(ipAddress)
                 .userAgent(userAgent)
                 .build();
 
-        transactionRepository.save(transaction);
-        log.info("Transaction created: {}", transactionCode);
+        transactionRepository.save(txn);
 
-        // Create PayOS payment link
-        String returnUrl = request.getReturnUrl() != null ? request.getReturnUrl() : frontendUrl + "/payment/success";
-        String cancelUrl = request.getCancelUrl() != null ? request.getCancelUrl() : frontendUrl + "/payment/cancel";
-
-        PayOSPaymentResponse paymentResponse = payOSService.createPaymentLink(
-                orderCode,
-                request.getAmount(),
-                "Nạp tiền - " + user.getEmail(),
-                returnUrl,
-                cancelUrl
-        );
-
-        paymentResponse.setTransactionCode(transactionCode);
-
-        return paymentResponse;
+        return payOS;
     }
+
+
 
     @Override
     @Transactional
-    public void processPayOSCallback(Long orderCode, String status, String transactionReference) {
-        log.info("Processing PayOS callback - OrderCode: {}, Status: {}", orderCode, status);
+    public void processPayOSCallback(Webhook webhook) {
 
-        Transaction transaction = transactionRepository.findByPayosOrderCode(orderCode)
+        WebhookData data = payOSService.verifyWebhook(webhook);
+
+        Long orderCode = data.getOrderCode();
+
+        // Lấy transaction theo orderCode
+        Transaction txn = transactionRepository.findByPayosOrderCode(orderCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TRANSACTION_NOT_FOUND));
 
-        // Check if already processed
-        if (transaction.getStatus() == TransactionStatus.SUCCESS) {
-            log.warn("Transaction already processed: {}", transaction.getTransactionCode());
+        // Nếu đã xử lý rồi → bỏ qua để tránh double webhook
+        if (txn.getStatus() == TransactionStatus.SUCCESS) {
             return;
         }
 
-        // Check transaction timeout (15 minutes)
-        if (transaction.getCreatedAt().plusMinutes(transactionTimeoutMinutes).isBefore(LocalDateTime.now())) {
-            transaction.markAsFailed("Transaction timeout");
-            transactionRepository.save(transaction);
-            log.warn("Transaction timeout: {}", transaction.getTransactionCode());
-            return;
+        // Nếu thất bại → xóa luôn transaction
+        if (!"00".equalsIgnoreCase(data.getCode())) {
+
+            transactionRepository.delete(txn);
+           throw  new BusinessException(ErrorCode.INVALID_WEBHOOK);
         }
 
-        if ("PAID".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status)) {
-            // Use pessimistic lock to prevent race conditions
-            Wallet wallet = walletRepository.findByUserIdWithLock(transaction.getUser().getId())
+        // Thành công → cộng tiền
+        try {
+            Wallet wallet = walletRepository.findByUserIdWithLock(txn.getUser().getId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
 
-            // Add balance
-            wallet.addBalance(transaction.getAmount());
-            transaction.setBalanceAfter(wallet.getBalance());
-            transaction.setPaymentReference(transactionReference);
-            transaction.markAsSuccess();
+            wallet.addBalance(data.getAmount());
+            txn.setBalanceAfter(wallet.getBalance());
+            txn.setPaymentReference(data.getReference());
+            txn.markAsSuccess();
 
             walletRepository.save(wallet);
-            transactionRepository.save(transaction);
+            transactionRepository.save(txn);
 
-            log.info("Deposit successful - User: {}, Amount: {}, New Balance: {}", 
-                    transaction.getUser().getId(), transaction.getAmount(), wallet.getBalance());
+        } catch (PessimisticLockException | CannotAcquireLockException e) {
 
-        } else {
-            transaction.markAsFailed("Payment failed or cancelled");
-            transactionRepository.save(transaction);
-            log.warn("Payment failed for transaction: {}", transaction.getTransactionCode());
+            log.warn("Wallet đang lock. Bỏ qua webhook lần này.");
+            return;
         }
+
+
     }
+
+
 
     @Override
     @Transactional(readOnly = true)
-    public Page<TransactionResponse> getUserTransactions(Long userId, Pageable pageable) {
+    public Page<TransactionResponseDTO> getUserTransactions(Long userId, Pageable pageable) {
         return transactionRepository.findByUserId(userId, pageable)
                 .map(transactionMapper::toResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public TransactionResponse getTransactionByCode(String transactionCode) {
+    public TransactionResponseDTO getTransactionByCode(String transactionCode) {
         Transaction transaction = transactionRepository.findByTransactionCode(transactionCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TRANSACTION_NOT_FOUND));
         return transactionMapper.toResponse(transaction);
@@ -230,31 +213,42 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     @Transactional
-    public WalletResponse adjustBalance(Long userId, BigDecimal amount, String reason) {
-        log.info("Admin adjusting balance for user: {}, amount: {}, reason: {}", userId, amount, reason);
+    public WalletResponse adjustBalance(Long userId, Long amount, String reason) {
 
+        if (amount == null || amount == 0) {
+            throw new BusinessException(ErrorCode.INVALID_AMOUNT);
+        }
+
+        // Lấy wallet + khóa hàng để tránh race condition
         Wallet wallet = walletRepository.findByUserIdWithLock(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
 
         User user = wallet.getUser();
 
-        // Create admin adjustment transaction
+        Long balanceBefore = wallet.getBalance();
+
+        // Xác định loại điều chỉnh: cộng hay trừ
+        boolean isIncrease = amount > 0;
+
+        // Tạo transaction
         Transaction transaction = Transaction.builder()
                 .transactionCode("ADJ" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .user(user)
                 .wallet(wallet)
                 .type(TransactionType.ADMIN_ADJUST)
-                .amount(amount.abs())
-                .balanceBefore(wallet.getBalance())
+                .amount(Math.abs(amount))  // transaction nên lưu số dương
+                .balanceBefore(balanceBefore)
                 .status(TransactionStatus.SUCCESS)
-                .description(reason != null ? reason : "Admin adjustment")
+                .description(reason != null ? reason : (isIncrease ? "Admin increased balance" : "Admin decreased balance"))
                 .paymentMethod("ADMIN")
                 .build();
 
-        if (amount.compareTo(BigDecimal.ZERO) > 0) {
+        // Update balance
+        if (isIncrease) {
             wallet.addBalance(amount);
         } else {
-            wallet.deductBalance(amount.abs());
+            // amount là số âm -> trừ theo số dương
+            wallet.deductBalance(Math.abs(amount));
         }
 
         transaction.setBalanceAfter(wallet.getBalance());
@@ -263,10 +257,9 @@ public class WalletServiceImpl implements WalletService {
         walletRepository.save(wallet);
         transactionRepository.save(transaction);
 
-        log.info("Balance adjusted - User: {}, New Balance: {}", userId, wallet.getBalance());
-
         return walletMapper.toResponse(wallet);
     }
+
 
     @Override
     @Transactional
@@ -301,7 +294,7 @@ public class WalletServiceImpl implements WalletService {
     /**
      * ANTI-CHEAT: Validate deposit amount
      */
-    private void validateDepositAmount(BigDecimal amount) {
+    private void validateDepositAmount(Long amount) {
         if (amount.compareTo(minDepositAmount) < 0) {
             throw new BusinessException(ErrorCode.DEPOSIT_AMOUNT_TOO_LOW);
         }
@@ -309,9 +302,9 @@ public class WalletServiceImpl implements WalletService {
             throw new BusinessException(ErrorCode.DEPOSIT_AMOUNT_TOO_HIGH);
         }
         // Check if amount is a valid number (no decimals for VND)
-        if (amount.scale() > 0) {
-            throw new BusinessException(ErrorCode.INVALID_AMOUNT_FORMAT);
-        }
+//        if (amount.scale() > 0) {
+//            throw new BusinessException(ErrorCode.INVALID_AMOUNT_FORMAT);
+//        }
     }
 
     /**
@@ -342,7 +335,7 @@ public class WalletServiceImpl implements WalletService {
     /**
      * ANTI-CHEAT: Check for duplicate transactions
      */
-    private void checkDuplicateTransactions(Long userId, BigDecimal amount) {
+    private void checkDuplicateTransactions(Long userId, Long amount) {
         LocalDateTime since = LocalDateTime.now().minusMinutes(5);
         List<Transaction> duplicates = transactionRepository.findDuplicateTransactions(userId, amount, since);
 

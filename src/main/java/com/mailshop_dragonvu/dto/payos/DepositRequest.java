@@ -18,8 +18,8 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class DepositRequest {
 
-    @NotNull(message = "Amount is required")
-    @DecimalMin(value = "10000", message = "Minimum deposit amount is 10,000 VND")
+    @NotNull(message = "Số tiền không được để trống!")
+    @DecimalMin(value = "10000", message = "Số tiền tối thiểu trên 10,000 VND")
     private BigDecimal amount;
 
     private String description;

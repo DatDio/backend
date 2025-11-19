@@ -4,7 +4,6 @@ import com.mailshop_dragonvu.dto.auth.LoginRequest;
 import com.mailshop_dragonvu.dto.auth.RefreshTokenRequest;
 import com.mailshop_dragonvu.dto.auth.RegisterRequest;
 import com.mailshop_dragonvu.dto.auth.AuthResponse;
-import com.mailshop_dragonvu.dto.users.UserResponse;
 import com.mailshop_dragonvu.entity.RefreshToken;
 import com.mailshop_dragonvu.entity.Role;
 import com.mailshop_dragonvu.entity.User;
@@ -17,6 +16,7 @@ import com.mailshop_dragonvu.repository.RoleRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.security.JwtTokenProvider;
 import com.mailshop_dragonvu.service.EmailService;
+import com.mailshop_dragonvu.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,6 +44,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final GoogleTokenVerifier googleTokenVerifier;
+    private final WalletService walletService;
 
     @Value("${jwt.refresh-expiration}")
     private long refreshExpirationMs;
@@ -66,49 +67,33 @@ public class AuthServiceImpl implements AuthService {
                 .emailVerified(false)
                 .build();
 
-        // Assign default USER role
         Role userRole = roleRepository.findByName("USER")
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND));
         user.getRoles().add(userRole);
 
         user = userRepository.save(user);
 
-        // Generate tokens
-        String authorities = user.getRoles().stream()
-                .map(role -> "ROLE_" + role.getName())
+        //Tạo ví
+         walletService.createWallet(user.getId());
+
+        String authorities = user.getRoles()
+                .stream()
+                .map(r -> "ROLE_" + r.getName())
                 .collect(Collectors.joining(","));
 
         String accessToken = jwtTokenProvider.generateTokenFromUserId(
-                user.getId(),
-                user.getEmail(),
-                authorities
+                user.getId(), user.getEmail(), authorities
         );
 
-        String refreshTokenStr = jwtTokenProvider.generateRefreshToken(user.getId());
-
-        // Save refresh token
-        RefreshToken refreshToken = RefreshToken.builder()
-                .token(refreshTokenStr)
-                .user(user)
-                .expiryDate(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000))
-                .build();
-        refreshTokenRepository.save(refreshToken);
-
-        // Send welcome email asynchronously
-        try {
-            emailService.sendWelcomeEmail(user);
-        } catch (Exception e) {
-            log.error("Failed to send welcome email to {}: {}", user.getEmail(), e.getMessage());
-        }
-
-        UserResponse userResponse = userMapper.toResponse(user);
+        RefreshToken refreshToken = createOrUpdateRefreshToken(user);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshTokenStr)
-                .user(userResponse)
+                .refreshToken(refreshToken.getToken())
+                .user(userMapper.toResponse(user))
                 .build();
     }
+
 
     @Override
     @Transactional
@@ -121,30 +106,34 @@ public class AuthServiceImpl implements AuthService {
                 )
         );
 
-        String accessToken = jwtTokenProvider.generateToken(authentication);
-
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        String refreshTokenStr = jwtTokenProvider.generateRefreshToken(user.getId());
+        String accessToken = jwtTokenProvider.generateToken(authentication);
 
-        // Save refresh token
-        RefreshToken refreshToken = RefreshToken.builder()
-                .token(refreshTokenStr)
-                .user(user)
-                .expiryDate(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000))
-                .build();
-        refreshTokenRepository.save(refreshToken);
-
-        UserResponse userResponse = userMapper.toResponse(user);
-
-        log.info("User logged in successfully: {}", request.getEmail());
+        RefreshToken refreshToken = createOrUpdateRefreshToken(user);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshTokenStr)
-                .user(userResponse)
+                .refreshToken(refreshToken.getToken())
+                .user(userMapper.toResponse(user))
                 .build();
+    }
+
+
+    private RefreshToken createOrUpdateRefreshToken(User user) {
+        String newToken = jwtTokenProvider.generateRefreshToken(user.getId());
+
+        RefreshToken refreshToken = refreshTokenRepository.findByUser(user)
+                .orElse(RefreshToken.builder()
+                        .user(user)
+                        .build());
+
+        refreshToken.setToken(newToken);
+        refreshToken.setRevoked(false);
+        refreshToken.setExpiryDate(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000));
+
+        return refreshTokenRepository.save(refreshToken);
     }
 
     @Override
@@ -207,13 +196,12 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse refreshToken(RefreshTokenRequest request) {
-        log.info("Refreshing access token");
 
         RefreshToken refreshToken = refreshTokenRepository.findByToken(request.getRefreshToken())
                 .orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_INVALID));
 
         if (refreshToken.getRevoked()) {
-            throw new BusinessException(ErrorCode.REFRESH_TOKEN_INVALID, "Refresh token has been revoked");
+            throw new BusinessException(ErrorCode.REFRESH_TOKEN_INVALID);
         }
 
         if (refreshToken.isExpired()) {
@@ -233,16 +221,13 @@ public class AuthServiceImpl implements AuthService {
                 authorities
         );
 
-        UserResponse userResponse = userMapper.toResponse(user);
-
-        log.info("Access token refreshed successfully for user: {}", user.getEmail());
-
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(request.getRefreshToken())
-                .user(userResponse)
+                .refreshToken(refreshToken.getToken()) // giữ nguyên
+                .user(userMapper.toResponse(user))
                 .build();
     }
+
 
     @Override
     @Transactional

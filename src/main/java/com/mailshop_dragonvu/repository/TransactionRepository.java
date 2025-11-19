@@ -63,7 +63,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
      */
     @Query("SELECT t FROM Transaction t WHERE t.user.id = :userId AND t.amount = :amount AND t.status IN ('PENDING', 'PROCESSING') AND t.createdAt > :since")
     List<Transaction> findDuplicateTransactions(@Param("userId") Long userId, 
-                                                @Param("amount") java.math.BigDecimal amount, 
+                                                @Param("amount") Long amount,
                                                 @Param("since") LocalDateTime since);
 
     /**

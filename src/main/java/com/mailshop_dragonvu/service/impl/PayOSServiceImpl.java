@@ -1,206 +1,81 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.payos.PayOSPaymentResponse;
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
 import com.mailshop_dragonvu.service.PayOSService;
+import com.mailshop_dragonvu.utils.DepositCodeUtil;
+import com.mailshop_dragonvu.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import vn.payos.PayOS;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.webhooks.ConfirmWebhookResponse;
+import vn.payos.model.webhooks.Webhook;
+import vn.payos.model.webhooks.WebhookData;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-
-/**
- * PayOS Service Implementation
- * Integration with PayOS Payment Gateway for Vietnamese market
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class PayOSServiceImpl implements PayOSService {
-    private static final String X_CLIENT_ID = "x-client-id";
-    private static final String X_API_KEY = "x-api-key";
-
-    private final RestTemplate restTemplate;
-
-    @Value("${payos.api-url:https://api-merchant.payos.vn}")
-    private String payosApiUrl;
-
-    @Value("${payos.client-id}")
-    private String clientId;
-
-    @Value("${payos.api-key}")
-    private String apiKey;
-
     @Value("${payos.checksum-key}")
-    private String checksumKey;
+    private String secretKey;
 
+    private final PayOS payOS;
 
     @Override
-    public PayOSPaymentResponse createPaymentLink(Long orderCode, BigDecimal amount, 
-                                                  String description, String returnUrl, String cancelUrl) {
-        log.info("Creating PayOS payment link for order: {}, amount: {}", orderCode, amount);
+    public CreatePaymentLinkResponse createPaymentLink(CreatePaymentLinkRequest createPaymentLinkRequest) {
 
         try {
-            // Prepare request body for PayOS API
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("orderCode", orderCode);
-            requestBody.put("amount", amount.intValue()); // PayOS requires integer (VND)
-            requestBody.put("description", description);
-            requestBody.put("returnUrl", returnUrl);
-            requestBody.put("cancelUrl", cancelUrl);
+            //final String productName = createPaymentLinkRequest.getProductName();
+            final String description = createPaymentLinkRequest.getDescription();
 
-            // Generate checksum for security
-            String checksum = generateChecksum(orderCode, amount.intValue());
-            requestBody.put("signature", checksum);
+            final String returnUrl = createPaymentLinkRequest.getReturnUrl();
+            final String cancelUrl = createPaymentLinkRequest.getCancelUrl();
+            long orderCode = System.currentTimeMillis() / 1000;
+            // PaymentLinkItem item =PaymentLinkItem.builder().name(productName).quantity(1).price(price).build();
 
-            // Set headers
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set(X_CLIENT_ID, clientId);
-            headers.set(X_API_KEY, apiKey);
-
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-
-            // Call PayOS API
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    payosApiUrl + "/v2/payment-requests",
-                    HttpMethod.POST,
-                    request,
-                    new ParameterizedTypeReference<Map<String, Object>>() {}
-            );
-
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                Map<String, Object> responseData = (Map<String, Object>) response.getBody().get("data");
-                
-                return PayOSPaymentResponse.builder()
-                        .transactionCode("TXN" + orderCode)
-                        .orderCode(orderCode)
-                        .paymentUrl((String) responseData.get("paymentLinkId"))
-                        .qrCode((String) responseData.get("qrCode"))
-                        .checkoutUrl((String) responseData.get("checkoutUrl"))
-                        .amount(amount.toString())
-                        .description(description)
-                        .status("PENDING")
-                        .build();
-            }
-
+            CreatePaymentLinkRequest paymentRequest = CreatePaymentLinkRequest.builder()
+                    .orderCode(System.currentTimeMillis() / 1000)
+                    .amount(2000L)
+                    .description("NAPTIEN")
+                    .cancelUrl("https://your-domain.com/cancel")
+                    .returnUrl("https://your-domain.com/success")
+                    .build();
+            CreatePaymentLinkResponse data = payOS.paymentRequests().create(paymentRequest);
+            return data;
+        } catch (Exception e) {
+            log.error("PayOS create link failed", e);
             throw new BusinessException(ErrorCode.PAYMENT_CREATION_FAILED);
-
-        } catch (Exception e) {
-            log.error("Error creating PayOS payment: {}", e.getMessage(), e);
-            throw new BusinessException(ErrorCode.PAYMENT_CREATION_FAILED, e);
         }
     }
 
     @Override
-    public String getPaymentStatus(Long orderCode) {
-        log.info("Getting payment status for order: {}", orderCode);
-
+    public WebhookData verifyWebhook(Webhook webhook) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set(X_CLIENT_ID, clientId);
-            headers.set(X_API_KEY, apiKey);
-
-            HttpEntity<Void> request = new HttpEntity<>(headers);
-
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    payosApiUrl + "/v2/payment-requests/" + orderCode,
-                    HttpMethod.GET,
-                    request,
-                    new ParameterizedTypeReference<Map<String, Object>>() {}
-            );
-
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                Map<String, Object> responseData = (Map<String, Object>) response.getBody().get("data");
-                return (String) responseData.get("status");
+            WebhookData data = payOS.webhooks().verify(webhook);
+            if (!"00".equals(data.getCode())) {
+                throw new BusinessException(ErrorCode.INVALID_WEBHOOK);
             }
-
-            return "UNKNOWN";
-
+            return data;
         } catch (Exception e) {
-            log.error("Error getting payment status: {}", e.getMessage(), e);
-            return "ERROR";
+            throw new BusinessException(ErrorCode.INVALID_WEBHOOK);
         }
     }
 
     @Override
-    public boolean verifyWebhookSignature(Map<String, String> webhookData, String receivedSignature) {
-        try {
-            String data = webhookData.get("orderCode") + 
-                         webhookData.get("amount") + 
-                         webhookData.get("description") + 
-                         webhookData.get("status");
-            
-            String calculatedSignature = generateHmacSHA256(data, checksumKey);
-            
-            return calculatedSignature.equals(receivedSignature);
-
-        } catch (Exception e) {
-            log.error("Error verifying webhook signature: {}", e.getMessage(), e);
-            return false;
+    public void conFirmWebhook() {
+        try{
+            String webhookUrl = "";
+            ConfirmWebhookResponse result = payOS.webhooks().confirm(webhookUrl);
         }
-    }
+        catch (Exception e){
 
-    @Override
-    public void cancelPayment(Long orderCode) {
-        log.info("Cancelling payment for order: {}", orderCode);
-
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set(X_CLIENT_ID, clientId);
-            headers.set(X_API_KEY, apiKey);
-
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("cancellationReason", "User cancelled");
-
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-
-            restTemplate.postForEntity(
-                    payosApiUrl + "/v2/payment-requests/" + orderCode + "/cancel",
-                    request,
-                    Map.class
-            );
-
-            log.info("Payment cancelled successfully for order: {}", orderCode);
-
-        } catch (Exception e) {
-            log.error("Error cancelling payment: {}", e.getMessage(), e);
         }
+
     }
 
-    /**
-     * Generate checksum for request security
-     */
-    private String generateChecksum(Long orderCode, int amount) {
-        String data = orderCode + ":" + amount;
-        return generateHmacSHA256(data, checksumKey);
-    }
 
-    /**
-     * Generate HMAC SHA256 signature
-     */
-    private String generateHmacSHA256(String data, String key) {
-        try {
-            Mac sha256Hmac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            sha256Hmac.init(secretKey);
-            byte[] hash = sha256Hmac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (Exception e) {
-            throw new BusinessException(ErrorCode.HMAC_GENERATION_FAILED, e);
-        }
-    }
 }

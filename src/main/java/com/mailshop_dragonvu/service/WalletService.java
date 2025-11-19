@@ -1,11 +1,13 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.payos.DepositRequest;
-import com.mailshop_dragonvu.dto.payos.PayOSPaymentResponse;
-import com.mailshop_dragonvu.dto.transactions.TransactionResponse;
+import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
+import com.mailshop_dragonvu.entity.Wallet;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.webhooks.Webhook;
 
 import java.math.BigDecimal;
 
@@ -22,36 +24,37 @@ public interface WalletService {
     /**
      * Create wallet for new user
      */
-    WalletResponse createWallet(Long userId);
+    void createWallet(Long userId);
 
     /**
      * Create deposit transaction and generate PayOS QR
      */
-    PayOSPaymentResponse createDepositTransaction(Long userId, DepositRequest request, String ipAddress, String userAgent);
+    CreatePaymentLinkResponse createDepositPayOS(Long userId, CreatePaymentLinkRequest request, String ipAddress, String userAgent);
 
     /**
      * Process PayOS webhook callback
      */
-    void processPayOSCallback(Long orderCode, String status, String transactionReference);
+    void processPayOSCallback(Webhook webhook);
 
     /**
      * Get user transaction history
      */
-    Page<TransactionResponse> getUserTransactions(Long userId, Pageable pageable);
+    Page<TransactionResponseDTO> getUserTransactions(Long userId, Pageable pageable);
 
     /**
      * Get transaction by code
      */
-    TransactionResponse getTransactionByCode(String transactionCode);
+    TransactionResponseDTO getTransactionByCode(String transactionCode);
 
     /**
      * Admin: Adjust user balance
      */
-    WalletResponse adjustBalance(Long userId, BigDecimal amount, String reason);
+    WalletResponse adjustBalance(Long userId, Long amount, String reason);
 
     /**
      * Admin: Lock/Unlock wallet
      */
     WalletResponse lockWallet(Long userId, String reason);
+
     WalletResponse unlockWallet(Long userId);
 }

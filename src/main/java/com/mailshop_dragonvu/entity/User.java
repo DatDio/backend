@@ -1,7 +1,6 @@
 package com.mailshop_dragonvu.entity;
 
 import com.mailshop_dragonvu.enums.AuthProvider;
-import com.mailshop_dragonvu.enums.TransactionStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,58 +8,57 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "USERS")
+@Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SequenceGenerator(name = "base_seq_gen", sequenceName = "USER_SEQ", allocationSize = 1)
 public class User extends BaseEntity {
 
-    @Column(name = "EMAIL", nullable = false, unique = true, length = 100)
+    @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(name = "PASSWORD", length = 255)
+    @Column(length = 255)
     private String password;
 
-    @Column(name = "FULL_NAME", length = 100)
+    @Column(name = "full_name", length = 100)
     private String fullName;
 
-    @Column(name = "PHONE", length = 20)
+    @Column(name = "phone", length = 20)
     private String phone;
 
-    @Column(name = "ADDRESS", length = 500)
+    @Column(name = "address", length = 500)
     private String address;
 
-    @Column(name = "AVATAR_URL", length = 500)
+    @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "AUTH_PROVIDER", length = 20)
+    @Column(name = "auth_provider", length = 20)
     @Builder.Default
     private AuthProvider authProvider = AuthProvider.LOCAL;
 
-    @Column(name = "PROVIDER_ID", length = 100)
+    @Column(name = "provider_id", length = 100)
     private String providerId;
 
-    @Column(name = "EMAIL_VERIFIED")
+    @Column(name = "email_verified")
     @Builder.Default
     private Boolean emailVerified = false;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
-            name = "USER_ROLES",
-            joinColumns = @JoinColumn(name = "USER_ID"),
-            inverseJoinColumns = @JoinColumn(name = "ROLE_ID")
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     @Builder.Default
     private Set<Role> roles = new HashSet<>();
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private Set<RefreshToken> refreshTokens = new HashSet<>();
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private RefreshToken refreshToken;
 
-    @Column(name = "STATUS", length = 20, nullable = false)
+    @Builder.Default
+    @Column(name = "status", nullable = false)
     private String status = "ACTIVE";
 }

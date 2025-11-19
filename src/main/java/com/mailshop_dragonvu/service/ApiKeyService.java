@@ -49,11 +49,6 @@ public interface ApiKeyService {
     void updateLastUsed(Long keyId);
 
     /**
-     * Deactivate expired API keys (scheduled task)
-     */
-    void deactivateExpiredKeys();
-
-    /**
      * Get usage statistics for an API key
      */
     ApiKeyResponse getUsageStats(Long keyId, Long userId);

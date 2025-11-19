@@ -13,6 +13,7 @@ public enum ErrorCode {
     UNAUTHORIZED("1004", "Chưa xác thực"),
     FORBIDDEN("1005", "Không có quyền truy cập"),
     BAD_REQUEST("1006", "Yêu cầu không hợp lệ"),
+    METHOD_NOT_ALLOWED("1006", "Method không hợp lệ"),
 
     // Authentication Errors (2000-2999)
     INVALID_CREDENTIALS("2000", "Tên đăng nhập hoặc mật khẩu không hợp lệ"),
@@ -34,8 +35,8 @@ public enum ErrorCode {
     PASSWORD_MISMATCH("3004", "Mật khẩu không khớp"),
 
     // Role & Permission Errors (4000-4999)
-    ROLE_NOT_FOUND("4000", "Không tìm thấy vai trò"),
-    ROLE_ALREADY_EXISTS("4001", "Vai trò đã tồn tại"),
+    ROLE_NOT_FOUND("4000", "Không tìm thấy role"),
+    ROLE_ALREADY_EXISTS("4001", "role đã tồn tại"),
     PERMISSION_NOT_FOUND("4002", "Không tìm thấy quyền"),
     PERMISSION_DENIED("4003", "Không có quyền"),
 
@@ -62,6 +63,7 @@ public enum ErrorCode {
     PAYPAL_PAYMENT_ERROR("7020", "Lỗi thanh toán PayPal"),
     PAYMENT_CREATION_FAILED("7021", "Lỗi tạo thanh toán "),
     HMAC_GENERATION_FAILED("7022", "Lỗi tạo thanh toán "),
+    INVALID_WEBHOOK("7023", "Lỗi xác thực thanh toán"),
 
     // Email Errors (8000-8999)
     EMAIL_SEND_FAILED("8000", "Gửi email thất bại"),
@@ -92,6 +94,7 @@ public enum ErrorCode {
     TOO_MANY_PENDING_TRANSACTIONS("10009", "Có quá nhiều giao dịch đang chờ xử lý"),
     DUPLICATE_TRANSACTION("10010", "Phát hiện giao dịch trùng lặp"),
     TRANSACTION_TIMEOUT("10011", "Giao dịch đã quá hạn"),
+    INVALID_AMOUNT("10011", "Amount không hợp lệ"),
 
     // Security Errors (10100-10199)
     RATE_LIMIT_EXCEEDED("10100", "Vượt quá giới hạn truy cập, vui lòng thử lại sau"),

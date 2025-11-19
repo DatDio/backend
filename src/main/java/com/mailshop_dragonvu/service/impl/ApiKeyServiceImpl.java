@@ -12,17 +12,15 @@ import com.mailshop_dragonvu.mapper.ApiKeyMapper;
 import com.mailshop_dragonvu.repository.ApiKeyRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.service.ApiKeyService;
-import com.mailshop_dragonvu.util.ApiKeyGenerator;
+import com.mailshop_dragonvu.utils.ApiKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -45,7 +43,6 @@ public class ApiKeyServiceImpl implements ApiKeyService {
     @Transactional
     @CacheEvict(value = "apikeys", allEntries = true)
     public ApiKeyGeneratedResponse generateApiKey(ApiKeyGenerateRequest request, Long userId) {
-        log.info("Generating new API key for user ID: {}", userId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -189,22 +186,6 @@ public class ApiKeyServiceImpl implements ApiKeyService {
             apiKey.updateLastUsed();
             apiKeyRepository.save(apiKey);
         });
-    }
-
-    @Override
-    @Scheduled(cron = "0 0 * * * *") // Run every hour
-    @Transactional
-    public void deactivateExpiredKeys() {
-        log.info("Checking for expired API keys...");
-
-        List<ApiKey> expiredKeys = apiKeyRepository.findExpiredActiveKeys();
-
-        for (ApiKey key : expiredKeys) {
-            key.setStatus(ApiKeyStatus.INACTIVE);
-            apiKeyRepository.save(key);
-        }
-
-        log.info("Deactivated {} expired API keys", expiredKeys.size());
     }
 
     @Override

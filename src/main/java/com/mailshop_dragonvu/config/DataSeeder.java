@@ -1,93 +1,93 @@
-//package com.mailshop_dragonvu.config;
-//
-//import com.mailshop_dragonvu.entity.Role;
-//import com.mailshop_dragonvu.entity.User;
-//import com.mailshop_dragonvu.enums.AuthProvider;
-//import com.mailshop_dragonvu.repository.RoleRepository;
-//import com.mailshop_dragonvu.repository.UserRepository;
-//import lombok.RequiredArgsConstructor;
-//import lombok.extern.slf4j.Slf4j;
-//import org.springframework.beans.factory.annotation.Value;
-//import org.springframework.boot.CommandLineRunner;
-//import org.springframework.security.crypto.password.PasswordEncoder;
-//import org.springframework.stereotype.Component;
-//import org.springframework.transaction.annotation.Transactional;
-//
-//import java.util.Arrays;
-//import java.util.Set;
-//
-//@Slf4j
-//@Component
-//@RequiredArgsConstructor
-//public class DataSeeder implements CommandLineRunner {
-//
-//    private final RoleRepository roleRepository;
-//    private final UserRepository userRepository;
-//    private final PasswordEncoder passwordEncoder;
-//
-//    @Value("${app.admin.default-email}")
-//    private String adminEmail;
-//
-//    @Value("${app.admin.default-password}")
-//    private String adminPassword;
-//
-//    @Override
-//    @Transactional
-//    public void run(String... args) {
-//        log.info("Starting data seeding...");
-//
-//        seedRoles();
-//        seedAdmin();
-//
-//        log.info("Data seeding completed successfully");
-//    }
-//
-//    private void seedRoles() {
-//        if (roleRepository.count() > 0) {
-//            log.info("Roles already exist, skipping seeding");
-//            return;
-//        }
-//
-//        log.info("Seeding roles...");
-//
-//        // Create USER role
-//        Role userRole = Role.builder()
-//                .name("USER")
-//                .description("Standard user with basic access")
-//                .build();
-//
-//        // Create ADMIN role
-//        Role adminRole = Role.builder()
-//                .name("ADMIN")
-//                .description("Administrator with full system access")
-//                .build();
-//
-//        roleRepository.saveAll(Arrays.asList(userRole, adminRole));
-//        log.info("Roles seeded successfully: USER and ADMIN roles created");
-//    }
-//
-//    private void seedAdmin() {
-//        if (userRepository.existsByEmail(adminEmail)) {
-//            log.info("Admin user already exists, skipping seeding");
-//            return;
-//        }
-//
-//        log.info("Seeding admin user...");
-//
-//        Role adminRole = roleRepository.findByName("ADMIN")
-//                .orElseThrow(() -> new RuntimeException("ADMIN role not found"));
-//
-//        User admin = User.builder()
-//                .email(adminEmail)
-//                .password(passwordEncoder.encode(adminPassword))
-//                .fullName("System Administrator")
-//                .authProvider(AuthProvider.LOCAL)
-//                .emailVerified(true)
-//                .roles(Set.of(adminRole))
-//                .build();
-//
-//        userRepository.save(admin);
-//        log.info("Admin user seeded successfully with email: {}", adminEmail);
-//    }
-//
-//}
+package com.mailshop_dragonvu.config;
+
+import com.mailshop_dragonvu.entity.Role;
+import com.mailshop_dragonvu.entity.User;
+import com.mailshop_dragonvu.enums.AuthProvider;
+import com.mailshop_dragonvu.repository.RoleRepository;
+import com.mailshop_dragonvu.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class DataSeeder implements CommandLineRunner {
+
+    private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.admin.default-email}")
+    private String adminEmail;
+
+    @Value("${app.admin.default-password}")
+    private String adminPassword;
+
+    private static final List<String> DEFAULT_ROLES = List.of("USER", "ADMIN");
+
+    @Override
+    @Transactional
+    public void run(String... args) {
+        log.info("=== [START] DATA SEEDING ===");
+
+        seedRoles();
+        seedAdmin();
+
+        log.info("=== [DONE] DATA SEEDING ===");
+    }
+
+    /**
+     * Seed all required roles if missing
+     */
+    private void seedRoles() {
+        log.info("[ROLE] Checking & seeding roles...");
+
+        for (String roleName : DEFAULT_ROLES) {
+            roleRepository.findByName(roleName)
+                    .or(() -> Optional.of(roleRepository.save(
+                            Role.builder()
+                                    .name(roleName)
+                                    .description(roleName.equals("ADMIN") ?
+                                            "Administrator with full system access" :
+                                            "Standard user with basic access")
+                                    .build()
+                    )))
+                    .ifPresent(role -> log.info("[ROLE] OK => {}", role.getName()));
+        }
+    }
+
+    /**
+     * Seed system admin account if missing
+     */
+    private void seedAdmin() {
+        log.info("[ADMIN] Checking admin user...");
+
+        if (userRepository.existsByEmail(adminEmail)) {
+            log.info("[ADMIN] Already exists, skip");
+            return;
+        }
+
+        Role adminRole = roleRepository.findByName("ADMIN")
+                .orElseThrow(() -> new RuntimeException("[ADMIN] ADMIN role missing!"));
+
+        User admin = User.builder()
+                .email(adminEmail)
+                .password(passwordEncoder.encode(adminPassword))
+                .fullName("System Administrator")
+                .authProvider(AuthProvider.LOCAL)
+                .emailVerified(true)
+                .roles(Set.of(adminRole))
+                .status("ACTIVE")
+                .build();
+
+        userRepository.save(admin);
+        log.info("[ADMIN] Created admin account: {}", adminEmail);
+    }
+}
