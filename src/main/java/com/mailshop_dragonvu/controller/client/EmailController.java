@@ -1,7 +1,7 @@
 package com.mailshop_dragonvu.controller.client;
 
 import com.mailshop_dragonvu.dto.ApiResponse;
-import com.mailshop_dragonvu.dto.emails.EmailResponse;
+import com.mailshop_dragonvu.dto.emails.EmailResponseDTO;
 import com.mailshop_dragonvu.service.EmailService;
 import com.mailshop_dragonvu.utils.Constants;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,7 +34,7 @@ public class EmailController {
      */
     @GetMapping("/my-logs")
     @Operation(summary = "Get my email logs", description = "Get your email logs with pagination")
-    public ResponseEntity<ApiResponse<Page<EmailResponse>>> getMyEmailLogs(
+    public ResponseEntity<ApiResponse<Page<EmailResponseDTO>>> getMyEmailLogs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "sentAt") String sortBy,
@@ -43,7 +43,7 @@ public class EmailController {
         Sort sort = sortDir.equalsIgnoreCase("ASC") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
         
-        Page<EmailResponse> emails = emailService.getAllEmailLogs(pageable);
+        Page<EmailResponseDTO> emails = emailService.getAllEmailLogs(pageable);
         return ResponseEntity.ok(ApiResponse.success(emails));
     }
 
@@ -52,9 +52,9 @@ public class EmailController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "Get email log by ID", description = "Get email log details by ID")
-    public ResponseEntity<ApiResponse<EmailResponse>> getEmailLogById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<EmailResponseDTO>> getEmailLogById(@PathVariable Long id) {
         log.info("Getting email log with ID: {}", id);
-        EmailResponse response = emailService.getEmailLogById(id);
+        EmailResponseDTO response = emailService.getEmailLogById(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

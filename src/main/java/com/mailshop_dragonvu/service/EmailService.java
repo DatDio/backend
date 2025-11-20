@@ -1,7 +1,7 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.emails.EmailRequest;
-import com.mailshop_dragonvu.dto.emails.EmailResponse;
+import com.mailshop_dragonvu.dto.emails.EmailCreateDTO;
+import com.mailshop_dragonvu.dto.emails.EmailResponseDTO;
 import com.mailshop_dragonvu.entity.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,27 +14,27 @@ public interface EmailService {
     /**
      * Send email
      */
-    EmailResponse sendEmail(EmailRequest emailRequest);
+    EmailResponseDTO sendEmail(EmailCreateDTO emailRequest);
 
     /**
      * Send welcome email to new user
      */
-    void sendWelcomeEmail(User user);
+    void sendWelcomeEmail(UserEntity userEntity);
 
     /**
      * Send order confirmation email
      */
-    void sendOrderConfirmationEmail(Order order);
+    void sendOrderConfirmationEmail(OrderEntity orderEntity);
 
     /**
      * Send order status update email
      */
-    void sendOrderStatusUpdateEmail(Order order);
+    void sendOrderStatusUpdateEmail(OrderEntity orderEntity);
 
     /**
      * Send password reset email
      */
-    void sendPasswordResetEmail(User user, String resetToken);
+    void sendPasswordResetEmail(UserEntity userEntity, String resetToken);
 
     /**
      * Retry failed emails
@@ -44,20 +44,20 @@ public interface EmailService {
     /**
      * Get all email logs with pagination
      */
-    Page<EmailResponse> getAllEmailLogs(Pageable pageable);
+    Page<EmailResponseDTO> getAllEmailLogs(Pageable pageable);
 
     /**
      * Get email logs by status
      */
-    Page<EmailResponse> getEmailLogsByStatus(String status, Pageable pageable);
+    Page<EmailResponseDTO> getEmailLogsByStatus(String status, Pageable pageable);
 
     /**
      * Get email logs by user
      */
-    Page<EmailResponse> getEmailLogsByUserId(Long userId, Pageable pageable);
+    Page<EmailResponseDTO> getEmailLogsByUserId(Long userId, Pageable pageable);
 
     /**
      * Get email log by ID
      */
-    EmailResponse getEmailLogById(Long id);
+    EmailResponseDTO getEmailLogById(Long id);
 }

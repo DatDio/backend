@@ -1,0 +1,237 @@
+package com.mailshop_dragonvu.service.impl;
+
+import com.mailshop_dragonvu.dto.products.ProductCreateDTO;
+import com.mailshop_dragonvu.dto.products.ProductFilterDTO;
+import com.mailshop_dragonvu.dto.products.ProductResponseDTO;
+import com.mailshop_dragonvu.dto.products.ProductUpdateDTO;
+import com.mailshop_dragonvu.entity.CategoryEntity;
+import com.mailshop_dragonvu.entity.ProductEntity;
+import com.mailshop_dragonvu.entity.ProductItemEntity;
+import com.mailshop_dragonvu.enums.ActiveStatusEnum;
+import com.mailshop_dragonvu.exception.BusinessException;
+import com.mailshop_dragonvu.exception.ErrorCode;
+import com.mailshop_dragonvu.repository.CategoryRepository;
+import com.mailshop_dragonvu.repository.ProductItemRepository;
+import com.mailshop_dragonvu.repository.ProductRepository;
+import com.mailshop_dragonvu.service.ProductService;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ObjectUtils;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+@Transactional
+public class ProductServiceImpl implements ProductService {
+
+    private final ProductRepository productRepository;
+    private final ProductItemRepository productItemRepository;
+    private final CategoryRepository categoryRepository;
+
+    // ================== CREATE PRODUCT ==================
+
+    @Override
+    public ProductResponseDTO createProduct(ProductCreateDTO request) {
+
+        CategoryEntity category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        ProductEntity product = ProductEntity.builder()
+                .name(request.getName())
+                .description(request.getDescription())
+                .price(request.getPrice())
+                .category(category)
+                .status(ActiveStatusEnum.ACTIVE) // nếu bạn dùng ACTIVE / INACTIVE
+                .build();
+
+        ProductEntity saved = productRepository.save(product);
+
+        return toProductResponse(saved);
+    }
+
+    // ================== UPDATE PRODUCT ==================
+
+    @Override
+    public ProductResponseDTO updateProduct(Long id, ProductUpdateDTO request) {
+        log.info("Updating product {}", id);
+
+        ProductEntity product = findProductOrThrow(id);
+
+        if (request.getName() != null)
+            product.setName(request.getName());
+
+        if (request.getDescription() != null)
+            product.setDescription(request.getDescription());
+
+        if (request.getPrice() != null)
+            product.setPrice(request.getPrice());
+
+        if (request.getCategoryId() != null) {
+            CategoryEntity category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+            product.setCategory(category);
+        }
+
+        if (request.getStatus() != null)
+            product.setStatus(ActiveStatusEnum.valueOf(request.getStatus()));
+
+        ProductEntity updated = productRepository.save(product);
+
+        return toProductResponse(updated);
+    }
+
+    // ================== GET PRODUCT BY ID ==================
+
+    @Override
+    public ProductResponseDTO getProductById(Long id) {
+        ProductEntity product = findProductOrThrow(id);
+        return toProductResponse(product);
+    }
+
+
+    // ================== DELETE PRODUCT ==================
+
+    @Override
+    public void deleteProduct(Long id) {
+        ProductEntity product = findProductOrThrow(id);
+        productRepository.delete(product);
+    }
+
+    // ================== ACTIVATE / DEACTIVATE ==================
+
+    @Override
+    public void activateProduct(Long id) {
+        ProductEntity product = findProductOrThrow(id);
+        product.setStatus(ActiveStatusEnum.ACTIVE);
+        productRepository.save(product);
+    }
+
+    @Override
+    public void deactivateProduct(Long id) {
+        ProductEntity product = findProductOrThrow(id);
+        product.setStatus(ActiveStatusEnum.INACTIVE);
+        productRepository.save(product);
+    }
+
+    // ================== SEARCH PRODUCTS ==================
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> searchProducts(ProductFilterDTO request) {
+
+        Pageable pageable = PageRequest.of(request.getPage(), request.getLimit());
+
+        Specification<ProductEntity> spec = getSearchSpecification(request);
+
+        Page<ProductEntity> page = productRepository.findAll(spec, pageable);
+
+        return page.map(this::toProductResponse);
+    }
+    private Specification<ProductEntity> getSearchSpecification(ProductFilterDTO req) {
+
+        return (root, query, cb) -> {
+
+            List<Predicate> predicates = new ArrayList<>();
+
+            // ---- NAME (LIKE) ----
+            if (req.getName() != null && !req.getName().isBlank()) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("name")),
+                                "%" + req.getName().trim().toLowerCase() + "%"
+                        )
+                );
+            }
+
+            // ---- CATEGORY ----
+            if (req.getCategoryId() != null) {
+                predicates.add(
+                        cb.equal(root.get("category").get("id"), req.getCategoryId())
+                );
+            }
+
+            // ---- MIN PRICE ----
+            if (req.getMinPrice() != null) {
+                predicates.add(
+                        cb.greaterThanOrEqualTo(root.get("price"), req.getMinPrice())
+                );
+            }
+
+            // ---- MAX PRICE ----
+            if (req.getMaxPrice() != null) {
+                predicates.add(
+                        cb.lessThanOrEqualTo(root.get("price"), req.getMaxPrice())
+                );
+            }
+
+            // ---- STATUS ----
+            if (!ObjectUtils.isEmpty(req.getStatus()) && !req.getStatus().isBlank()) {
+                Set<Integer> status = Arrays.stream(req.getStatus().split(",")).map(Integer::valueOf)
+                        .collect(Collectors.toSet());
+                predicates.add(root.get("status").in(status));
+            }
+
+            // ---- MIN STOCK (số lượng còn lại >= minStock) ----
+            // Ở đây phải subquery count ProductItem chưa bán
+            if (req.getMinStock() != null) {
+                Subquery<Long> sub = query.subquery(Long.class);
+                Root<ProductItemEntity> itemRoot = sub.from(ProductItemEntity.class);
+
+                sub.select(cb.count(itemRoot));
+                sub.where(
+                        cb.equal(itemRoot.get("product").get("id"), root.get("id")),
+                        cb.isFalse(itemRoot.get("sold"))
+                );
+
+                predicates.add(cb.greaterThanOrEqualTo(sub, req.getMinStock().longValue()));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+
+    // ================== HELPER ==================
+
+    private ProductEntity findProductOrThrow(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    /**
+     * Convert product + tính số lượng còn lại từ ProductItem
+     */
+    private ProductResponseDTO toProductResponse(ProductEntity product) {
+        long quantity = productItemRepository.countAvailableItems(product.getId());
+
+        return ProductResponseDTO.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .description(product.getDescription())
+                .price(product.getPrice())
+
+                .categoryId(product.getCategory().getId())
+                .categoryName(product.getCategory().getName())
+
+                .status(product.getStatus().name())
+                .quantity(quantity)
+
+                .build();
+    }
+}
+

@@ -1,50 +1,50 @@
 package com.mailshop_dragonvu.mapper;
 
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
-import com.mailshop_dragonvu.entity.User;
-import com.mailshop_dragonvu.entity.Wallet;
+import com.mailshop_dragonvu.entity.UserEntity;
+import com.mailshop_dragonvu.entity.WalletEntity;
 import java.math.BigDecimal;
 import javax.annotation.processing.Generated;
 import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-19T18:10:42+0700",
+    date = "2025-11-20T22:34:06+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
 public class WalletMapperImpl implements WalletMapper {
 
     @Override
-    public WalletResponse toResponse(Wallet wallet) {
-        if ( wallet == null ) {
+    public WalletResponse toResponse(WalletEntity walletEntity) {
+        if ( walletEntity == null ) {
             return null;
         }
 
         WalletResponse.WalletResponseBuilder walletResponse = WalletResponse.builder();
 
-        walletResponse.userId( walletUserId( wallet ) );
-        walletResponse.id( wallet.getId() );
-        if ( wallet.getBalance() != null ) {
-            walletResponse.balance( BigDecimal.valueOf( wallet.getBalance() ) );
+        walletResponse.userId( walletEntityUserId( walletEntity ) );
+        walletResponse.id( walletEntity.getId() );
+        if ( walletEntity.getBalance() != null ) {
+            walletResponse.balance( BigDecimal.valueOf( walletEntity.getBalance() ) );
         }
-        if ( wallet.getTotalDeposited() != null ) {
-            walletResponse.totalDeposited( BigDecimal.valueOf( wallet.getTotalDeposited() ) );
+        if ( walletEntity.getTotalDeposited() != null ) {
+            walletResponse.totalDeposited( BigDecimal.valueOf( walletEntity.getTotalDeposited() ) );
         }
-        if ( wallet.getTotalSpent() != null ) {
-            walletResponse.totalSpent( BigDecimal.valueOf( wallet.getTotalSpent() ) );
+        if ( walletEntity.getTotalSpent() != null ) {
+            walletResponse.totalSpent( BigDecimal.valueOf( walletEntity.getTotalSpent() ) );
         }
-        walletResponse.isLocked( wallet.getIsLocked() );
-        walletResponse.lockReason( wallet.getLockReason() );
+        walletResponse.isLocked( walletEntity.getIsLocked() );
+        walletResponse.lockReason( walletEntity.getLockReason() );
 
         return walletResponse.build();
     }
 
-    private Long walletUserId(Wallet wallet) {
-        if ( wallet == null ) {
+    private Long walletEntityUserId(WalletEntity walletEntity) {
+        if ( walletEntity == null ) {
             return null;
         }
-        User user = wallet.getUser();
+        UserEntity user = walletEntity.getUser();
         if ( user == null ) {
             return null;
         }

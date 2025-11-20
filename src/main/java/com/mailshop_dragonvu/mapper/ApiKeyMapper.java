@@ -1,7 +1,7 @@
 package com.mailshop_dragonvu.mapper;
 
 import com.mailshop_dragonvu.dto.apikeys.ApiKeyResponse;
-import com.mailshop_dragonvu.entity.ApiKey;
+import com.mailshop_dragonvu.entity.ApiKeyEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -10,8 +10,5 @@ import org.mapstruct.Mapping;
  */
 @Mapper(componentModel = "spring")
 public interface ApiKeyMapper {
-
-    @Mapping(target = "expired", expression = "java(apiKey.isExpired())")
-    @Mapping(target = "valid", expression = "java(apiKey.isValid())")
-    ApiKeyResponse toResponse(ApiKey apiKey);
+    ApiKeyResponse toResponse(ApiKeyEntity apiKeyEntity);
 }

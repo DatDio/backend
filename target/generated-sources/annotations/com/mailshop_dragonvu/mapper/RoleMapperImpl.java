@@ -2,60 +2,60 @@ package com.mailshop_dragonvu.mapper;
 
 import com.mailshop_dragonvu.dto.auth.RoleRequest;
 import com.mailshop_dragonvu.dto.auth.RoleResponse;
-import com.mailshop_dragonvu.entity.Role;
+import com.mailshop_dragonvu.entity.RoleEntity;
 import javax.annotation.processing.Generated;
 import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-19T18:10:42+0700",
+    date = "2025-11-20T22:34:07+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
 public class RoleMapperImpl implements RoleMapper {
 
     @Override
-    public Role toEntity(RoleRequest request) {
+    public RoleEntity toEntity(RoleRequest request) {
         if ( request == null ) {
             return null;
         }
 
-        Role.RoleBuilder role = Role.builder();
+        RoleEntity.RoleEntityBuilder roleEntity = RoleEntity.builder();
 
-        role.name( request.getName() );
-        role.description( request.getDescription() );
+        roleEntity.name( request.getName() );
+        roleEntity.description( request.getDescription() );
 
-        return role.build();
+        return roleEntity.build();
     }
 
     @Override
-    public RoleResponse toResponse(Role role) {
-        if ( role == null ) {
+    public RoleResponse toResponse(RoleEntity roleEntity) {
+        if ( roleEntity == null ) {
             return null;
         }
 
         RoleResponse.RoleResponseBuilder roleResponse = RoleResponse.builder();
 
-        roleResponse.id( role.getId() );
-        roleResponse.name( role.getName() );
-        roleResponse.description( role.getDescription() );
-        roleResponse.createdAt( role.getCreatedAt() );
-        roleResponse.updatedAt( role.getUpdatedAt() );
+        roleResponse.id( roleEntity.getId() );
+        roleResponse.name( roleEntity.getName() );
+        roleResponse.description( roleEntity.getDescription() );
+        roleResponse.createdAt( roleEntity.getCreatedAt() );
+        roleResponse.updatedAt( roleEntity.getUpdatedAt() );
 
         return roleResponse.build();
     }
 
     @Override
-    public void updateEntity(Role role, RoleRequest request) {
+    public void updateEntity(RoleEntity roleEntity, RoleRequest request) {
         if ( request == null ) {
             return;
         }
 
         if ( request.getName() != null ) {
-            role.setName( request.getName() );
+            roleEntity.setName( request.getName() );
         }
         if ( request.getDescription() != null ) {
-            role.setDescription( request.getDescription() );
+            roleEntity.setDescription( request.getDescription() );
         }
     }
 }

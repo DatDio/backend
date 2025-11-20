@@ -1,60 +1,62 @@
 package com.mailshop_dragonvu.mapper;
 
 import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
-import com.mailshop_dragonvu.entity.Transaction;
-import com.mailshop_dragonvu.entity.User;
+import com.mailshop_dragonvu.entity.TransactionEntity;
+import com.mailshop_dragonvu.entity.UserEntity;
 import java.math.BigDecimal;
 import javax.annotation.processing.Generated;
 import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-19T18:10:42+0700",
+    date = "2025-11-20T22:34:07+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
 public class TransactionMapperImpl implements TransactionMapper {
 
     @Override
-    public TransactionResponseDTO toResponse(Transaction transaction) {
-        if ( transaction == null ) {
+    public TransactionResponseDTO toResponse(TransactionEntity transactionEntity) {
+        if ( transactionEntity == null ) {
             return null;
         }
 
         TransactionResponseDTO.TransactionResponseDTOBuilder transactionResponseDTO = TransactionResponseDTO.builder();
 
-        transactionResponseDTO.userId( transactionUserId( transaction ) );
-        if ( transaction.getType() != null ) {
-            transactionResponseDTO.type( transaction.getType().name() );
+        transactionResponseDTO.userId( transactionEntityUserId( transactionEntity ) );
+        if ( transactionEntity.getType() != null ) {
+            transactionResponseDTO.type( transactionEntity.getType().name() );
         }
-        if ( transaction.getStatus() != null ) {
-            transactionResponseDTO.status( transaction.getStatus().name() );
+        if ( transactionEntity.getStatus() != null ) {
+            transactionResponseDTO.status( transactionEntity.getStatus().name() );
         }
-        transactionResponseDTO.id( transaction.getId() );
-        transactionResponseDTO.transactionCode( transaction.getTransactionCode() );
-        if ( transaction.getAmount() != null ) {
-            transactionResponseDTO.amount( BigDecimal.valueOf( transaction.getAmount() ) );
+        transactionResponseDTO.id( transactionEntity.getId() );
+        if ( transactionEntity.getTransactionCode() != null ) {
+            transactionResponseDTO.transactionCode( String.valueOf( transactionEntity.getTransactionCode() ) );
         }
-        if ( transaction.getBalanceBefore() != null ) {
-            transactionResponseDTO.balanceBefore( BigDecimal.valueOf( transaction.getBalanceBefore() ) );
+        if ( transactionEntity.getAmount() != null ) {
+            transactionResponseDTO.amount( BigDecimal.valueOf( transactionEntity.getAmount() ) );
         }
-        if ( transaction.getBalanceAfter() != null ) {
-            transactionResponseDTO.balanceAfter( BigDecimal.valueOf( transaction.getBalanceAfter() ) );
+        if ( transactionEntity.getBalanceBefore() != null ) {
+            transactionResponseDTO.balanceBefore( BigDecimal.valueOf( transactionEntity.getBalanceBefore() ) );
         }
-        transactionResponseDTO.description( transaction.getDescription() );
-        transactionResponseDTO.paymentMethod( transaction.getPaymentMethod() );
-        transactionResponseDTO.paymentReference( transaction.getPaymentReference() );
-        transactionResponseDTO.createdAt( transaction.getCreatedAt() );
-        transactionResponseDTO.completedAt( transaction.getCompletedAt() );
+        if ( transactionEntity.getBalanceAfter() != null ) {
+            transactionResponseDTO.balanceAfter( BigDecimal.valueOf( transactionEntity.getBalanceAfter() ) );
+        }
+        transactionResponseDTO.description( transactionEntity.getDescription() );
+        transactionResponseDTO.paymentMethod( transactionEntity.getPaymentMethod() );
+        transactionResponseDTO.paymentReference( transactionEntity.getPaymentReference() );
+        transactionResponseDTO.createdAt( transactionEntity.getCreatedAt() );
+        transactionResponseDTO.completedAt( transactionEntity.getCompletedAt() );
 
         return transactionResponseDTO.build();
     }
 
-    private Long transactionUserId(Transaction transaction) {
-        if ( transaction == null ) {
+    private Long transactionEntityUserId(TransactionEntity transactionEntity) {
+        if ( transactionEntity == null ) {
             return null;
         }
-        User user = transaction.getUser();
+        UserEntity user = transactionEntity.getUser();
         if ( user == null ) {
             return null;
         }

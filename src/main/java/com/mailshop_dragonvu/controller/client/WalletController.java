@@ -100,7 +100,7 @@ public class WalletController {
     @GetMapping("/transactions/{transactionCode}")
     @Operation(summary = "Get transaction", description = "Get transaction details by code")
     public ResponseEntity<ApiResponse<TransactionResponseDTO>> getTransaction(
-            @PathVariable String transactionCode) {
+            @PathVariable Long transactionCode) {
 
         TransactionResponseDTO transaction = walletService.getTransactionByCode(transactionCode);
         return ResponseEntity.ok(ApiResponse.success(transaction));

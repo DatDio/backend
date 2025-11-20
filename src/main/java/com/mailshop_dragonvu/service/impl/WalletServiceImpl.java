@@ -2,11 +2,11 @@ package com.mailshop_dragonvu.service.impl;
 
 import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
-import com.mailshop_dragonvu.entity.Transaction;
-import com.mailshop_dragonvu.entity.User;
-import com.mailshop_dragonvu.entity.Wallet;
-import com.mailshop_dragonvu.enums.TransactionStatus;
-import com.mailshop_dragonvu.enums.TransactionType;
+import com.mailshop_dragonvu.entity.TransactionEntity;
+import com.mailshop_dragonvu.entity.UserEntity;
+import com.mailshop_dragonvu.entity.WalletEntity;
+import com.mailshop_dragonvu.enums.TransactionStatusEnum;
+import com.mailshop_dragonvu.enums.TransactionTypeEnum;
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
 import com.mailshop_dragonvu.mapper.TransactionMapper;
@@ -16,7 +16,6 @@ import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.repository.WalletRepository;
 import com.mailshop_dragonvu.service.PayOSService;
 import com.mailshop_dragonvu.service.WalletService;
-import com.mailshop_dragonvu.utils.DepositCodeUtil;
 import jakarta.persistence.PessimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +33,7 @@ import vn.payos.model.webhooks.WebhookData;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @RequiredArgsConstructor
@@ -71,9 +71,9 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional(readOnly = true)
     public WalletResponse getUserWallet(Long userId) {
-        Wallet wallet = walletRepository.findByUserId(userId)
+        WalletEntity walletEntity = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
-        return walletMapper.toResponse(wallet);
+        return walletMapper.toResponse(walletEntity);
     }
 
     @Override
@@ -83,18 +83,18 @@ public class WalletServiceImpl implements WalletService {
             throw new BusinessException(ErrorCode.WALLET_ALREADY_EXISTS);
         }
 
-        User user = userRepository.findById(userId)
+        UserEntity userEntity = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Wallet wallet = Wallet.builder()
-                .user(user)
+        WalletEntity walletEntity = WalletEntity.builder()
+                .user(userEntity)
                 .balance(0L)
                 .totalDeposited(0L)
                 .totalSpent(0L)
                 .isLocked(false)
                 .build();
 
-        walletRepository.save(wallet);
+        walletRepository.save(walletEntity);
     }
 
     @Override
@@ -102,17 +102,17 @@ public class WalletServiceImpl implements WalletService {
     public CreatePaymentLinkResponse createDepositPayOS(Long userId, CreatePaymentLinkRequest request,
                                                         String ipAddress, String userAgent) {
 
-        User user = userRepository.findById(userId)
+        UserEntity userEntity = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Wallet wallet = walletRepository.findByUserId(userId)
+        WalletEntity walletEntity = walletRepository.findByUserId(userId)
                 .orElseGet(() -> {
                     createWallet(userId);
                     return walletRepository.findByUserId(userId)
                             .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
                 });
 
-        if (wallet.getIsLocked()) {
+        if (walletEntity.getIsLocked()) {
             throw new BusinessException(ErrorCode.WALLET_LOCKED);
         }
 
@@ -126,17 +126,16 @@ public class WalletServiceImpl implements WalletService {
         CreatePaymentLinkResponse payOS = payOSService.createPaymentLink(request);
 
         // Tạo giao dịch PENDING
-        Transaction txn = Transaction.builder()
-                .transactionCode("TXN" + System.currentTimeMillis())
-                .user(user)
-                .wallet(wallet)
-                .type(TransactionType.DEPOSIT)
+        TransactionEntity txn = TransactionEntity.builder()
+                .transactionCode(payOS.getOrderCode())
+                .user(userEntity)
+                .wallet(walletEntity)
+                .type(TransactionTypeEnum.DEPOSIT)
                 .amount(request.getAmount())
-                .balanceBefore(wallet.getBalance())
-                .status(TransactionStatus.PENDING)
+                .balanceBefore(walletEntity.getBalance())
+                .status(TransactionStatusEnum.PENDING)
                 .description(request.getDescription() != null ? request.getDescription() : "Nạp tiền PayOS")
                 .paymentMethod("PAYOS")
-                .payosOrderCode(payOS.getOrderCode())
                 .ipAddress(ipAddress)
                 .userAgent(userAgent)
                 .build();
@@ -157,11 +156,11 @@ public class WalletServiceImpl implements WalletService {
         Long orderCode = data.getOrderCode();
 
         // Lấy transaction theo orderCode
-        Transaction txn = transactionRepository.findByPayosOrderCode(orderCode)
+        TransactionEntity txn = transactionRepository.findByTransactionCode(orderCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TRANSACTION_NOT_FOUND));
 
         // Nếu đã xử lý rồi → bỏ qua để tránh double webhook
-        if (txn.getStatus() == TransactionStatus.SUCCESS) {
+        if (txn.getStatus() == TransactionStatusEnum.SUCCESS) {
             return;
         }
 
@@ -174,15 +173,15 @@ public class WalletServiceImpl implements WalletService {
 
         // Thành công → cộng tiền
         try {
-            Wallet wallet = walletRepository.findByUserIdWithLock(txn.getUser().getId())
+            WalletEntity walletEntity = walletRepository.findByUserIdWithLock(txn.getUser().getId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
 
-            wallet.addBalance(data.getAmount());
-            txn.setBalanceAfter(wallet.getBalance());
+            walletEntity.addBalance(data.getAmount());
+            txn.setBalanceAfter(walletEntity.getBalance());
             txn.setPaymentReference(data.getReference());
             txn.markAsSuccess();
 
-            walletRepository.save(wallet);
+            walletRepository.save(walletEntity);
             transactionRepository.save(txn);
 
         } catch (PessimisticLockException | CannotAcquireLockException e) {
@@ -205,10 +204,10 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     @Transactional(readOnly = true)
-    public TransactionResponseDTO getTransactionByCode(String transactionCode) {
-        Transaction transaction = transactionRepository.findByTransactionCode(transactionCode)
+    public TransactionResponseDTO getTransactionByCode(Long transactionCode) {
+        TransactionEntity transactionEntity = transactionRepository.findByTransactionCode(transactionCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TRANSACTION_NOT_FOUND));
-        return transactionMapper.toResponse(transaction);
+        return transactionMapper.toResponse(transactionEntity);
     }
 
     @Override
@@ -220,75 +219,75 @@ public class WalletServiceImpl implements WalletService {
         }
 
         // Lấy wallet + khóa hàng để tránh race condition
-        Wallet wallet = walletRepository.findByUserIdWithLock(userId)
+        WalletEntity walletEntity = walletRepository.findByUserIdWithLock(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
 
-        User user = wallet.getUser();
+        UserEntity userEntity = walletEntity.getUser();
 
-        Long balanceBefore = wallet.getBalance();
+        Long balanceBefore = walletEntity.getBalance();
 
         // Xác định loại điều chỉnh: cộng hay trừ
         boolean isIncrease = amount > 0;
 
         // Tạo transaction
-        Transaction transaction = Transaction.builder()
-                .transactionCode("ADJ" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                .user(user)
-                .wallet(wallet)
-                .type(TransactionType.ADMIN_ADJUST)
+        TransactionEntity transactionEntity = TransactionEntity.builder()
+                .transactionCode(System.currentTimeMillis() + ThreadLocalRandom.current().nextInt(1000))
+                .user(userEntity)
+                .wallet(walletEntity)
+                .type(TransactionTypeEnum.ADMIN_ADJUST)
                 .amount(Math.abs(amount))  // transaction nên lưu số dương
                 .balanceBefore(balanceBefore)
-                .status(TransactionStatus.SUCCESS)
-                .description(reason != null ? reason : (isIncrease ? "Admin increased balance" : "Admin decreased balance"))
+                .status(TransactionStatusEnum.SUCCESS)
+                .description(reason != null ? reason : (isIncrease ? "Admin tăng số dư" : "Admin giảm số dư"))
                 .paymentMethod("ADMIN")
                 .build();
 
         // Update balance
         if (isIncrease) {
-            wallet.addBalance(amount);
+            walletEntity.addBalance(amount);
         } else {
             // amount là số âm -> trừ theo số dương
-            wallet.deductBalance(Math.abs(amount));
+            walletEntity.deductBalance(Math.abs(amount));
         }
 
-        transaction.setBalanceAfter(wallet.getBalance());
-        transaction.setCompletedAt(LocalDateTime.now());
+        transactionEntity.setBalanceAfter(walletEntity.getBalance());
+        transactionEntity.setCompletedAt(LocalDateTime.now());
 
-        walletRepository.save(wallet);
-        transactionRepository.save(transaction);
+        walletRepository.save(walletEntity);
+        transactionRepository.save(transactionEntity);
 
-        return walletMapper.toResponse(wallet);
+        return walletMapper.toResponse(walletEntity);
     }
 
 
     @Override
     @Transactional
     public WalletResponse lockWallet(Long userId, String reason) {
-        Wallet wallet = walletRepository.findByUserId(userId)
+        WalletEntity walletEntity = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
 
-        wallet.setIsLocked(true);
-        wallet.setLockReason(reason);
-        wallet = walletRepository.save(wallet);
+        walletEntity.setIsLocked(true);
+        walletEntity.setLockReason(reason);
+        walletEntity = walletRepository.save(walletEntity);
 
         log.warn("Wallet locked for user: {}, reason: {}", userId, reason);
 
-        return walletMapper.toResponse(wallet);
+        return walletMapper.toResponse(walletEntity);
     }
 
     @Override
     @Transactional
     public WalletResponse unlockWallet(Long userId) {
-        Wallet wallet = walletRepository.findByUserId(userId)
+        WalletEntity walletEntity = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
 
-        wallet.setIsLocked(false);
-        wallet.setLockReason(null);
-        wallet = walletRepository.save(wallet);
+        walletEntity.setIsLocked(false);
+        walletEntity.setLockReason(null);
+        walletEntity = walletRepository.save(walletEntity);
 
         log.info("Wallet unlocked for user: {}", userId);
 
-        return walletMapper.toResponse(wallet);
+        return walletMapper.toResponse(walletEntity);
     }
 
     /**
@@ -337,7 +336,7 @@ public class WalletServiceImpl implements WalletService {
      */
     private void checkDuplicateTransactions(Long userId, Long amount) {
         LocalDateTime since = LocalDateTime.now().minusMinutes(5);
-        List<Transaction> duplicates = transactionRepository.findDuplicateTransactions(userId, amount, since);
+        List<TransactionEntity> duplicates = transactionRepository.findDuplicateTransactions(userId, amount, since);
 
         if (!duplicates.isEmpty()) {
             log.warn("Duplicate transaction attempt - User: {}, Amount: {}", userId, amount);

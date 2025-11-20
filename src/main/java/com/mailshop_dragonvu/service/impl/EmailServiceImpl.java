@@ -1,9 +1,11 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.emails.EmailRequest;
-import com.mailshop_dragonvu.dto.emails.EmailResponse;
-import com.mailshop_dragonvu.entity.*;
-import com.mailshop_dragonvu.enums.EmailStatus;
+import com.mailshop_dragonvu.dto.emails.EmailCreateDTO;
+import com.mailshop_dragonvu.dto.emails.EmailResponseDTO;
+import com.mailshop_dragonvu.entity.EmailLogEntity;
+import com.mailshop_dragonvu.entity.OrderEntity;
+import com.mailshop_dragonvu.entity.UserEntity;
+import com.mailshop_dragonvu.enums.EmailStatusEnum;
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
 import com.mailshop_dragonvu.mapper.EmailLogMapper;
@@ -23,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -46,42 +47,42 @@ public class EmailServiceImpl implements EmailService {
     @Override
     @Async
     @Transactional
-    public EmailResponse sendEmail(EmailRequest emailRequest) {
+    public EmailResponseDTO sendEmail(EmailCreateDTO emailRequest) {
         log.info("Sending email to: {}", emailRequest.getTo());
 
-        EmailLog emailLog = EmailLog.builder()
+        EmailLogEntity emailLogEntity = EmailLogEntity.builder()
                 .recipientEmail(emailRequest.getTo())
                 .subject(emailRequest.getSubject())
                 .body(emailRequest.getBody())
-                .status("PENDING")
+                .emailStatus(EmailStatusEnum.PENDING)
                 .retryCount(0)
                 .build();
 
         try {
             sendEmailInternal(emailRequest.getTo(), emailRequest.getSubject(), emailRequest.getBody());
-            emailLog.setStatus("SENT");
-            emailLog.setSentAt(LocalDateTime.now());
+            emailLogEntity.setEmailStatus(EmailStatusEnum.SENT);
+            emailLogEntity.setSentAt(LocalDateTime.now());
             log.info("Email sent successfully to: {}", emailRequest.getTo());
         } catch (Exception e) {
             log.error("Failed to send email to: {}", emailRequest.getTo(), e);
-            emailLog.setStatus("FAILED");
-            emailLog.setErrorMessage(e.getMessage());
+            emailLogEntity.setEmailStatus(EmailStatusEnum.FAILED);
+            emailLogEntity.setErrorMessage(e.getMessage());
         }
 
-        emailLog = emailLogRepository.save(emailLog);
-        return emailLogMapper.toResponse(emailLog);
+        emailLogEntity = emailLogRepository.save(emailLogEntity);
+        return emailLogMapper.toResponse(emailLogEntity);
     }
 
     @Override
     @Async
-    public void sendWelcomeEmail(User user) {
-        log.info("Sending welcome email to: {}", user.getEmail());
+    public void sendWelcomeEmail(UserEntity userEntity) {
+        log.info("Sending welcome email to: {}", userEntity.getEmail());
 
         String subject = "Welcome to MailShop DragonVu!";
-        String body = buildWelcomeEmailBody(user);
+        String body = buildWelcomeEmailBody(userEntity);
 
-        EmailRequest emailRequest = EmailRequest.builder()
-                .to(user.getEmail())
+        EmailCreateDTO emailRequest = EmailCreateDTO.builder()
+                .to(userEntity.getEmail())
                 .subject(subject)
                 .body(body)
                 .build();
@@ -91,14 +92,14 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     @Async
-    public void sendOrderConfirmationEmail(Order order) {
-        log.info("Sending order confirmation email for order: {}", order.getOrderNumber());
+    public void sendOrderConfirmationEmail(OrderEntity orderEntity) {
+        log.info("Sending orderEntity confirmation email for orderEntity: {}", orderEntity.getOrderNumber());
 
-        String subject = "Order Confirmation - " + order.getOrderNumber();
-        String body = buildOrderConfirmationEmailBody(order);
+        String subject = "Order Confirmation - " + orderEntity.getOrderNumber();
+        String body = buildOrderConfirmationEmailBody(orderEntity);
 
-        EmailRequest emailRequest = EmailRequest.builder()
-                .to(order.getUser().getEmail())
+        EmailCreateDTO emailRequest = EmailCreateDTO.builder()
+                .to(orderEntity.getUser().getEmail())
                 .subject(subject)
                 .body(body)
                 .build();
@@ -108,14 +109,14 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     @Async
-    public void sendOrderStatusUpdateEmail(Order order) {
-        log.info("Sending order status update email for order: {}", order.getOrderNumber());
+    public void sendOrderStatusUpdateEmail(OrderEntity orderEntity) {
+        log.info("Sending orderEntity status update email for orderEntity: {}", orderEntity.getOrderNumber());
 
-        String subject = "Order Status Update - " + order.getOrderNumber();
-        String body = buildOrderStatusUpdateEmailBody(order);
+        String subject = "Order Status Update - " + orderEntity.getOrderNumber();
+        String body = buildOrderStatusUpdateEmailBody(orderEntity);
 
-        EmailRequest emailRequest = EmailRequest.builder()
-                .to(order.getUser().getEmail())
+        EmailCreateDTO emailRequest = EmailCreateDTO.builder()
+                .to(orderEntity.getUser().getEmail())
                 .subject(subject)
                 .body(body)
                 .build();
@@ -125,15 +126,15 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     @Async
-    public void sendPasswordResetEmail(User user, String resetToken) {
-        log.info("Sending password reset email to: {}", user.getEmail());
+    public void sendPasswordResetEmail(UserEntity userEntity, String resetToken) {
+        log.info("Sending password reset email to: {}", userEntity.getEmail());
 
         String resetUrl = frontendUrl + "/reset-password?token=" + resetToken;
         String subject = "Password Reset Request";
-        String body = buildPasswordResetEmailBody(user, resetUrl);
+        String body = buildPasswordResetEmailBody(userEntity, resetUrl);
 
-        EmailRequest emailRequest = EmailRequest.builder()
-                .to(user.getEmail())
+        EmailCreateDTO emailRequest = EmailCreateDTO.builder()
+                .to(userEntity.getEmail())
                 .subject(subject)
                 .body(body)
                 .build();
@@ -164,30 +165,30 @@ public class EmailServiceImpl implements EmailService {
 //    }
 
     @Override
-    public Page<EmailResponse> getAllEmailLogs(Pageable pageable) {
+    public Page<EmailResponseDTO> getAllEmailLogs(Pageable pageable) {
         return emailLogRepository.findAll(pageable)
                 .map(emailLogMapper::toResponse);
     }
 
     @Override
-    public Page<EmailResponse> getEmailLogsByStatus(String status, Pageable pageable) {
-        EmailStatus emailStatus = EmailStatus.valueOf(status.toUpperCase());
+    public Page<EmailResponseDTO> getEmailLogsByStatus(String status, Pageable pageable) {
+        EmailStatusEnum emailStatus = EmailStatusEnum.valueOf(status.toUpperCase());
         return emailLogRepository.findByEmailStatus(emailStatus, pageable)
                 .map(emailLogMapper::toResponse);
     }
 
 
     @Override
-    public Page<EmailResponse> getEmailLogsByUserId(Long userId, Pageable pageable) {
+    public Page<EmailResponseDTO> getEmailLogsByUserId(Long userId, Pageable pageable) {
         return emailLogRepository.findByUserId(userId, pageable)
                 .map(emailLogMapper::toResponse);
     }
 
     @Override
-    public EmailResponse getEmailLogById(Long id) {
-        EmailLog emailLog = emailLogRepository.findById(id)
+    public EmailResponseDTO getEmailLogById(Long id) {
+        EmailLogEntity emailLogEntity = emailLogRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_LOG_NOT_FOUND));
-        return emailLogMapper.toResponse(emailLog);
+        return emailLogMapper.toResponse(emailLogEntity);
     }
 
     private void sendEmailInternal(String to, String subject, String body) throws MessagingException {
@@ -202,7 +203,7 @@ public class EmailServiceImpl implements EmailService {
         mailSender.send(message);
     }
 
-    private String buildWelcomeEmailBody(User user) {
+    private String buildWelcomeEmailBody(UserEntity userEntity) {
         return """
                 <html>
                 <body>
@@ -213,54 +214,54 @@ public class EmailServiceImpl implements EmailService {
                     <p>Best regards,<br>MailShop DragonVu Team</p>
                 </body>
                 </html>
-                """.formatted(user.getFullName());
+                """.formatted(userEntity.getFullName());
     }
 
-    private String buildOrderConfirmationEmailBody(Order order) {
+    private String buildOrderConfirmationEmailBody(OrderEntity orderEntity) {
         return """
                 <html>
                 <body>
                     <h2>Order Confirmation</h2>
                     <p>Hi %s,</p>
-                    <p>Your order <strong>%s</strong> has been confirmed!</p>
+                    <p>Your orderEntity <strong>%s</strong> has been confirmed!</p>
                     <p>Order Details:</p>
                     <ul>
                         <li>Order Number: %s</li>
                         <li>Total Amount: %s VND</li>
                         <li>Status: %s</li>
                     </ul>
-                    <p>You can view your order details in your account dashboard.</p>
+                    <p>You can view your orderEntity details in your account dashboard.</p>
                     <p>Best regards,<br>MailShop DragonVu Team</p>
                 </body>
                 </html>
                 """.formatted(
-                order.getUser().getFullName(),
-                order.getOrderNumber(),
-                order.getOrderNumber(),
-                order.getFinalAmount(),
-                order.getOrderStatus()
+                orderEntity.getUser().getFullName(),
+                orderEntity.getOrderNumber(),
+                orderEntity.getOrderNumber(),
+                orderEntity.getFinalAmount(),
+                orderEntity.getOrderStatus()
         );
     }
 
-    private String buildOrderStatusUpdateEmailBody(Order order) {
+    private String buildOrderStatusUpdateEmailBody(OrderEntity orderEntity) {
         return """
                 <html>
                 <body>
                     <h2>Order Status Update</h2>
                     <p>Hi %s,</p>
-                    <p>Your order <strong>%s</strong> status has been updated to: <strong>%s</strong></p>
-                    <p>You can view your order details in your account dashboard.</p>
+                    <p>Your orderEntity <strong>%s</strong> status has been updated to: <strong>%s</strong></p>
+                    <p>You can view your orderEntity details in your account dashboard.</p>
                     <p>Best regards,<br>MailShop DragonVu Team</p>
                 </body>
                 </html>
                 """.formatted(
-                order.getUser().getFullName(),
-                order.getOrderNumber(),
-                order.getOrderStatus()
+                orderEntity.getUser().getFullName(),
+                orderEntity.getOrderNumber(),
+                orderEntity.getOrderStatus()
         );
     }
 
-    private String buildPasswordResetEmailBody(User user, String resetUrl) {
+    private String buildPasswordResetEmailBody(UserEntity userEntity, String resetUrl) {
         return """
                 <html>
                 <body>
@@ -273,6 +274,6 @@ public class EmailServiceImpl implements EmailService {
                     <p>Best regards,<br>MailShop DragonVu Team</p>
                 </body>
                 </html>
-                """.formatted(user.getFullName(), resetUrl);
+                """.formatted(userEntity.getFullName(), resetUrl);
     }
 }

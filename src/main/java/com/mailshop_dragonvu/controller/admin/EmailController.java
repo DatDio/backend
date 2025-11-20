@@ -1,8 +1,8 @@
 package com.mailshop_dragonvu.controller.admin;
 
 import com.mailshop_dragonvu.dto.ApiResponse;
-import com.mailshop_dragonvu.dto.emails.EmailRequest;
-import com.mailshop_dragonvu.dto.emails.EmailResponse;
+import com.mailshop_dragonvu.dto.emails.EmailCreateDTO;
+import com.mailshop_dragonvu.dto.emails.EmailResponseDTO;
 import com.mailshop_dragonvu.service.EmailService;
 import com.mailshop_dragonvu.utils.Constants;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,10 +38,10 @@ public class EmailController {
      */
     @PostMapping("/send")
     @Operation(summary = "Send email", description = "Send plain text email (Admin only)")
-    public ResponseEntity<ApiResponse<EmailResponse>> sendEmail(
-            @Valid @RequestBody EmailRequest emailRequest) {
+    public ResponseEntity<ApiResponse<EmailResponseDTO>> sendEmail(
+            @Valid @RequestBody EmailCreateDTO emailRequest) {
         log.info("Sending email to: {}", emailRequest.getTo());
-        EmailResponse response = emailService.sendEmail(emailRequest);
+        EmailResponseDTO response = emailService.sendEmail(emailRequest);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -50,7 +50,7 @@ public class EmailController {
      */
     @GetMapping
     @Operation(summary = "Get all email logs", description = "Get all email logs with pagination (Admin only)")
-    public ResponseEntity<ApiResponse<Page<EmailResponse>>> getAllEmailLogs(
+    public ResponseEntity<ApiResponse<Page<EmailResponseDTO>>> getAllEmailLogs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "sentAt") String sortBy,
@@ -59,7 +59,7 @@ public class EmailController {
         Sort sort = sortDir.equalsIgnoreCase("ASC") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
         
-        Page<EmailResponse> emails = emailService.getAllEmailLogs(pageable);
+        Page<EmailResponseDTO> emails = emailService.getAllEmailLogs(pageable);
         return ResponseEntity.ok(ApiResponse.success(emails));
     }
 
@@ -68,9 +68,9 @@ public class EmailController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "Get email log by ID", description = "Get email log details by ID (Admin only)")
-    public ResponseEntity<ApiResponse<EmailResponse>> getEmailLogById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<EmailResponseDTO>> getEmailLogById(@PathVariable Long id) {
         log.info("Getting email log with ID: {}", id);
-        EmailResponse response = emailService.getEmailLogById(id);
+        EmailResponseDTO response = emailService.getEmailLogById(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -79,13 +79,13 @@ public class EmailController {
      */
     @GetMapping("/status/{status}")
     @Operation(summary = "Get email logs by status", description = "Get email logs filtered by status (Admin only)")
-    public ResponseEntity<ApiResponse<Page<EmailResponse>>> getEmailLogsByStatus(
+    public ResponseEntity<ApiResponse<Page<EmailResponseDTO>>> getEmailLogsByStatus(
             @PathVariable String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         
         Pageable pageable = PageRequest.of(page, size, Sort.by("sentAt").descending());
-        Page<EmailResponse> emails = emailService.getEmailLogsByStatus(status, pageable);
+        Page<EmailResponseDTO> emails = emailService.getEmailLogsByStatus(status, pageable);
         return ResponseEntity.ok(ApiResponse.success(emails));
     }
 
@@ -94,13 +94,13 @@ public class EmailController {
      */
     @GetMapping("/user/{userId}")
     @Operation(summary = "Get email logs by user", description = "Get all emails sent to a specific user (Admin only)")
-    public ResponseEntity<ApiResponse<Page<EmailResponse>>> getEmailLogsByUserId(
+    public ResponseEntity<ApiResponse<Page<EmailResponseDTO>>> getEmailLogsByUserId(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         
         Pageable pageable = PageRequest.of(page, size, Sort.by("sentAt").descending());
-        Page<EmailResponse> emails = emailService.getEmailLogsByUserId(userId, pageable);
+        Page<EmailResponseDTO> emails = emailService.getEmailLogsByUserId(userId, pageable);
         return ResponseEntity.ok(ApiResponse.success(emails));
     }
 

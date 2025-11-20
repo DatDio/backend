@@ -3,10 +3,9 @@ package com.mailshop_dragonvu.service;
 import com.mailshop_dragonvu.dto.apikeys.ApiKeyGenerateRequest;
 import com.mailshop_dragonvu.dto.apikeys.ApiKeyGeneratedResponse;
 import com.mailshop_dragonvu.dto.apikeys.ApiKeyResponse;
-import com.mailshop_dragonvu.entity.User;
+import com.mailshop_dragonvu.entity.UserEntity;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * API Key Service Interface
@@ -41,7 +40,7 @@ public interface ApiKeyService {
     /**
      * Validate API key and return associated user
      */
-    User validateApiKey(String apiKey);
+    UserEntity validateApiKey(String apiKey);
 
     /**
      * Update last used timestamp for an API key

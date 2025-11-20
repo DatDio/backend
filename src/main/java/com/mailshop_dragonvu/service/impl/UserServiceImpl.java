@@ -1,26 +1,42 @@
 package com.mailshop_dragonvu.service.impl;
 
 import com.mailshop_dragonvu.dto.users.UserCreateDTO;
+import com.mailshop_dragonvu.dto.users.UserFilterDTO;
 import com.mailshop_dragonvu.dto.users.UserResponseDTO;
 import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
-import com.mailshop_dragonvu.entity.Role;
-import com.mailshop_dragonvu.entity.User;
+import com.mailshop_dragonvu.entity.RoleEntity;
+import com.mailshop_dragonvu.entity.UserEntity;
+import com.mailshop_dragonvu.enums.ActiveStatusEnum;
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
 import com.mailshop_dragonvu.mapper.UserMapper;
 import com.mailshop_dragonvu.repository.RoleRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.service.UserService;
+import com.mailshop_dragonvu.utils.Utils;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ObjectUtils;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,18 +60,18 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        User user = userMapper.toEntity(request);
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        UserEntity userEntity = userMapper.toEntity(request);
+        userEntity.setPassword(passwordEncoder.encode(request.getPassword()));
 
         // Assign default USER role
-        Role userRole = roleRepository.findByName("USER")
+        RoleEntity userRoleEntity = roleRepository.findByName("USER")
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND));
-        user.getRoles().add(userRole);
+        userEntity.getRoles().add(userRoleEntity);
 
-        user = userRepository.save(user);
-        log.info("User created successfully with ID: {}", user.getId());
+        userEntity = userRepository.save(userEntity);
+        log.info("User created successfully with ID: {}", userEntity.getId());
 
-        return userMapper.toResponse(user);
+        return userMapper.toResponse(userEntity);
     }
 
     @Override
@@ -64,20 +80,20 @@ public class UserServiceImpl implements UserService {
     public UserResponseDTO updateUser(Long id, UserUpdateDTO request) {
         log.info("Updating user with ID: {}", id);
 
-        User user = userRepository.findById(id)
+        UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())) {
+        if (request.getEmail() != null && !request.getEmail().equals(userEntity.getEmail())) {
             if (userRepository.existsByEmail(request.getEmail())) {
                 throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
             }
         }
 
-        userMapper.updateEntity(user, request);
-        user = userRepository.save(user);
+        userMapper.updateEntity(userEntity, request);
+        userEntity = userRepository.save(userEntity);
 
         log.info("User updated successfully with ID: {}", id);
-        return userMapper.toResponse(user);
+        return userMapper.toResponse(userEntity);
     }
 
     @Override
@@ -85,10 +101,10 @@ public class UserServiceImpl implements UserService {
     public UserResponseDTO getUserById(Long id) {
         log.debug("Fetching user by ID: {}", id);
 
-        User user = userRepository.findById(id)
+        UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        return userMapper.toResponse(user);
+        return userMapper.toResponse(userEntity);
     }
 
     @Override
@@ -96,17 +112,54 @@ public class UserServiceImpl implements UserService {
     public UserResponseDTO getUserByEmail(String email) {
         log.debug("Fetching user by email: {}", email);
 
-        User user = userRepository.findByEmail(email)
+        UserEntity userEntity = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        return userMapper.toResponse(user);
+        return userMapper.toResponse(userEntity);
     }
 
     @Override
-    public Page<UserResponseDTO> getAllUsers(Pageable pageable) {
-        log.debug("Fetching all users with pagination");
-        return userRepository.findAll(pageable)
+    public Page<UserResponseDTO> search(UserFilterDTO userFilterDTO) {
+        Sort sort = Utils.generatedSort(userFilterDTO.getSort());
+        Pageable pageable = PageRequest.of(userFilterDTO.getPage(), userFilterDTO.getLimit(), sort);
+
+        Specification<UserEntity> specification = getSearchSpecification(userFilterDTO);
+        Page<UserResponseDTO> page = userRepository.findAll(specification, pageable)
                 .map(userMapper::toResponse);
+
+        return page;
+    }
+    private Specification<UserEntity> getSearchSpecification(
+            final UserFilterDTO request) {
+        return new Specification<UserEntity>() {
+
+            private static final long serialVersionUID = 6345534328548406667L;
+
+            @Override
+            @Nullable
+            public Predicate toPredicate(@NonNull Root<UserEntity> root,
+                                         @NonNull CriteriaQuery<?> query, @NonNull CriteriaBuilder criteriaBuilder) {
+                List<Predicate> predicates = new ArrayList<>();
+                if (Strings.isNotBlank(request.getEmail())) {
+                    predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("email")),
+                            "%" + request.getEmail().trim().toLowerCase() + "%"));
+                }
+
+                if (Strings.isNotBlank(request.getFullName())) {
+                    predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("fullName")),
+                            "%" + request.getFullName().trim().toLowerCase() + "%"));
+                }
+
+                if (!ObjectUtils.isEmpty(request.getStatus()) && !request.getStatus().isBlank()) {
+                    Set<Integer> status = Arrays.stream(request.getStatus().split(",")).map(Integer::valueOf)
+                            .collect(Collectors.toSet());
+                    predicates.add(root.get("status").in(status));
+                }
+
+                return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+            }
+
+        };
     }
 
     @Override
@@ -114,11 +167,11 @@ public class UserServiceImpl implements UserService {
     @CacheEvict(value = "users", key = "#id")
     public void deleteUser(Long id) {
 
-        User user = userRepository.findById(id)
+        UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        user.setStatus("DELETED");
-        userRepository.save(user);
+        userEntity.setStatus(ActiveStatusEnum.INACTIVE);
+        userRepository.save(userEntity);
 
     }
 
@@ -126,20 +179,17 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @CacheEvict(value = "users", key = "#userId")
     public void assignRolesToUser(Long userId, List<Long> roleIds) {
-        log.info("Assigning roles to user ID: {}", userId);
-
-        User user = userRepository.findById(userId)
+        UserEntity userEntity = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Set<Role> roles = roleIds.stream()
+        Set<RoleEntity> roleEntities = roleIds.stream()
                 .map(roleId -> roleRepository.findById(roleId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND)))
                 .collect(Collectors.toSet());
 
-        user.getRoles().addAll(roles);
-        userRepository.save(user);
+        userEntity.getRoles().addAll(roleEntities);
+        userRepository.save(userEntity);
 
-        log.info("Roles assigned successfully to user ID: {}", userId);
     }
 
     @Override
@@ -148,18 +198,17 @@ public class UserServiceImpl implements UserService {
     public void removeRolesFromUser(Long userId, List<Long> roleIds) {
         log.info("Removing roles from user ID: {}", userId);
 
-        User user = userRepository.findById(userId)
+        UserEntity userEntity = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Set<Role> rolesToRemove = roleIds.stream()
+        Set<RoleEntity> rolesToRemove = roleIds.stream()
                 .map(roleId -> roleRepository.findById(roleId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND)))
                 .collect(Collectors.toSet());
 
-        user.getRoles().removeAll(rolesToRemove);
-        userRepository.save(user);
+        userEntity.getRoles().removeAll(rolesToRemove);
+        userRepository.save(userEntity);
 
-        log.info("Roles removed successfully from user ID: {}", userId);
     }
 
 }

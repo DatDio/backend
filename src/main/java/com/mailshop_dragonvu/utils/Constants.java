@@ -1,6 +1,9 @@
 package com.mailshop_dragonvu.utils;
 
 public class Constants {
+    public static final String ROLE_ADMIN = "ADMIN";
+    public static final String ROLE_USER = "USER";
+
     public class API_PATH {
         private static final String CONTEXT_PATH = "api/v1/";
         public static final String AUTH = CONTEXT_PATH + "auth";
@@ -11,4 +14,6 @@ public class Constants {
         public static final String WALLETS = CONTEXT_PATH + "wallets";
         public static final String CATEGORIES = CONTEXT_PATH + "categories";
     }
+
+
 }

@@ -2,7 +2,7 @@ package com.mailshop_dragonvu.service.impl;
 
 import com.mailshop_dragonvu.dto.auth.RoleRequest;
 import com.mailshop_dragonvu.dto.auth.RoleResponse;
-import com.mailshop_dragonvu.entity.Role;
+import com.mailshop_dragonvu.entity.RoleEntity;
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
 import com.mailshop_dragonvu.mapper.RoleMapper;
@@ -35,11 +35,11 @@ public class RoleServiceImpl implements RoleService {
             throw new BusinessException(ErrorCode.ROLE_ALREADY_EXISTS);
         }
 
-        Role role = roleMapper.toEntity(request);
-        role = roleRepository.save(role);
-        log.info("Role created successfully with ID: {}", role.getId());
+        RoleEntity roleEntity = roleMapper.toEntity(request);
+        roleEntity = roleRepository.save(roleEntity);
+        log.info("Role created successfully with ID: {}", roleEntity.getId());
 
-        return roleMapper.toResponse(role);
+        return roleMapper.toResponse(roleEntity);
     }
 
     @Override
@@ -48,18 +48,18 @@ public class RoleServiceImpl implements RoleService {
     public RoleResponse updateRole(Long id, RoleRequest request) {
         log.info("Updating role with ID: {}", id);
 
-        Role role = roleRepository.findById(id)
+        RoleEntity roleEntity = roleRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND));
 
-        if (request.getName() != null && !request.getName().equals(role.getName()) && roleRepository.existsByName(request.getName())) {
+        if (request.getName() != null && !request.getName().equals(roleEntity.getName()) && roleRepository.existsByName(request.getName())) {
             throw new BusinessException(ErrorCode.ROLE_ALREADY_EXISTS);
         }
 
-        roleMapper.updateEntity(role, request);
-        role = roleRepository.save(role);
+        roleMapper.updateEntity(roleEntity, request);
+        roleEntity = roleRepository.save(roleEntity);
         log.info("Role updated successfully with ID: {}", id);
 
-        return roleMapper.toResponse(role);
+        return roleMapper.toResponse(roleEntity);
     }
 
     @Override
@@ -67,10 +67,10 @@ public class RoleServiceImpl implements RoleService {
     public RoleResponse getRoleById(Long id) {
         log.debug("Fetching role by ID: {}", id);
 
-        Role role = roleRepository.findById(id)
+        RoleEntity roleEntity = roleRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND));
 
-        return roleMapper.toResponse(role);
+        return roleMapper.toResponse(roleEntity);
     }
 
     @Override
@@ -78,10 +78,10 @@ public class RoleServiceImpl implements RoleService {
     public RoleResponse getRoleByName(String name) {
         log.debug("Fetching role by name: {}", name);
 
-        Role role = roleRepository.findByName(name)
+        RoleEntity roleEntity = roleRepository.findByName(name)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND));
 
-        return roleMapper.toResponse(role);
+        return roleMapper.toResponse(roleEntity);
     }
 
     @Override
@@ -97,9 +97,9 @@ public class RoleServiceImpl implements RoleService {
     public void deleteRole(Long id) {
         log.info("Deleting role with ID: {}", id);
 
-        Role role = roleRepository.findById(id)
+        RoleEntity roleEntity = roleRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND));
-        roleRepository.save(role);
+        roleRepository.save(roleEntity);
     }
 
 }

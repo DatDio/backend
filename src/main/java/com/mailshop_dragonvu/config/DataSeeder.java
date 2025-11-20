@@ -1,7 +1,8 @@
 package com.mailshop_dragonvu.config;
 
-import com.mailshop_dragonvu.entity.Role;
-import com.mailshop_dragonvu.entity.User;
+import com.mailshop_dragonvu.entity.RoleEntity;
+import com.mailshop_dragonvu.entity.UserEntity;
+import com.mailshop_dragonvu.enums.ActiveStatusEnum;
 import com.mailshop_dragonvu.enums.AuthProvider;
 import com.mailshop_dragonvu.repository.RoleRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
@@ -52,7 +53,7 @@ public class DataSeeder implements CommandLineRunner {
         for (String roleName : DEFAULT_ROLES) {
             roleRepository.findByName(roleName)
                     .or(() -> Optional.of(roleRepository.save(
-                            Role.builder()
+                            RoleEntity.builder()
                                     .name(roleName)
                                     .description(roleName.equals("ADMIN") ?
                                             "Administrator with full system access" :
@@ -74,17 +75,17 @@ public class DataSeeder implements CommandLineRunner {
             return;
         }
 
-        Role adminRole = roleRepository.findByName("ADMIN")
+        RoleEntity adminRoleEntity = roleRepository.findByName("ADMIN")
                 .orElseThrow(() -> new RuntimeException("[ADMIN] ADMIN role missing!"));
 
-        User admin = User.builder()
+        UserEntity admin = UserEntity.builder()
                 .email(adminEmail)
                 .password(passwordEncoder.encode(adminPassword))
                 .fullName("System Administrator")
                 .authProvider(AuthProvider.LOCAL)
                 .emailVerified(true)
-                .roles(Set.of(adminRole))
-                .status("ACTIVE")
+                .roles(Set.of(adminRoleEntity))
+                .status(ActiveStatusEnum.ACTIVE)
                 .build();
 
         userRepository.save(admin);

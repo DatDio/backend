@@ -1,0 +1,18 @@
+package com.mailshop_dragonvu.dto.productitems;
+
+import lombok.Builder;
+import lombok.Data;
+
+@Data
+@Builder
+public class ProductItemResponseDTO {
+    private Long id;
+    private Long productId;
+
+    private String accountData;   // mail|pass|recovery
+    private Boolean sold;
+
+    private Long buyerId;         // null nếu chưa bán
+    private Long orderId;         // null nếu chưa bán
+    private String soldAt;
+}

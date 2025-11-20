@@ -1,6 +1,6 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.entity.User;
+import com.mailshop_dragonvu.entity.UserEntity;
 import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -19,18 +19,18 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     @Transactional
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+        UserEntity userEntity = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
-        return UserPrincipal.create(user);
+        return UserPrincipal.create(userEntity);
     }
 
     @Transactional
     public UserDetails loadUserById(Long id) {
-        User user = userRepository.findById(id)
+        UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + id));
 
-        return UserPrincipal.create(user);
+        return UserPrincipal.create(userEntity);
     }
 
 }

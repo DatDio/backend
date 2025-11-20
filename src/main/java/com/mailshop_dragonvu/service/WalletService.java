@@ -2,14 +2,11 @@ package com.mailshop_dragonvu.service;
 
 import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
-import com.mailshop_dragonvu.entity.Wallet;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
 import vn.payos.model.webhooks.Webhook;
-
-import java.math.BigDecimal;
 
 /**
  * Wallet Service Interface
@@ -44,7 +41,7 @@ public interface WalletService {
     /**
      * Get transaction by code
      */
-    TransactionResponseDTO getTransactionByCode(String transactionCode);
+    TransactionResponseDTO getTransactionByCode(Long transactionCode);
 
     /**
      * Admin: Adjust user balance

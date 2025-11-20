@@ -1,7 +1,7 @@
 package com.mailshop_dragonvu.mapper;
 
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
-import com.mailshop_dragonvu.entity.Wallet;
+import com.mailshop_dragonvu.entity.WalletEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -12,5 +12,5 @@ import org.mapstruct.Mapping;
 public interface WalletMapper {
 
     @Mapping(source = "user.id", target = "userId")
-    WalletResponse toResponse(Wallet wallet);
+    WalletResponse toResponse(WalletEntity walletEntity);
 }

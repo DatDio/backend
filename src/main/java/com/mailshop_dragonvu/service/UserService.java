@@ -1,6 +1,7 @@
 package com.mailshop_dragonvu.service;
 
 import com.mailshop_dragonvu.dto.users.UserCreateDTO;
+import com.mailshop_dragonvu.dto.users.UserFilterDTO;
 import com.mailshop_dragonvu.dto.users.UserResponseDTO;
 import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
 import org.springframework.data.domain.Page;
@@ -18,7 +19,7 @@ public interface UserService {
 
     UserResponseDTO getUserByEmail(String email);
 
-    Page<UserResponseDTO> getAllUsers(Pageable pageable);
+    Page<UserResponseDTO> search(UserFilterDTO userFilterDTO);
 
     void deleteUser(Long id);
 

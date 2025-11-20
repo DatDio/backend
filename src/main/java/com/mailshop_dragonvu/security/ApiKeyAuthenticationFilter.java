@@ -1,6 +1,6 @@
 package com.mailshop_dragonvu.security;
 
-import com.mailshop_dragonvu.entity.User;
+import com.mailshop_dragonvu.entity.UserEntity;
 import com.mailshop_dragonvu.service.ApiKeyService;
 import com.mailshop_dragonvu.service.impl.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
@@ -41,9 +41,9 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             String apiKey = extractApiKeyFromRequest(request);
 
             if (StringUtils.hasText(apiKey)) {
-                User user = apiKeyService.validateApiKey(apiKey);
-                if (user != null) {
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+                UserEntity userEntity = apiKeyService.validateApiKey(apiKey);
+                if (userEntity != null) {
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(userEntity.getEmail());
 
                     UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(

@@ -1,7 +1,7 @@
 -- Init script for Oracle Database
 -- This script runs automatically when container starts for the first time
 
--- Create user for MailShop application
+-- Create userEntity for MailShop application
 CREATE USER mailshop_user IDENTIFIED BY mailshop_pass;
 
 -- Grant necessary privileges
@@ -28,4 +28,4 @@ ALTER USER mailshop_user DEFAULT TABLESPACE USERS;
 ALTER USER mailshop_user TEMPORARY TABLESPACE TEMP;
 
 -- Display success message
-SELECT 'MailShop database user created successfully!' AS status FROM DUAL;
+SELECT 'MailShop database userEntity created successfully!' AS status FROM DUAL;

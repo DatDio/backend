@@ -1,9 +1,10 @@
 package com.mailshop_dragonvu.service;
 
 import com.mailshop_dragonvu.dto.orders.OrderCreateDTO;
+import com.mailshop_dragonvu.dto.orders.OrderFilterDTO;
 import com.mailshop_dragonvu.dto.orders.OrderResponseDTO;
 import com.mailshop_dragonvu.dto.orders.OrderUpdateDTO;
-import com.mailshop_dragonvu.enums.OrderStatus;
+import com.mailshop_dragonvu.enums.OrderStatusEnum;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -17,13 +18,13 @@ public interface OrderService {
 
     OrderResponseDTO getOrderByNumber(String orderNumber, Long userId);
 
-    Page<OrderResponseDTO> getAllOrders(Pageable pageable);
+    Page<OrderResponseDTO> search(OrderFilterDTO orderFilterDTO);
 
     Page<OrderResponseDTO> getOrdersByUser(Long userId, Pageable pageable);
 
-    Page<OrderResponseDTO> getOrdersByStatus(OrderStatus status, Pageable pageable);
+    Page<OrderResponseDTO> getOrdersByStatus(OrderStatusEnum status, Pageable pageable);
 
-    OrderResponseDTO updateOrderStatus(Long id, OrderStatus status);
+    OrderResponseDTO updateOrderStatus(Long id, OrderStatusEnum status);
 
     OrderResponseDTO confirmOrder(Long id);
 

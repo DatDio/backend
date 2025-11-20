@@ -1,6 +1,6 @@
 # MailShop Backend - Spring Boot 3 Application
 
-A comprehensive, production-ready backend application built with **Spring Boot 3**, **Java 17**, **Oracle Database**, **Redis caching**, **JWT authentication**, **Google OAuth2**, and **role-based access control (RBAC)**.
+A comprehensive, production-ready backend application built with **Spring Boot 3**, **Java 17**, **Oracle Database**, **Redis caching**, **JWT authentication**, **Google OAuth2**, and **roleEntity-based access control (RBAC)**.
 
 ## 🚀 Features
 
@@ -28,7 +28,7 @@ A comprehensive, production-ready backend application built with **Spring Boot 3
 ### Security
 - JWT access tokens (15 min expiry)
 - JWT refresh tokens (7 days expiry)
-- **API Key authentication** (per-user, similar to OpenAI/Stripe)
+- **API Key authentication** (per-userEntity, similar to OpenAI/Stripe)
 - Password encoding with BCrypt
 - Google OAuth2 integration
 - Role-Based Access Control (RBAC)
@@ -48,8 +48,8 @@ A comprehensive, production-ready backend application built with **Spring Boot 3
 #### 2. Role & Permission Management
 - Role CRUD operations
 - Permission CRUD operations
-- Dynamic role-permission assignment
-- Default roles: USER, ADMIN
+- Dynamic roleEntity-permission assignment
+- Default roleEntities: USER, ADMIN
 
 #### 3. Authentication & Authorization
 - Local registration and login
@@ -102,10 +102,10 @@ A comprehensive, production-ready backend application built with **Spring Boot 3
 - Integration with Order, Invoice, and Payment modules
 
 #### 8. API Key Authentication
-- Per-user API key generation (similar to OpenAI/Stripe)
+- Per-userEntity API key generation (similar to OpenAI/Stripe)
 - Secure BCrypt hashing (never stores plaintext)
 - One-time plaintext display on generation
-- Multiple keys per user (max 5 active)
+- Multiple keys per userEntity (max 5 active)
 - Permission levels (READ_ONLY, FULL_ACCESS)
 - Status management (ACTIVE, INACTIVE)
 - Optional expiration timestamps
@@ -118,8 +118,8 @@ A comprehensive, production-ready backend application built with **Spring Boot 3
 ### Data Seeding
 - Automatic seeding on application startup
 - 20 predefined permissions
-- 2 default roles (USER, ADMIN)
-- 1 admin user (configurable credentials)
+- 2 default roleEntities (USER, ADMIN)
+- 1 admin userEntity (configurable credentials)
 
 ## 📁 Project Structure
 
@@ -226,8 +226,8 @@ backend/
 │   │       └── templates/ (Thymeleaf email templates)
 │   │           ├── invoice-overdue.html
 │   │           ├── invoice.html
-│   │           ├── order-confirmation.html
-│   │           ├── order-status-update.html
+│   │           ├── orderEntity-confirmation.html
+│   │           ├── orderEntity-status-update.html
 │   │           ├── password-reset.html
 │   │           ├── payment-confirmation.html
 │   │           ├── payment-failed.html
@@ -325,7 +325,7 @@ cd backend
    - Set JWT secret key
    - Configure Google OAuth2 credentials
    - Configure SMTP email settings
-   - Set admin user credentials
+   - Set admin userEntity credentials
 
 3. **Build the project**
 ```bash
@@ -353,31 +353,31 @@ http://localhost:8080/swagger-ui.html
 ```
 
 ### Authentication Endpoints
-- `POST /api/auth/register` - Register new user
+- `POST /api/auth/register` - Register new userEntity
 - `POST /api/auth/login` - Login with credentials
 - `POST /api/auth/refresh` - Refresh access token
-- `POST /api/auth/logout` - Logout user
+- `POST /api/auth/logout` - Logout userEntity
 
 ### User Management (Requires Authentication)
 - `GET /api/users` - Get all users (Admin)
-- `GET /api/users/{id}` - Get user by ID
-- `PUT /api/users/{id}` - Update user
-- `DELETE /api/users/{id}` - Delete user (Admin)
-- `PUT /api/users/{userId}/roles/{roleId}` - Assign role to user (Admin)
+- `GET /api/users/{id}` - Get userEntity by ID
+- `PUT /api/users/{id}` - Update userEntity
+- `DELETE /api/users/{id}` - Delete userEntity (Admin)
+- `PUT /api/users/{userId}/roleEntities/{roleId}` - Assign roleEntity to userEntity (Admin)
 
 ### Order Management
-- `POST /api/orders` - Create order (User)
-- `GET /api/orders/my-orders` - Get user's orders
-- `GET /api/orders/{id}` - Get order by ID
-- `PUT /api/orders/{id}/confirm` - Confirm order (Admin)
-- `PUT /api/orders/{id}/ship` - Ship order (Admin)
-- `PUT /api/orders/{id}/deliver` - Deliver order (Admin)
-- `PUT /api/orders/{id}/cancel` - Cancel order
+- `POST /api/orders` - Create orderEntity (User)
+- `GET /api/orders/my-orders` - Get userEntity's orders
+- `GET /api/orders/{id}` - Get orderEntity by ID
+- `PUT /api/orders/{id}/confirm` - Confirm orderEntity (Admin)
+- `PUT /api/orders/{id}/ship` - Ship orderEntity (Admin)
+- `PUT /api/orders/{id}/deliver` - Deliver orderEntity (Admin)
+- `PUT /api/orders/{id}/cancel` - Cancel orderEntity
 
 ### Invoice Management
 - `POST /api/invoices` - Create invoice (Admin)
 - `GET /api/invoices/{id}` - Get invoice by ID
-- `GET /api/invoices/my-invoices` - Get user's invoices
+- `GET /api/invoices/my-invoices` - Get userEntity's invoices
 - `PUT /api/invoices/{id}/mark-paid` - Mark invoice as paid (Admin)
 
 ### Payment Management
@@ -396,12 +396,12 @@ http://localhost:8080/swagger-ui.html
 - `POST /api/emails/retry-failed` - Retry failed emails (Admin)
 
 ### API Key Management
-- `POST /api/user/apikey/generate` - Generate new API key
-- `POST /api/user/apikey/revoke/{id}` - Revoke (deactivate) API key
-- `POST /api/user/apikey/activate/{id}` - Activate API key
-- `GET /api/user/apikey/list` - List all user's API keys
-- `GET /api/user/apikey/{id}` - Get API key by ID
-- `GET /api/user/apikey/usage-stats/{id}` - Get API key usage statistics
+- `POST /api/userEntity/apikey/generate` - Generate new API key
+- `POST /api/userEntity/apikey/revoke/{id}` - Revoke (deactivate) API key
+- `POST /api/userEntity/apikey/activate/{id}` - Activate API key
+- `GET /api/userEntity/apikey/list` - List all userEntity's API keys
+- `GET /api/userEntity/apikey/{id}` - Get API key by ID
+- `GET /api/userEntity/apikey/usage-stats/{id}` - Get API key usage statistics
 
 **Using API Keys:**
 Include the API key in the request header:
@@ -426,15 +426,15 @@ After running the application, the following users will be seeded:
 - Roles: ADMIN (with all permissions)
 
 **Default Roles:**
-- **USER**: Limited permissions (user:read, order:*, etc.)
+- **USER**: Limited permissions (userEntity:read, orderEntity:*, etc.)
 - **ADMIN**: All permissions
 
 ### Permissions
 The system includes 20 predefined permissions:
-- `user:read`, `user:write`, `user:delete`
-- `role:read`, `role:write`, `role:delete`
+- `userEntity:read`, `userEntity:write`, `userEntity:delete`
+- `roleEntity:read`, `roleEntity:write`, `roleEntity:delete`
 - `permission:read`, `permission:write`, `permission:delete`
-- `order:read`, `order:write`, `order:delete`
+- `orderEntity:read`, `orderEntity:write`, `orderEntity:delete`
 - `invoice:read`, `invoice:write`, `invoice:delete`
 - `payment:read`, `payment:write`, `payment:delete`
 - `email:read`, `email:write`
@@ -443,9 +443,9 @@ The system includes 20 predefined permissions:
 
 The application includes professionally designed HTML email templates:
 
-1. **Welcome Email** - Sent on user registration
-2. **Order Confirmation** - Sent when order is created
-3. **Order Status Update** - Sent when order status changes
+1. **Welcome Email** - Sent on userEntity registration
+2. **Order Confirmation** - Sent when orderEntity is created
+3. **Order Status Update** - Sent when orderEntity status changes
 4. **Invoice** - Sent when invoice is generated
 5. **Invoice Overdue** - Sent for overdue invoices
 6. **Payment Confirmation** - Sent on successful payment

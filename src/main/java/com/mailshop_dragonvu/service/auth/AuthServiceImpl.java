@@ -4,9 +4,9 @@ import com.mailshop_dragonvu.dto.auth.LoginRequest;
 import com.mailshop_dragonvu.dto.auth.RefreshTokenRequest;
 import com.mailshop_dragonvu.dto.auth.RegisterRequest;
 import com.mailshop_dragonvu.dto.auth.AuthResponse;
-import com.mailshop_dragonvu.entity.RefreshToken;
-import com.mailshop_dragonvu.entity.Role;
-import com.mailshop_dragonvu.entity.User;
+import com.mailshop_dragonvu.entity.RefreshTokenEntity;
+import com.mailshop_dragonvu.entity.RoleEntity;
+import com.mailshop_dragonvu.entity.UserEntity;
 import com.mailshop_dragonvu.enums.AuthProvider;
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
@@ -17,6 +17,7 @@ import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.security.JwtTokenProvider;
 import com.mailshop_dragonvu.service.EmailService;
 import com.mailshop_dragonvu.service.WalletService;
+import com.mailshop_dragonvu.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,7 +58,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        User user = User.builder()
+        UserEntity userEntity = UserEntity.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
@@ -67,30 +68,30 @@ public class AuthServiceImpl implements AuthService {
                 .emailVerified(false)
                 .build();
 
-        Role userRole = roleRepository.findByName("USER")
+        RoleEntity userRoleEntity = roleRepository.findByName(Constants.ROLE_USER)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND));
-        user.getRoles().add(userRole);
+        userEntity.getRoles().add(userRoleEntity);
 
-        user = userRepository.save(user);
+        userEntity = userRepository.save(userEntity);
 
         //Tạo ví
-         walletService.createWallet(user.getId());
+         walletService.createWallet(userEntity.getId());
 
-        String authorities = user.getRoles()
+        String authorities = userEntity.getRoles()
                 .stream()
                 .map(r -> "ROLE_" + r.getName())
                 .collect(Collectors.joining(","));
 
         String accessToken = jwtTokenProvider.generateTokenFromUserId(
-                user.getId(), user.getEmail(), authorities
+                userEntity.getId(), userEntity.getEmail(), authorities
         );
 
-        RefreshToken refreshToken = createOrUpdateRefreshToken(user);
+        RefreshTokenEntity refreshTokenEntity = createOrUpdateRefreshToken(userEntity);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken.getToken())
-                .user(userMapper.toResponse(user))
+                .refreshToken(refreshTokenEntity.getToken())
+                .user(userMapper.toResponse(userEntity))
                 .build();
     }
 
@@ -106,34 +107,34 @@ public class AuthServiceImpl implements AuthService {
                 )
         );
 
-        User user = userRepository.findByEmail(request.getEmail())
+        UserEntity userEntity = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         String accessToken = jwtTokenProvider.generateToken(authentication);
 
-        RefreshToken refreshToken = createOrUpdateRefreshToken(user);
+        RefreshTokenEntity refreshTokenEntity = createOrUpdateRefreshToken(userEntity);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken.getToken())
-                .user(userMapper.toResponse(user))
+                .refreshToken(refreshTokenEntity.getToken())
+                .user(userMapper.toResponse(userEntity))
                 .build();
     }
 
 
-    private RefreshToken createOrUpdateRefreshToken(User user) {
-        String newToken = jwtTokenProvider.generateRefreshToken(user.getId());
+    private RefreshTokenEntity createOrUpdateRefreshToken(UserEntity userEntity) {
+        String newToken = jwtTokenProvider.generateRefreshToken(userEntity.getId());
 
-        RefreshToken refreshToken = refreshTokenRepository.findByUser(user)
-                .orElse(RefreshToken.builder()
-                        .user(user)
+        RefreshTokenEntity refreshTokenEntity = refreshTokenRepository.findByUser(userEntity)
+                .orElse(RefreshTokenEntity.builder()
+                        .user(userEntity)
                         .build());
 
-        refreshToken.setToken(newToken);
-        refreshToken.setRevoked(false);
-        refreshToken.setExpiryDate(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000));
+        refreshTokenEntity.setToken(newToken);
+        refreshTokenEntity.setRevoked(false);
+        refreshTokenEntity.setExpiryDate(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000));
 
-        return refreshTokenRepository.save(refreshToken);
+        return refreshTokenRepository.save(refreshTokenEntity);
     }
 
     @Override
@@ -151,9 +152,9 @@ public class AuthServiceImpl implements AuthService {
         String googleId = payload.getSubject();
 
         // Find or create user
-        User user = userRepository.findByEmail(email)
+        UserEntity userEntity = userRepository.findByEmail(email)
                 .orElseGet(() -> {
-                    User newUser = User.builder()
+                    UserEntity newUserEntity = UserEntity.builder()
                             .email(email)
                             .fullName(fullName)
                             .avatarUrl(avatarUrl)
@@ -162,26 +163,26 @@ public class AuthServiceImpl implements AuthService {
                             .emailVerified(true)
                             .build();
 
-                    Role userRole = roleRepository.findByName("USER")
+                    RoleEntity userRoleEntity = roleRepository.findByName(Constants.ROLE_USER)
                             .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND));
-                    newUser.getRoles().add(userRole);
+                    newUserEntity.getRoles().add(userRoleEntity);
 
-                    return userRepository.save(newUser);
+                    return userRepository.save(newUserEntity);
                 });
 
         // ---- JWT + Refresh token ----
-        String authorities = user.getRoles().stream()
+        String authorities = userEntity.getRoles().stream()
                 .map(role -> "ROLE_" + role.getName())
                 .collect(Collectors.joining(","));
 
         String accessToken = jwtTokenProvider.generateTokenFromUserId(
-                user.getId(), user.getEmail(), authorities);
+                userEntity.getId(), userEntity.getEmail(), authorities);
 
-        String refreshTokenStr = jwtTokenProvider.generateRefreshToken(user.getId());
+        String refreshTokenStr = jwtTokenProvider.generateRefreshToken(userEntity.getId());
         refreshTokenRepository.save(
-                RefreshToken.builder()
+                RefreshTokenEntity.builder()
                         .token(refreshTokenStr)
-                        .user(user)
+                        .user(userEntity)
                         .expiryDate(LocalDateTime.now().plusSeconds(refreshExpirationMs / 1000))
                         .build()
         );
@@ -189,7 +190,7 @@ public class AuthServiceImpl implements AuthService {
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshTokenStr)
-                .user(userMapper.toResponse(user))
+                .user(userMapper.toResponse(userEntity))
                 .build();
     }
 
@@ -197,34 +198,34 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse refreshToken(RefreshTokenRequest request) {
 
-        RefreshToken refreshToken = refreshTokenRepository.findByToken(request.getRefreshToken())
+        RefreshTokenEntity refreshTokenEntity = refreshTokenRepository.findByToken(request.getRefreshToken())
                 .orElseThrow(() -> new BusinessException(ErrorCode.REFRESH_TOKEN_INVALID));
 
-        if (refreshToken.getRevoked()) {
+        if (refreshTokenEntity.getRevoked()) {
             throw new BusinessException(ErrorCode.REFRESH_TOKEN_INVALID);
         }
 
-        if (refreshToken.isExpired()) {
-            refreshTokenRepository.delete(refreshToken);
+        if (refreshTokenEntity.isExpired()) {
+            refreshTokenRepository.delete(refreshTokenEntity);
             throw new BusinessException(ErrorCode.REFRESH_TOKEN_EXPIRED);
         }
 
-        User user = refreshToken.getUser();
+        UserEntity userEntity = refreshTokenEntity.getUser();
 
-        String authorities = user.getRoles().stream()
+        String authorities = userEntity.getRoles().stream()
                 .map(role -> "ROLE_" + role.getName())
                 .collect(Collectors.joining(","));
 
         String accessToken = jwtTokenProvider.generateTokenFromUserId(
-                user.getId(),
-                user.getEmail(),
+                userEntity.getId(),
+                userEntity.getEmail(),
                 authorities
         );
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken.getToken()) // giữ nguyên
-                .user(userMapper.toResponse(user))
+                .refreshToken(refreshTokenEntity.getToken()) // giữ nguyên
+                .user(userMapper.toResponse(userEntity))
                 .build();
     }
 
@@ -232,7 +233,6 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void logout(String refreshToken) {
-        log.info("User logout");
 
         refreshTokenRepository.findByToken(refreshToken)
                 .ifPresent(token -> {

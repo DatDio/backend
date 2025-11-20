@@ -1,6 +1,7 @@
 package com.mailshop_dragonvu.controller.admin;
 
 import com.mailshop_dragonvu.dto.users.UserCreateDTO;
+import com.mailshop_dragonvu.dto.users.UserFilterDTO;
 import com.mailshop_dragonvu.dto.users.UserResponseDTO;
 import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
 import com.mailshop_dragonvu.dto.ApiResponse;
@@ -44,22 +45,11 @@ public class UserController {
         return ApiResponse.success("User updated successfully", userService.updateUser(id, request));
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Get user by ID")
-    public ApiResponse<UserResponseDTO> getUserById(@PathVariable Long id) {
-        return ApiResponse.success(userService.getUserById(id));
-    }
 
-    @GetMapping("/email/{email}")
-    @Operation(summary = "Get user by email")
-    public ApiResponse<UserResponseDTO> getUserByEmail(@PathVariable String email) {
-        return ApiResponse.success(userService.getUserByEmail(email));
-    }
-
-    @GetMapping
+    @GetMapping("/search")
     @Operation(summary = "Get all users with pagination")
-    public ApiResponse<Page<UserResponseDTO>> getAllUsers(Pageable pageable) {
-        return ApiResponse.success(userService.getAllUsers(pageable));
+    public ApiResponse<Page<UserResponseDTO>> search( UserFilterDTO userFilterDTO) {
+        return ApiResponse.success(userService.search(userFilterDTO));
     }
 
     @DeleteMapping("/{id}")

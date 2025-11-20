@@ -3,8 +3,8 @@ package com.mailshop_dragonvu.mapper;
 import com.mailshop_dragonvu.dto.users.UserCreateDTO;
 import com.mailshop_dragonvu.dto.users.UserResponseDTO;
 import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
-import com.mailshop_dragonvu.entity.Role;
-import com.mailshop_dragonvu.entity.User;
+import com.mailshop_dragonvu.entity.RoleEntity;
+import com.mailshop_dragonvu.entity.UserEntity;
 import org.mapstruct.*;
 
 import java.util.Set;
@@ -16,21 +16,20 @@ public interface UserMapper {
     @Mapping(target = "authProvider", expression = "java(com.mailshop_dragonvu.enums.AuthProvider.LOCAL)")
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "refreshToken", ignore = true)
-    User toEntity(UserCreateDTO request);
+    UserEntity toEntity(UserCreateDTO request);
 
-    @Mapping(target = "roles", expression = "java(mapRolesToStrings(user.getRoles()))")
-    @Mapping(target = "authProvider", expression = "java(user.getAuthProvider().name())")
-    UserResponseDTO toResponse(User user);
+    @Mapping(target = "roles", expression = "java(mapRolesToStrings(userEntity.getRoles()))")
+    @Mapping(target = "authProvider", expression = "java(userEntity.getAuthProvider().name())")
+    UserResponseDTO toResponse(UserEntity userEntity);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "refreshToken", ignore = true)
-    void updateEntity(@MappingTarget User user, UserUpdateDTO request);
+    void updateEntity(@MappingTarget UserEntity userEntity, UserUpdateDTO request);
 
-    default Set<String> mapRolesToStrings(Set<Role> roles) {
-        return roles.stream()
-                .map(Role::getName)
+    default Set<String> mapRolesToStrings(Set<RoleEntity> roleEntities) {
+        return roleEntities.stream()
+                .map(RoleEntity::getName)
                 .collect(Collectors.toSet());
     }
-
 }
