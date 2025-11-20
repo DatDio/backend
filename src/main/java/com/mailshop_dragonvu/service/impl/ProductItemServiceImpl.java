@@ -1,5 +1,6 @@
 package com.mailshop_dragonvu.service.impl;
 
+import com.mailshop_dragonvu.dto.productitems.ProductItemCreateDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemFilterDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemResponseDTO;
 import com.mailshop_dragonvu.entity.ProductEntity;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
@@ -35,6 +37,33 @@ public class ProductItemServiceImpl implements ProductItemService {
 
     private final ProductRepository productRepository;
     private final ProductItemRepository productItemRepository;
+    @Override
+    public void batchCreateProductItems(ProductItemCreateDTO productItemCreateDTO) {
+        ProductEntity product = productRepository.findById(productItemCreateDTO.getProductId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        if(!StringUtils.hasText(productItemCreateDTO.getAccountData())){
+            throw new BusinessException("Nội dung rỗng!");
+        }
+
+        String[] lines = productItemCreateDTO.getAccountData().split("\\r?\\n");
+        List<ProductItemEntity> items = new ArrayList<>();
+        for (String line : lines) {
+            line = line.trim();
+            if (line.isEmpty()) continue;
+
+            // Tạo entity
+            ProductItemEntity item = ProductItemEntity.builder()
+                    .product(product)
+                    .accountData(line)
+                    .sold(false)
+                    .build();
+
+            items.add(item);
+        }
+
+        productItemRepository.saveAll(items);
+    }
 
     @Override
     public Page<ProductItemResponseDTO> searchProductItems(ProductItemFilterDTO productItemFilterDTO) {

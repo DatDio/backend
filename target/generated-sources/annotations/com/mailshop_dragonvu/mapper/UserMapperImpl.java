@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-20T22:34:07+0700",
-    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
+    date = "2025-11-20T23:43:41+0700",
+    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.44.0.v20251118-1623, environment: Java 21.0.9 (Eclipse Adoptium)"
 )
 @Component
 public class UserMapperImpl implements UserMapper {
@@ -23,11 +23,11 @@ public class UserMapperImpl implements UserMapper {
 
         UserEntity.UserEntityBuilder userEntity = UserEntity.builder();
 
-        userEntity.email( request.getEmail() );
-        userEntity.password( request.getPassword() );
-        userEntity.fullName( request.getFullName() );
-        userEntity.phone( request.getPhone() );
         userEntity.address( request.getAddress() );
+        userEntity.email( request.getEmail() );
+        userEntity.fullName( request.getFullName() );
+        userEntity.password( request.getPassword() );
+        userEntity.phone( request.getPhone() );
 
         userEntity.authProvider( com.mailshop_dragonvu.enums.AuthProvider.LOCAL );
 
@@ -42,17 +42,17 @@ public class UserMapperImpl implements UserMapper {
 
         UserResponseDTO.UserResponseDTOBuilder userResponseDTO = UserResponseDTO.builder();
 
-        userResponseDTO.id( userEntity.getId() );
-        userResponseDTO.email( userEntity.getEmail() );
-        userResponseDTO.fullName( userEntity.getFullName() );
-        userResponseDTO.phone( userEntity.getPhone() );
         userResponseDTO.address( userEntity.getAddress() );
         userResponseDTO.avatarUrl( userEntity.getAvatarUrl() );
+        userResponseDTO.createdAt( userEntity.getCreatedAt() );
+        userResponseDTO.email( userEntity.getEmail() );
         userResponseDTO.emailVerified( userEntity.getEmailVerified() );
+        userResponseDTO.fullName( userEntity.getFullName() );
+        userResponseDTO.id( userEntity.getId() );
+        userResponseDTO.phone( userEntity.getPhone() );
         if ( userEntity.getStatus() != null ) {
             userResponseDTO.status( userEntity.getStatus().name() );
         }
-        userResponseDTO.createdAt( userEntity.getCreatedAt() );
         userResponseDTO.updatedAt( userEntity.getUpdatedAt() );
 
         userResponseDTO.roles( mapRolesToStrings(userEntity.getRoles()) );
@@ -67,6 +67,12 @@ public class UserMapperImpl implements UserMapper {
             return;
         }
 
+        if ( request.getAddress() != null ) {
+            userEntity.setAddress( request.getAddress() );
+        }
+        if ( request.getAvatarUrl() != null ) {
+            userEntity.setAvatarUrl( request.getAvatarUrl() );
+        }
         if ( request.getEmail() != null ) {
             userEntity.setEmail( request.getEmail() );
         }
@@ -75,12 +81,6 @@ public class UserMapperImpl implements UserMapper {
         }
         if ( request.getPhone() != null ) {
             userEntity.setPhone( request.getPhone() );
-        }
-        if ( request.getAddress() != null ) {
-            userEntity.setAddress( request.getAddress() );
-        }
-        if ( request.getAvatarUrl() != null ) {
-            userEntity.setAvatarUrl( request.getAvatarUrl() );
         }
     }
 }

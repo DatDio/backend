@@ -59,8 +59,6 @@ public enum ErrorCode {
     PAYMENT_ALREADY_PROCESSED("7002", "Thanh toán đã được xử lý"),
     INVALID_PAYMENT_METHOD("7003", "Phương thức thanh toán không hợp lệ"),
     PAYMENT_AMOUNT_MISMATCH("7004", "Số tiền thanh toán không khớp"),
-    MOMO_PAYMENT_ERROR("7010", "Lỗi thanh toán MoMo"),
-    PAYPAL_PAYMENT_ERROR("7020", "Lỗi thanh toán PayPal"),
     PAYMENT_CREATION_FAILED("7021", "Lỗi tạo thanh toán "),
     HMAC_GENERATION_FAILED("7022", "Lỗi tạo thanh toán "),
     INVALID_WEBHOOK("7023", "Lỗi xác thực thanh toán"),
@@ -95,6 +93,9 @@ public enum ErrorCode {
     DUPLICATE_TRANSACTION("10010", "Phát hiện giao dịch trùng lặp"),
     TRANSACTION_TIMEOUT("10011", "Giao dịch đã quá hạn"),
     INVALID_AMOUNT("10011", "Amount không hợp lệ"),
+
+    //Product
+    PRODUCT_NOT_FOUND("10000", "Không tìm thấy sản phẩm"),
 
     // Security Errors (10100-10199)
     RATE_LIMIT_EXCEEDED("10100", "Vượt quá giới hạn truy cập, vui lòng thử lại sau"),

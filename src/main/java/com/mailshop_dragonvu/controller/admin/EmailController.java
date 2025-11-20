@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
  * Email Controller - handles email operations
  */
 @RestController("adminEmailController")
-@RequestMapping("/admin" + Constants.API_PATH.EMAILS)
+@RequestMapping("/admin/" + Constants.API_PATH.EMAILS)
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 @Slf4j

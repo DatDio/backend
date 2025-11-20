@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController("adminOrderController")
-@RequestMapping("/admin" + Constants.API_PATH.ORDERS)
+@RequestMapping("/admin/" + Constants.API_PATH.ORDERS)
 @RequiredArgsConstructor
 public class OrderController {
     private final OrderService orderService;

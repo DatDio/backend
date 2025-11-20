@@ -1,9 +1,11 @@
 package com.mailshop_dragonvu.controller.admin;
 
 import com.mailshop_dragonvu.dto.ApiResponse;
+import com.mailshop_dragonvu.dto.productitems.ProductItemCreateDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemFilterDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemResponseDTO;
 import com.mailshop_dragonvu.service.ProductItemService;
+import com.mailshop_dragonvu.utils.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -12,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api/product-items")
+@RequestMapping("/admin/" + Constants.API_PATH.PRODUCTITEMS)
 @RequiredArgsConstructor
 @Slf4j
 public class ProductItemController {
@@ -23,6 +25,12 @@ public class ProductItemController {
     @GetMapping("/search")
     public ApiResponse<Page<ProductItemResponseDTO>> getItems(ProductItemFilterDTO productItemFilterDTO) {
         return ApiResponse.success(productItemService.searchProductItems(productItemFilterDTO));
+    }
+    
+    @PostMapping("/create")
+    public ApiResponse<String> Create(@RequestBody ProductItemCreateDTO productItemCreateDTO) {
+        productItemService.batchCreateProductItems(productItemCreateDTO);
+        return ApiResponse.success("Tạo thành công");
     }
 
     // IMPORT TXT FILE

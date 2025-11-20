@@ -7,8 +7,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-20T22:34:07+0700",
-    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
+    date = "2025-11-20T23:43:41+0700",
+    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.44.0.v20251118-1623, environment: Java 21.0.9 (Eclipse Adoptium)"
 )
 @Component
 public class EmailLogMapperImpl implements EmailLogMapper {
@@ -22,11 +22,11 @@ public class EmailLogMapperImpl implements EmailLogMapper {
         EmailResponseDTO.EmailResponseDTOBuilder emailResponseDTO = EmailResponseDTO.builder();
 
         emailResponseDTO.to( emailLogEntity.getRecipientEmail() );
-        emailResponseDTO.id( emailLogEntity.getId() );
-        emailResponseDTO.subject( emailLogEntity.getSubject() );
         emailResponseDTO.errorMessage( emailLogEntity.getErrorMessage() );
-        emailResponseDTO.sentAt( emailLogEntity.getSentAt() );
+        emailResponseDTO.id( emailLogEntity.getId() );
         emailResponseDTO.retryCount( emailLogEntity.getRetryCount() );
+        emailResponseDTO.sentAt( emailLogEntity.getSentAt() );
+        emailResponseDTO.subject( emailLogEntity.getSubject() );
 
         return emailResponseDTO.build();
     }

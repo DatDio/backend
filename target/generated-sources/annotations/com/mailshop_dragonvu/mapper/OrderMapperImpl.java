@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-20T22:34:07+0700",
-    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
+    date = "2025-11-20T23:43:41+0700",
+    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.44.0.v20251118-1623, environment: Java 21.0.9 (Eclipse Adoptium)"
 )
 @Component
 public class OrderMapperImpl implements OrderMapper {
@@ -48,15 +48,15 @@ public class OrderMapperImpl implements OrderMapper {
 
         orderResponseDTO.userId( orderEntityUserId( orderEntity ) );
         orderResponseDTO.userEmail( orderEntityUserEmail( orderEntity ) );
-        orderResponseDTO.id( orderEntity.getId() );
-        orderResponseDTO.orderNumber( orderEntity.getOrderNumber() );
-        orderResponseDTO.totalAmount( orderEntity.getTotalAmount() );
+        orderResponseDTO.cancellationReason( orderEntity.getCancellationReason() );
+        orderResponseDTO.createdAt( orderEntity.getCreatedAt() );
         orderResponseDTO.discountAmount( orderEntity.getDiscountAmount() );
         orderResponseDTO.finalAmount( orderEntity.getFinalAmount() );
+        orderResponseDTO.id( orderEntity.getId() );
         orderResponseDTO.notes( orderEntity.getNotes() );
-        orderResponseDTO.cancellationReason( orderEntity.getCancellationReason() );
         orderResponseDTO.orderItems( orderItemEntityListToOrderItemResponseList( orderEntity.getOrderItems() ) );
-        orderResponseDTO.createdAt( orderEntity.getCreatedAt() );
+        orderResponseDTO.orderNumber( orderEntity.getOrderNumber() );
+        orderResponseDTO.totalAmount( orderEntity.getTotalAmount() );
         orderResponseDTO.updatedAt( orderEntity.getUpdatedAt() );
 
         orderResponseDTO.orderStatus( orderEntity.getOrderStatus().name() );

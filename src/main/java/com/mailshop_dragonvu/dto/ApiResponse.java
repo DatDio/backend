@@ -22,7 +22,7 @@ public class ApiResponse<T> {
 
     private T data;
 
-    private String errorCode;
+    private String errorCode = "00";
 
     @Builder.Default
     private LocalDateTime timestamp = LocalDateTime.now();

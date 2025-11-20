@@ -147,5 +147,20 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(response);
     }
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<?>> handleNoResourceFoundException(
+            org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+
+        log.error("Resource not found: {}", ex.getMessage());
+
+        ApiResponse<?> response = ApiResponse.error(
+                "API không tồn tại hoặc URL không hợp lệ!",
+                ErrorCode.RESOURCE_NOT_FOUND.getCode()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(response);
+    }
 
 }

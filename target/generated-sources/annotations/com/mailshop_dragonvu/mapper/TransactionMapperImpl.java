@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-20T22:34:07+0700",
-    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
+    date = "2025-11-20T23:43:41+0700",
+    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.44.0.v20251118-1623, environment: Java 21.0.9 (Eclipse Adoptium)"
 )
 @Component
 public class TransactionMapperImpl implements TransactionMapper {
@@ -30,24 +30,24 @@ public class TransactionMapperImpl implements TransactionMapper {
         if ( transactionEntity.getStatus() != null ) {
             transactionResponseDTO.status( transactionEntity.getStatus().name() );
         }
-        transactionResponseDTO.id( transactionEntity.getId() );
-        if ( transactionEntity.getTransactionCode() != null ) {
-            transactionResponseDTO.transactionCode( String.valueOf( transactionEntity.getTransactionCode() ) );
-        }
         if ( transactionEntity.getAmount() != null ) {
             transactionResponseDTO.amount( BigDecimal.valueOf( transactionEntity.getAmount() ) );
-        }
-        if ( transactionEntity.getBalanceBefore() != null ) {
-            transactionResponseDTO.balanceBefore( BigDecimal.valueOf( transactionEntity.getBalanceBefore() ) );
         }
         if ( transactionEntity.getBalanceAfter() != null ) {
             transactionResponseDTO.balanceAfter( BigDecimal.valueOf( transactionEntity.getBalanceAfter() ) );
         }
+        if ( transactionEntity.getBalanceBefore() != null ) {
+            transactionResponseDTO.balanceBefore( BigDecimal.valueOf( transactionEntity.getBalanceBefore() ) );
+        }
+        transactionResponseDTO.completedAt( transactionEntity.getCompletedAt() );
+        transactionResponseDTO.createdAt( transactionEntity.getCreatedAt() );
         transactionResponseDTO.description( transactionEntity.getDescription() );
+        transactionResponseDTO.id( transactionEntity.getId() );
         transactionResponseDTO.paymentMethod( transactionEntity.getPaymentMethod() );
         transactionResponseDTO.paymentReference( transactionEntity.getPaymentReference() );
-        transactionResponseDTO.createdAt( transactionEntity.getCreatedAt() );
-        transactionResponseDTO.completedAt( transactionEntity.getCompletedAt() );
+        if ( transactionEntity.getTransactionCode() != null ) {
+            transactionResponseDTO.transactionCode( String.valueOf( transactionEntity.getTransactionCode() ) );
+        }
 
         return transactionResponseDTO.build();
     }

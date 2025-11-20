@@ -6,6 +6,7 @@ import com.mailshop_dragonvu.dto.products.ProductFilterDTO;
 import com.mailshop_dragonvu.dto.products.ProductResponseDTO;
 import com.mailshop_dragonvu.dto.products.ProductUpdateDTO;
 import com.mailshop_dragonvu.service.ProductService;
+import com.mailshop_dragonvu.utils.Constants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,7 +20,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController("adminProductController")
-@RequestMapping("/admin/products")
+@RequestMapping("/admin/" + Constants.API_PATH.PRODUCTS)
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 @Slf4j
