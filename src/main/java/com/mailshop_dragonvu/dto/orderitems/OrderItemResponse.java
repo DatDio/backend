@@ -5,9 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -15,15 +13,21 @@ import java.time.LocalDateTime;
 public class OrderItemResponse {
 
     private Long id;
+
+    // Thông tin product
     private Long productId;
     private String productName;
-    private String productSku;
-    private Integer quantity;
-    private BigDecimal unitPrice;
-    private BigDecimal discountAmount;
-    private BigDecimal taxAmount;
-    private BigDecimal totalPrice;
-    private String notes;
-    private LocalDateTime createdAt;
 
+    // Thông tin product item (tài khoản cụ thể)
+    private Long productItemId;
+    private String accountData;
+
+    // Trạng thái bán
+    private Boolean sold;
+    private Long buyerId;
+    private Long orderId;
+    private LocalDateTime soldAt;
+
+    private LocalDateTime createdAt;
 }
+

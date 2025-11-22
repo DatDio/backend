@@ -22,12 +22,7 @@ public class OrderResponseDTO {
     private String userEmail;
     private String orderStatus;
     private BigDecimal totalAmount;
-    private BigDecimal discountAmount;
-    private BigDecimal finalAmount;
-    private String phone;
-    private String email;
     private String notes;
-    private String cancellationReason;
     private List<OrderItemResponse> orderItems;
     private String status;
     private LocalDateTime createdAt;

@@ -17,7 +17,7 @@ public class CategoryMapper {
                 .id(entity.getId())
                 .name(entity.getName())
                 .description(entity.getDescription())
-                .status(entity.getStatus())
+                .status(entity.getStatus().getValue())
                 .build();
     }
 

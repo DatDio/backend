@@ -10,5 +10,5 @@ import lombok.*;
 @Builder
 public class CategoryFilterDTO extends PageFilterDTO {
     private String name;
-    private ActiveStatusEnum status;
+    private String  status;
 }

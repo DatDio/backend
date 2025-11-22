@@ -47,11 +47,6 @@ public enum ErrorCode {
     INVALID_ORDER_STATUS("5003", "Trạng thái đơn hàng không hợp lệ"),
     ORDER_ITEM_NOT_FOUND("5004", "Không tìm thấy mặt hàng trong đơn hàng"),
 
-    // Invoice Errors (6000-6999)
-    INVOICE_NOT_FOUND("6000", "Không tìm thấy hóa đơn"),
-    INVOICE_ALREADY_PAID("6001", "Hóa đơn đã được thanh toán"),
-    INVOICE_ALREADY_CANCELLED("6002", "Hóa đơn đã bị hủy"),
-    INVOICE_GENERATION_FAILED("6003", "Tạo hóa đơn thất bại"),
 
     // Payment Errors (7000-7999)
     PAYMENT_NOT_FOUND("7000", "Không tìm thấy thanh toán"),
@@ -96,6 +91,7 @@ public enum ErrorCode {
 
     //Product
     PRODUCT_NOT_FOUND("10000", "Không tìm thấy sản phẩm"),
+    NOT_ENOUGH_STOCK("1111","Tồn kho không đủ"),
 
     // Security Errors (10100-10199)
     RATE_LIMIT_EXCEEDED("10100", "Vượt quá giới hạn truy cập, vui lòng thử lại sau"),

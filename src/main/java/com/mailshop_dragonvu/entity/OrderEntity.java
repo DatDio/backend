@@ -38,14 +38,7 @@ public class OrderEntity extends BaseEntity {
     private OrderStatusEnum orderStatus = com.mailshop_dragonvu.enums.OrderStatusEnum.PENDING;
 
     @Column(name = "total_amount", nullable = false, precision = 15, scale = 2)
-    private BigDecimal totalAmount;
-
-    @Column(name = "discount_amount", precision = 15, scale = 2)
-    @Builder.Default
-    private BigDecimal discountAmount = BigDecimal.ZERO;
-
-    @Column(name = "final_amount", nullable = false, precision = 15, scale = 2)
-    private BigDecimal finalAmount;
+    private Long totalAmount;
 
     @Column(name = "notes", length = 1000)
     private String notes;
@@ -53,11 +46,6 @@ public class OrderEntity extends BaseEntity {
     @Column(name = "completed_date")
     private LocalDateTime completedDate;
 
-    @Column(name = "cancelled_date")
-    private LocalDateTime cancelledDate;
-
-    @Column(name = "cancellation_reason", length = 500)
-    private String cancellationReason;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -66,7 +54,9 @@ public class OrderEntity extends BaseEntity {
 
     // ---------------- Business Logic ---------------- //
 
-    /** Add item to order & auto set relation  */
+    /**
+     * Add item to order & auto set relation
+     */
     public void addOrderItem(OrderItemEntity item) {
         if (!orderItems.contains(item)) {
             orderItems.add(item);
@@ -74,29 +64,19 @@ public class OrderEntity extends BaseEntity {
         }
     }
 
-    /** Remove item */
+    /**
+     * Remove item
+     */
     public void removeOrderItem(OrderItemEntity item) {
         orderItems.remove(item);
         item.setOrder(null);
     }
 
-    /** Recalculate final amount based on total - discount */
-    public void calculateFinalAmount() {
-        if (totalAmount == null) totalAmount = BigDecimal.ZERO;
-        if (discountAmount == null) discountAmount = BigDecimal.ZERO;
-        this.finalAmount = totalAmount.subtract(discountAmount);
-    }
-
-    /** Mark order as completed */
-    public void markAsCompleted() {
-        this.orderStatus = com.mailshop_dragonvu.enums.OrderStatusEnum.COMPLETED;
-        this.completedDate = LocalDateTime.now();
-    }
-
-    /** Mark order as cancelled with reason */
-    public void markAsCancelled(String reason) {
-        this.orderStatus = com.mailshop_dragonvu.enums.OrderStatusEnum.CANCELLED;
-        this.cancelledDate = LocalDateTime.now();
-        this.cancellationReason = reason;
+    public void calculationTotalAmount() {
+        Long totalAmount = 0L;
+        for (OrderItemEntity item : orderItems) {
+            totalAmount += item.getProductItem().getProduct().getPrice() * item.getQuantity();
+        }
+        this.totalAmount = totalAmount;
     }
 }

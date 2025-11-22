@@ -58,14 +58,6 @@ public class CategoryController {
         return ApiResponse.success(response);
     }
 
-
-    @GetMapping("/status/{status}/count")
-    @Operation(summary = "Count categories by status", description = "Get count of categories by status")
-    public ApiResponse<Integer> countByStatus(@PathVariable ActiveStatusEnum status) {
-        Integer count = categoryService.countByStatus(status);
-        return ApiResponse.success(count);
-    }
-
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete category", description = "Delete a category (Admin only)")
     public ApiResponse<Void> deleteCategory(@PathVariable Long id) {

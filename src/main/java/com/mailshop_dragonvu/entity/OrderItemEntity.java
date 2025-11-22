@@ -36,33 +36,4 @@ public class OrderItemEntity extends BaseEntity {
 
     @Column(nullable = false)
     private Integer quantity;
-
-    @Column(precision = 15, scale = 2)
-    @Builder.Default
-    private BigDecimal discountAmount = BigDecimal.ZERO;
-
-    @Column(name = "total_price", precision = 15, scale = 2, nullable = false)
-    private BigDecimal totalPrice;
-
-    @Column(length = 500)
-    private String notes;
-
-    // ---------------- Business Logic ---------------- //
-
-    /** Ensure item quantity must be valid */
-    public void validateQuantity() {
-        if (quantity == null || quantity <= 0) {
-            throw new IllegalArgumentException("Quantity must be greater than zero");
-        }
-    }
-
-    /**
-     * Helper that recalculates total price
-     * priceAfterDiscount = totalPrice - discountAmount
-     */
-    public BigDecimal calculatePriceAfterDiscount() {
-        if (totalPrice == null) totalPrice = BigDecimal.ZERO;
-        if (discountAmount == null) discountAmount = BigDecimal.ZERO;
-        return totalPrice.subtract(discountAmount);
-    }
 }

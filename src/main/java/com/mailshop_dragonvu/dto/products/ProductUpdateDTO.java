@@ -16,5 +16,5 @@ public class ProductUpdateDTO {
     private String description;
     private Long price;
     private Long categoryId;
-    private String status; // ACTIVE / INACTIVE
+    private String status;
 }

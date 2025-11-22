@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController
+@RestController("adminUserController")
 @RequestMapping("/admin/" + Constants.API_PATH.USERS)
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
@@ -30,14 +30,14 @@ public class UserController {
 
     private final UserService userService;
 
-    @PostMapping
+    @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new user")
     public ApiResponse<UserResponseDTO> createUser(@Valid @RequestBody UserCreateDTO request) {
         return ApiResponse.success("User created successfully", userService.createUser(request));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("update/{id}")
     @Operation(summary = "Update user by ID")
     public ApiResponse<UserResponseDTO> updateUser(
             @PathVariable Long id,

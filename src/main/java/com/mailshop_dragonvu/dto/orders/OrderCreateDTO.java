@@ -17,15 +17,11 @@ import java.util.List;
 @AllArgsConstructor
 public class OrderCreateDTO {
 
-    @NotEmpty(message = "Order items cannot be empty")
-    @Valid
-    private List<OrderItemRequest> orderItems;
+    @NotNull(message = "ProductID không được để trống")
+    private Long productId;
 
-    @Size(max = 1000, message = "Notes cannot exceed 1000 characters")
-    private String notes;
-
-    @DecimalMin(value = "0.0", message = "Discount amount must be non-negative")
-    private BigDecimal discountAmount;
-
+    @NotNull(message = "Số lượng không được để trống")
+    @Min(value = 1, message = "Số lượng phải lớn hơn 1")
+    private Integer quantity;
 
 }

@@ -6,6 +6,7 @@ import com.mailshop_dragonvu.dto.orders.OrderResponseDTO;
 import com.mailshop_dragonvu.dto.orders.OrderUpdateDTO;
 import com.mailshop_dragonvu.entity.OrderEntity;
 import com.mailshop_dragonvu.entity.OrderItemEntity;
+import com.mailshop_dragonvu.entity.ProductItemEntity;
 import com.mailshop_dragonvu.entity.UserEntity;
 import com.mailshop_dragonvu.enums.OrderStatusEnum;
 import com.mailshop_dragonvu.exception.BusinessException;
@@ -16,6 +17,7 @@ import com.mailshop_dragonvu.repository.OrderRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.service.EmailService;
 import com.mailshop_dragonvu.service.OrderService;
+import com.mailshop_dragonvu.service.ProductItemService;
 import com.mailshop_dragonvu.utils.Utils;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -44,6 +46,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
+    private final ProductItemService productItemService;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final OrderMapper orderMapper;
@@ -54,72 +57,36 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     @CacheEvict(value = "orders", allEntries = true)
     public OrderResponseDTO createOrder(OrderCreateDTO request, Long userId) {
-        log.info("Creating new order for user ID: {}", userId);
 
         UserEntity userEntity = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        OrderEntity orderEntity = orderMapper.toEntity(request);
-        orderEntity.setUser(userEntity);
-        orderEntity.setOrderNumber(generateOrderNumber());
-        orderEntity.setOrderStatus(OrderStatusEnum.PENDING);
+        OrderEntity order = orderMapper.toEntity(request);
+        order.setUser(userEntity);
+        order.setOrderNumber(generateOrderNumber());
+        order.setOrderStatus(OrderStatusEnum.PENDING);
 
-        // Set discount and tax amounts
-        orderEntity.setDiscountAmount(request.getDiscountAmount() != null ?
-                request.getDiscountAmount() : BigDecimal.ZERO);
+        List<ProductItemEntity> productItems = productItemService.getRandomUnsoldItems(request.getProductId(),request.getQuantity());
 
-        // Add order items
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        for (var itemRequest : request.getOrderItems()) {
-            OrderItemEntity orderItemEntity = orderItemMapper.toEntity(itemRequest);
-            
-            // Set default values if not provided
-            if (orderItemEntity.getDiscountAmount() == null) {
-                orderItemEntity.setDiscountAmount(BigDecimal.ZERO);
-            }
+        for (var productItem : productItems) {
+            OrderItemEntity orderItemEntity = new OrderItemEntity().builder()
+                    .order(order)
+                    .productItem(productItem)
+                    .productId(request.getProductId())
+                    .quantity(request.getQuantity())
+                    .productName(productItem.getProduct().getName())
+                    .build();
 
-            orderEntity.addOrderItem(orderItemEntity);
-            totalAmount = totalAmount.add(orderItemEntity.getTotalPrice());
+
+            order.addOrderItem(orderItemEntity);
         }
 
-        orderEntity.setTotalAmount(totalAmount);
-        orderEntity.calculateFinalAmount();
+        //Tính toán tiền
+        order.calculationTotalAmount();
 
-        orderEntity = orderRepository.save(orderEntity);
+        order = orderRepository.save(order);
 
-        // Send order confirmation email asynchronously
-//        try {
-//            emailService.sendOrderConfirmationEmail(orderEntity);
-//        } catch (Exception e) {
-//            log.error("Failed to send order confirmation email for order {}: {}",
-//                    orderEntity.getOrderNumber(), e.getMessage());
-//        }
-
-        return orderMapper.toResponse(orderEntity);
-    }
-
-    @Override
-    @Transactional
-    @CacheEvict(value = "orders", key = "#id")
-    public OrderResponseDTO updateOrder(Long id, OrderUpdateDTO request, Long userId) {
-
-        OrderEntity orderEntity = orderRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        // Check if user owns the order or is admin
-        if (!orderEntity.getUser().getId().equals(userId)) {
-            throw new BusinessException(ErrorCode.PERMISSION_DENIED);
-        }
-
-        // Only allow updates for PENDING orders
-        if (!orderEntity.getOrderStatus().equals(com.mailshop_dragonvu.enums.OrderStatusEnum.PENDING)) {
-            throw new BusinessException(ErrorCode.ORDER_CANNOT_BE_MODIFIED);
-        }
-
-        orderMapper.updateEntity(orderEntity, request);
-        orderEntity = orderRepository.save(orderEntity);
-
-        return orderMapper.toResponse(orderEntity);
+        return orderMapper.toResponse(order);
     }
 
     @Override
@@ -128,22 +95,6 @@ public class OrderServiceImpl implements OrderService {
         log.debug("Fetching order by ID: {}", id);
 
         OrderEntity orderEntity = orderRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        // Check if user owns the order
-        if (!orderEntity.getUser().getId().equals(userId)) {
-            throw new BusinessException(ErrorCode.PERMISSION_DENIED);
-        }
-
-        return orderMapper.toResponse(orderEntity);
-    }
-
-    @Override
-    @Cacheable(value = "orders", key = "#orderNumber")
-    public OrderResponseDTO getOrderByNumber(String orderNumber, Long userId) {
-        log.debug("Fetching order by number: {}", orderNumber);
-
-        OrderEntity orderEntity = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
         // Check if user owns the order
@@ -260,107 +211,16 @@ public class OrderServiceImpl implements OrderService {
         return orderRepository.findByUser(userEntity, pageable)
                 .map(orderMapper::toResponse);
     }
-
-    @Override
-    public Page<OrderResponseDTO> getOrdersByStatus(OrderStatusEnum status, Pageable pageable) {
-        log.debug("Fetching orders by status: {}", status);
-        return orderRepository.findByOrderStatus(status, pageable)
-                .map(orderMapper::toResponse);
-    }
-
-    @Override
-    @Transactional
-    @CacheEvict(value = "orders", key = "#id")
-    public OrderResponseDTO updateOrderStatus(Long id, OrderStatusEnum status) {
-        log.info("Updating order ID: {} status to: {}", id, status);
-
-        OrderEntity orderEntity = orderRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        orderEntity.setOrderStatus(status);
-        orderEntity = orderRepository.save(orderEntity);
-
-        // Send order status update email asynchronously
-        try {
-            emailService.sendOrderStatusUpdateEmail(orderEntity);
-        } catch (Exception e) {
-            log.error("Failed to send order status update email for order {}: {}", 
-                    orderEntity.getOrderNumber(), e.getMessage());
-        }
-
-        log.info("Order status updated successfully: {}", id);
-        return orderMapper.toResponse(orderEntity);
-    }
-
-    @Override
-    @Transactional
-    @CacheEvict(value = "orders", key = "#id")
-    public OrderResponseDTO confirmOrder(Long id) {
-        log.info("Confirming order ID: {}", id);
-
-        OrderEntity orderEntity = orderRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (!orderEntity.getOrderStatus().equals(com.mailshop_dragonvu.enums.OrderStatusEnum.PENDING)) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
-        }
-
-        orderEntity.setOrderStatus(com.mailshop_dragonvu.enums.OrderStatusEnum.CONFIRMED);
-        orderEntity = orderRepository.save(orderEntity);
-
-        // Send order status update email asynchronously
-        try {
-            emailService.sendOrderStatusUpdateEmail(orderEntity);
-        } catch (Exception e) {
-            log.error("Failed to send order status update email for order {}: {}", 
-                    orderEntity.getOrderNumber(), e.getMessage());
-        }
-
-        log.info("Order confirmed successfully: {}", id);
-        return orderMapper.toResponse(orderEntity);
-    }
-
-    @Override
-    @Transactional
-    @CacheEvict(value = "orders", key = "#id")
-    public OrderResponseDTO cancelOrder(Long id, String reason, Long userId) {
-        log.info("Cancelling order ID: {} by user ID: {}", id, userId);
-
-        OrderEntity orderEntity = orderRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        // Check if user owns the order
-        if (!orderEntity.getUser().getId().equals(userId)) {
-            throw new BusinessException(ErrorCode.PERMISSION_DENIED);
-        }
-
-        if (orderEntity.getOrderStatus().equals(com.mailshop_dragonvu.enums.OrderStatusEnum.CANCELLED)) {
-            throw new BusinessException(ErrorCode.ORDER_ALREADY_CANCELLED);
-        }
-
-
-        orderEntity.setOrderStatus(com.mailshop_dragonvu.enums.OrderStatusEnum.CANCELLED);
-        orderEntity.setCancelledDate(LocalDateTime.now());
-        orderEntity.setCancellationReason(reason);
-        orderEntity = orderRepository.save(orderEntity);
-
-        log.info("Order cancelled successfully: {}", id);
-        return orderMapper.toResponse(orderEntity);
-    }
-
     @Override
     @Transactional
     @CacheEvict(value = "orders", key = "#id")
     public void deleteOrder(Long id) {
-        log.info("Deleting order with ID: {}", id);
 
         OrderEntity orderEntity = orderRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
         orderEntity.setOrderStatus(com.mailshop_dragonvu.enums.OrderStatusEnum.DELETED);
         orderRepository.save(orderEntity);
-
-        log.info("Order deleted successfully with ID: {}", id);
     }
 
     private String generateOrderNumber() {

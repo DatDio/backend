@@ -26,7 +26,7 @@ public class ProductItemController {
     public ApiResponse<Page<ProductItemResponseDTO>> getItems(ProductItemFilterDTO productItemFilterDTO) {
         return ApiResponse.success(productItemService.searchProductItems(productItemFilterDTO));
     }
-    
+
     @PostMapping("/create")
     public ApiResponse<String> Create(@RequestBody ProductItemCreateDTO productItemCreateDTO) {
         productItemService.batchCreateProductItems(productItemCreateDTO);

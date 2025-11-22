@@ -27,7 +27,7 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    @PostMapping
+    @PostMapping("/buy")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new order")
     public ApiResponse<OrderResponseDTO> createOrder(
@@ -35,16 +35,6 @@ public class OrderController {
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         return ApiResponse.success("Order created successfully", 
                 orderService.createOrder(request, userPrincipal.getId()));
-    }
-
-    @PutMapping("/{id}")
-    @Operation(summary = "Update order by ID")
-    public ApiResponse<OrderResponseDTO> updateOrder(
-            @PathVariable Long id,
-            @Valid @RequestBody OrderUpdateDTO request,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ApiResponse.success("Order updated successfully", 
-                orderService.updateOrder(id, request, userPrincipal.getId()));
     }
 
     @GetMapping("/{id}")
@@ -55,30 +45,12 @@ public class OrderController {
         return ApiResponse.success(orderService.getOrderById(id, userPrincipal.getId()));
     }
 
-    @GetMapping("/number/{orderNumber}")
-    @Operation(summary = "Get order by order number")
-    public ApiResponse<OrderResponseDTO> getOrderByNumber(
-            @PathVariable String orderNumber,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ApiResponse.success(orderService.getOrderByNumber(orderNumber, userPrincipal.getId()));
-    }
-
     @GetMapping("/my-orders")
     @Operation(summary = "Get current user's orders")
     public ApiResponse<Page<OrderResponseDTO>> getMyOrders(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             Pageable pageable) {
         return ApiResponse.success(orderService.getOrdersByUser(userPrincipal.getId(), pageable));
-    }
-
-    @PatchMapping("/{id}/cancel")
-    @Operation(summary = "Cancel order")
-    public ApiResponse<OrderResponseDTO> cancelOrder(
-            @PathVariable Long id,
-            @RequestParam(required = false) String reason,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ApiResponse.success("Order cancelled successfully", 
-                orderService.cancelOrder(id, reason, userPrincipal.getId()));
     }
 
 }

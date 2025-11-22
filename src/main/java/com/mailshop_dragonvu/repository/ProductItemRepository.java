@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -18,8 +19,17 @@ public interface ProductItemRepository extends JpaRepository<ProductItemEntity, 
     @Query("SELECT COUNT(pi) FROM ProductItemEntity pi WHERE pi.product.id = :productId AND pi.sold = false")
     long countAvailableItems(@Param("productId") Long productId);
 
-    @Query("SELECT pi FROM ProductItemEntity pi WHERE pi.product.id = :productId AND pi.sold = false ORDER BY pi.id ASC LIMIT 1")
-    Optional<ProductItemEntity> findUnsoldItem(@Param("productId") Long productId);
+    //Lấy random tài khoản theo số lượng muốn lấy
+    @Query(value = """
+    SELECT * FROM product_items
+    WHERE product_id = :productId AND sold = false
+    ORDER BY RAND()
+    LIMIT :quantity
+""", nativeQuery = true)
+    List<ProductItemEntity> findRandomUnsoldItems(
+            @Param("productId") Long productId,
+            @Param("quantity") int quantity
+    );
 
     @Modifying
     @Query("UPDATE ProductItemEntity pi SET pi.sold = true, pi.buyerId = :buyerId, pi.orderId = :orderId, pi.soldAt = CURRENT_TIMESTAMP WHERE pi.id = :id")

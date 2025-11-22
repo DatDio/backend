@@ -98,14 +98,17 @@ public class ProductItemServiceImpl implements ProductItemService {
     }
 
     @Override
-    public ProductItemResponseDTO getRandomUnsoldItem(Long productId) {
-        ProductItemEntity item = productItemRepository.findUnsoldItem(productId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+    public List<ProductItemEntity> getRandomUnsoldItems(Long productId, int quantity) {
+        List<ProductItemEntity> items =
+                productItemRepository.findRandomUnsoldItems(productId, quantity);
 
-        return toDTO(item);
+        if (items.size() < quantity) {
+            throw new BusinessException(ErrorCode.NOT_ENOUGH_STOCK);
+        }
+
+        return items;
     }
 
-    @Override
     public void markSold(Long itemId, Long buyerId, Long orderId) {
         productItemRepository.markAsSold(itemId, buyerId, orderId);
     }

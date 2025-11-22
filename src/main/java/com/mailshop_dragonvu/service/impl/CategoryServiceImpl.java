@@ -20,6 +20,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -84,15 +87,39 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CategoryResponseDTO> searchCategories(CategoryFilterDTO categoryFilterRequest) {
-        Sort sort = Utils.generatedSort(categoryFilterRequest.getSort());
-        Pageable pageable = PageRequest.of(categoryFilterRequest.getPage(), categoryFilterRequest.getLimit(), sort);
+    public Page<CategoryResponseDTO> searchCategories(CategoryFilterDTO request) {
+
+        Sort sort = Utils.generatedSort(request.getSort());
+
+        Pageable pageable;
+
+        if (request.getLimit() == null) {
+            pageable = Pageable.unpaged(); // ✅ lấy tất cả
+        } else {
+            int page = Optional.ofNullable(request.getPage()).orElse(0);
+            int limit = request.getLimit();
+            pageable = PageRequest.of(page, limit, sort);
+        }
+
+        ActiveStatusEnum statusEnum = null;
+        if (StringUtils.hasText(request.getStatus())) {
+            try {
+                statusEnum = ActiveStatusEnum.fromKey(
+                        Integer.parseInt(request.getStatus())
+                );
+            } catch (NumberFormatException e) {
+                throw new BusinessException("Lỗi convert enum");
+            }
+        }
+
         Page<CategoryEntity> categories = categoryRepository.searchCategories(
-                categoryFilterRequest.getName(),
-                categoryFilterRequest.getStatus(),
+                request.getName(),
+                statusEnum,
                 pageable);
+
         return categories.map(categoryMapper::toResponse);
     }
+
 
     @Override
     @Transactional(readOnly = true)
@@ -103,10 +130,8 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public void deleteCategory(Long id) {
-        log.info("Deleting category with ID: {}", id);
         CategoryEntity category = findCategoryOrThrow(id);
         categoryRepository.delete(category);
-        log.info("Category deleted successfully with ID: {}", id);
     }
 
     private CategoryEntity findCategoryOrThrow(Long id) {

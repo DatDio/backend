@@ -6,8 +6,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class PageFilterDTO {
-    private Integer page = 0;
-    private Integer limit = 10;
+    private Integer page;
+    private Integer limit;
     private String sort;
 
 }
