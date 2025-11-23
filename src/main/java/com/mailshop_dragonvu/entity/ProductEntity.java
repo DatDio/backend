@@ -20,6 +20,12 @@ public class ProductEntity extends BaseEntity {
     @Column(length = 2000)
     private String description;
 
+    @Column(length = 2000)
+    private String liveTime;
+
+    @Column(length = 2000)
+    private String country;
+
     @Column(nullable = false)
     private Long price;   // Giá 1 tài khoản
 

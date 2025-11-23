@@ -11,7 +11,6 @@ public class OrderFilterDTO extends PageFilterDTO {
     private Long userId;
     private String userEmail;
     private String orderStatus;
-    private String notes;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

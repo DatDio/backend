@@ -8,8 +8,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-20T23:43:41+0700",
-    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.44.0.v20251118-1623, environment: Java 21.0.9 (Eclipse Adoptium)"
+    date = "2025-11-23T12:23:03+0700",
+    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
 public class OrderItemMapperImpl implements OrderItemMapper {
@@ -22,10 +22,7 @@ public class OrderItemMapperImpl implements OrderItemMapper {
 
         OrderItemEntity.OrderItemEntityBuilder<?, ?> orderItemEntity = OrderItemEntity.builder();
 
-        orderItemEntity.discountAmount( request.getDiscountAmount() );
-        orderItemEntity.notes( request.getNotes() );
         orderItemEntity.productId( request.getProductId() );
-        orderItemEntity.productName( request.getProductName() );
         orderItemEntity.quantity( request.getQuantity() );
 
         return orderItemEntity.build();
@@ -39,14 +36,10 @@ public class OrderItemMapperImpl implements OrderItemMapper {
 
         OrderItemResponse.OrderItemResponseBuilder orderItemResponse = OrderItemResponse.builder();
 
-        orderItemResponse.createdAt( orderItemEntity.getCreatedAt() );
-        orderItemResponse.discountAmount( orderItemEntity.getDiscountAmount() );
         orderItemResponse.id( orderItemEntity.getId() );
-        orderItemResponse.notes( orderItemEntity.getNotes() );
         orderItemResponse.productId( orderItemEntity.getProductId() );
         orderItemResponse.productName( orderItemEntity.getProductName() );
-        orderItemResponse.quantity( orderItemEntity.getQuantity() );
-        orderItemResponse.totalPrice( orderItemEntity.getTotalPrice() );
+        orderItemResponse.createdAt( orderItemEntity.getCreatedAt() );
 
         return orderItemResponse.build();
     }
@@ -57,17 +50,8 @@ public class OrderItemMapperImpl implements OrderItemMapper {
             return;
         }
 
-        if ( request.getDiscountAmount() != null ) {
-            orderItemEntity.setDiscountAmount( request.getDiscountAmount() );
-        }
-        if ( request.getNotes() != null ) {
-            orderItemEntity.setNotes( request.getNotes() );
-        }
         if ( request.getProductId() != null ) {
             orderItemEntity.setProductId( request.getProductId() );
-        }
-        if ( request.getProductName() != null ) {
-            orderItemEntity.setProductName( request.getProductName() );
         }
         if ( request.getQuantity() != null ) {
             orderItemEntity.setQuantity( request.getQuantity() );

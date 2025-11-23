@@ -1,11 +1,12 @@
 package com.mailshop_dragonvu.entity;
 
 import com.mailshop_dragonvu.enums.ActiveStatusEnum;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "categories")
@@ -24,4 +25,8 @@ public class CategoryEntity extends BaseEntity {
     @Builder.Default
     @Column(name = "status", length = 20, nullable = false)
     private ActiveStatusEnum status = ActiveStatusEnum.ACTIVE;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY)
+    private List<ProductEntity> products = new ArrayList<>();
 }

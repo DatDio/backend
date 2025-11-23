@@ -94,7 +94,7 @@ public class CategoryServiceImpl implements CategoryService {
         Pageable pageable;
 
         if (request.getLimit() == null) {
-            pageable = Pageable.unpaged(); // ✅ lấy tất cả
+            pageable = PageRequest.of(0, Integer.MAX_VALUE, sort);
         } else {
             int page = Optional.ofNullable(request.getPage()).orElse(0);
             int limit = request.getLimit();

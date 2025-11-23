@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-20T23:43:41+0700",
-    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.44.0.v20251118-1623, environment: Java 21.0.9 (Eclipse Adoptium)"
+    date = "2025-11-23T12:23:03+0700",
+    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
 public class WalletMapperImpl implements WalletMapper {
@@ -24,18 +24,18 @@ public class WalletMapperImpl implements WalletMapper {
         WalletResponse.WalletResponseBuilder walletResponse = WalletResponse.builder();
 
         walletResponse.userId( walletEntityUserId( walletEntity ) );
+        walletResponse.id( walletEntity.getId() );
         if ( walletEntity.getBalance() != null ) {
             walletResponse.balance( BigDecimal.valueOf( walletEntity.getBalance() ) );
         }
-        walletResponse.id( walletEntity.getId() );
-        walletResponse.isLocked( walletEntity.getIsLocked() );
-        walletResponse.lockReason( walletEntity.getLockReason() );
         if ( walletEntity.getTotalDeposited() != null ) {
             walletResponse.totalDeposited( BigDecimal.valueOf( walletEntity.getTotalDeposited() ) );
         }
         if ( walletEntity.getTotalSpent() != null ) {
             walletResponse.totalSpent( BigDecimal.valueOf( walletEntity.getTotalSpent() ) );
         }
+        walletResponse.isLocked( walletEntity.getIsLocked() );
+        walletResponse.lockReason( walletEntity.getLockReason() );
 
         return walletResponse.build();
     }

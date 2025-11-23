@@ -5,6 +5,7 @@ import com.mailshop_dragonvu.dto.users.UserFilterDTO;
 import com.mailshop_dragonvu.dto.users.UserResponseDTO;
 import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
 import com.mailshop_dragonvu.dto.ApiResponse;
+import com.mailshop_dragonvu.security.UserPrincipal;
 import com.mailshop_dragonvu.service.UserService;
 import com.mailshop_dragonvu.utils.Constants;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -52,7 +54,12 @@ public class UserController {
         return ApiResponse.success(userService.search(userFilterDTO));
     }
 
-    @DeleteMapping("/{id}")
+    @GetMapping("/{id}")
+    public ApiResponse<UserResponseDTO> getUserByID(@PathVariable Long id) {
+        UserResponseDTO user = userService.getUserById(id);
+        return ApiResponse.success(user);
+    }
+    @DeleteMapping("/delete/{id}")
     @Operation(summary = "Delete user by ID")
     public ApiResponse<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);

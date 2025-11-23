@@ -4,6 +4,7 @@ import com.mailshop_dragonvu.dto.ApiResponse;
 import com.mailshop_dragonvu.dto.products.ProductFilterDTO;
 import com.mailshop_dragonvu.dto.products.ProductResponseDTO;
 import com.mailshop_dragonvu.service.ProductService;
+import com.mailshop_dragonvu.utils.Constants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController()
-@RequestMapping("/products")
+@RequestMapping(Constants.API_PATH.PRODUCTS)
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Product Management (Client)", description = "Client product browsing APIs")

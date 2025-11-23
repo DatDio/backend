@@ -14,6 +14,7 @@ import com.mailshop_dragonvu.repository.CategoryRepository;
 import com.mailshop_dragonvu.repository.ProductItemRepository;
 import com.mailshop_dragonvu.repository.ProductRepository;
 import com.mailshop_dragonvu.service.ProductService;
+import com.mailshop_dragonvu.utils.Utils;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -133,8 +135,8 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> searchProducts(ProductFilterDTO request) {
-
-        Pageable pageable = PageRequest.of(request.getPage(), request.getLimit());
+        Sort sort = Utils.generatedSort(request.getSort());
+        Pageable pageable = PageRequest.of(request.getPage(), request.getLimit(), sort);
 
         Specification<ProductEntity> spec = getSearchSpecification(request);
 

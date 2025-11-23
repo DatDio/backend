@@ -238,7 +238,7 @@ public class EmailServiceImpl implements EmailService {
                 orderEntity.getUser().getFullName(),
                 orderEntity.getOrderNumber(),
                 orderEntity.getOrderNumber(),
-                orderEntity.getFinalAmount(),
+                orderEntity.getTotalAmount(),
                 orderEntity.getOrderStatus()
         );
     }

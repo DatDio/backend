@@ -153,39 +153,6 @@ public class OrderServiceImpl implements OrderService {
                     predicates.add(root.get("status").in(statuses));
                 }
 
-                // TOTAL AMOUNT
-                if (req.getTotalAmount() != null) {
-                    predicates.add(cb.equal(root.get("totalAmount"), req.getTotalAmount()));
-                }
-
-                // DISCOUNT AMOUNT
-                if (req.getDiscountAmount() != null) {
-                    predicates.add(cb.equal(root.get("discountAmount"), req.getDiscountAmount()));
-                }
-
-                // FINAL AMOUNT
-                if (req.getFinalAmount() != null) {
-                    predicates.add(cb.equal(root.get("finalAmount"), req.getFinalAmount()));
-                }
-
-                // PHONE
-                if (Strings.isNotBlank(req.getPhone())) {
-                    predicates.add(cb.like(cb.lower(root.get("phone")),
-                            "%" + req.getPhone().trim().toLowerCase() + "%"));
-                }
-
-                // EMAIL
-                if (Strings.isNotBlank(req.getEmail())) {
-                    predicates.add(cb.like(cb.lower(root.get("email")),
-                            "%" + req.getEmail().trim().toLowerCase() + "%"));
-                }
-
-                // NOTES
-                if (Strings.isNotBlank(req.getNotes())) {
-                    predicates.add(cb.like(cb.lower(root.get("notes")),
-                            "%" + req.getNotes().trim().toLowerCase() + "%"));
-                }
-
                 // CREATED AT (>=)
                 if (req.getCreatedAt() != null) {
                     predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), req.getCreatedAt()));

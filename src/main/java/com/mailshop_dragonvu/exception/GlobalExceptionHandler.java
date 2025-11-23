@@ -50,9 +50,9 @@ public class GlobalExceptionHandler {
 
         ApiResponse<?> response = ApiResponse.builder()
                 .success(false)
-                .message("Validation failed")
+                .message(errors.toString())
                 .errorCode(ErrorCode.VALIDATION_ERROR.getCode())
-                .data(errors)
+                .data(null)
                 .build();
 
         return ResponseEntity
@@ -139,7 +139,8 @@ public class GlobalExceptionHandler {
         log.error("Unexpected error occurred: ", ex);
         
         ApiResponse<?> response = ApiResponse.error(
-                ErrorCode.INTERNAL_SERVER_ERROR.getMessage(),
+                //ErrorCode.INTERNAL_SERVER_ERROR.getMessage(),
+                ex.getMessage(),
                 ErrorCode.INTERNAL_SERVER_ERROR.getCode()
         );
         

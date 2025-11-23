@@ -7,6 +7,7 @@ import com.mailshop_dragonvu.dto.orders.OrderUpdateDTO;
 import com.mailshop_dragonvu.entity.OrderEntity;
 import com.mailshop_dragonvu.entity.OrderItemEntity;
 import com.mailshop_dragonvu.entity.UserEntity;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.processing.Generated;
@@ -15,8 +16,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-20T23:43:41+0700",
-    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.44.0.v20251118-1623, environment: Java 21.0.9 (Eclipse Adoptium)"
+    date = "2025-11-23T12:23:03+0700",
+    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
 public class OrderMapperImpl implements OrderMapper {
@@ -32,9 +33,6 @@ public class OrderMapperImpl implements OrderMapper {
 
         OrderEntity.OrderEntityBuilder<?, ?> orderEntity = OrderEntity.builder();
 
-        orderEntity.discountAmount( request.getDiscountAmount() );
-        orderEntity.notes( request.getNotes() );
-
         return orderEntity.build();
     }
 
@@ -48,15 +46,14 @@ public class OrderMapperImpl implements OrderMapper {
 
         orderResponseDTO.userId( orderEntityUserId( orderEntity ) );
         orderResponseDTO.userEmail( orderEntityUserEmail( orderEntity ) );
-        orderResponseDTO.cancellationReason( orderEntity.getCancellationReason() );
-        orderResponseDTO.createdAt( orderEntity.getCreatedAt() );
-        orderResponseDTO.discountAmount( orderEntity.getDiscountAmount() );
-        orderResponseDTO.finalAmount( orderEntity.getFinalAmount() );
         orderResponseDTO.id( orderEntity.getId() );
+        orderResponseDTO.orderNumber( orderEntity.getOrderNumber() );
+        if ( orderEntity.getTotalAmount() != null ) {
+            orderResponseDTO.totalAmount( BigDecimal.valueOf( orderEntity.getTotalAmount() ) );
+        }
         orderResponseDTO.notes( orderEntity.getNotes() );
         orderResponseDTO.orderItems( orderItemEntityListToOrderItemResponseList( orderEntity.getOrderItems() ) );
-        orderResponseDTO.orderNumber( orderEntity.getOrderNumber() );
-        orderResponseDTO.totalAmount( orderEntity.getTotalAmount() );
+        orderResponseDTO.createdAt( orderEntity.getCreatedAt() );
         orderResponseDTO.updatedAt( orderEntity.getUpdatedAt() );
 
         orderResponseDTO.orderStatus( orderEntity.getOrderStatus().name() );

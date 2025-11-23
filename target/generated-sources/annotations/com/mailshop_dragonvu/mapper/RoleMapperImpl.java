@@ -8,8 +8,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-20T23:43:41+0700",
-    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.44.0.v20251118-1623, environment: Java 21.0.9 (Eclipse Adoptium)"
+    date = "2025-11-23T12:23:03+0700",
+    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
 public class RoleMapperImpl implements RoleMapper {
@@ -22,8 +22,8 @@ public class RoleMapperImpl implements RoleMapper {
 
         RoleEntity.RoleEntityBuilder roleEntity = RoleEntity.builder();
 
-        roleEntity.description( request.getDescription() );
         roleEntity.name( request.getName() );
+        roleEntity.description( request.getDescription() );
 
         return roleEntity.build();
     }
@@ -36,10 +36,10 @@ public class RoleMapperImpl implements RoleMapper {
 
         RoleResponse.RoleResponseBuilder roleResponse = RoleResponse.builder();
 
-        roleResponse.createdAt( roleEntity.getCreatedAt() );
-        roleResponse.description( roleEntity.getDescription() );
         roleResponse.id( roleEntity.getId() );
         roleResponse.name( roleEntity.getName() );
+        roleResponse.description( roleEntity.getDescription() );
+        roleResponse.createdAt( roleEntity.getCreatedAt() );
         roleResponse.updatedAt( roleEntity.getUpdatedAt() );
 
         return roleResponse.build();
@@ -51,11 +51,11 @@ public class RoleMapperImpl implements RoleMapper {
             return;
         }
 
-        if ( request.getDescription() != null ) {
-            roleEntity.setDescription( request.getDescription() );
-        }
         if ( request.getName() != null ) {
             roleEntity.setName( request.getName() );
+        }
+        if ( request.getDescription() != null ) {
+            roleEntity.setDescription( request.getDescription() );
         }
     }
 }
