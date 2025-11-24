@@ -31,7 +31,7 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
-    @PostMapping
+    @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create category", description = "Create a new category (Admin only)")
     public ApiResponse<CategoryResponseDTO> createCategory(@Valid @RequestBody CategoryCreateDTO request) {

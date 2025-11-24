@@ -14,6 +14,7 @@ import com.mailshop_dragonvu.repository.RoleRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.service.UserService;
 import com.mailshop_dragonvu.utils.Utils;
+import com.mailshop_dragonvu.utils.EnumParseUtils;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
@@ -151,9 +152,11 @@ public class UserServiceImpl implements UserService {
                 }
 
                 if (!ObjectUtils.isEmpty(request.getStatus()) && !request.getStatus().isBlank()) {
-                    Set<Integer> status = Arrays.stream(request.getStatus().split(",")).map(Integer::valueOf)
-                            .collect(Collectors.toSet());
-                    predicates.add(root.get("status").in(status));
+                    Set<ActiveStatusEnum> statusSet = EnumParseUtils.parseEnumSetByKey(
+                            request.getStatus(),
+                            ActiveStatusEnum::fromKey
+                    );
+                    predicates.add(root.get("status").in(statusSet));
                 }
 
                 return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
