@@ -1,5 +1,6 @@
 package com.mailshop_dragonvu.service.impl;
 
+import com.mailshop_dragonvu.dto.transactions.TransactionFilterDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
 import com.mailshop_dragonvu.entity.TransactionEntity;
@@ -16,13 +17,22 @@ import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.repository.WalletRepository;
 import com.mailshop_dragonvu.service.PayOSService;
 import com.mailshop_dragonvu.service.WalletService;
+import com.mailshop_dragonvu.utils.Utils;
 import jakarta.persistence.PessimisticLockException;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
@@ -31,8 +41,8 @@ import vn.payos.model.webhooks.Webhook;
 import vn.payos.model.webhooks.WebhookData;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
@@ -118,9 +128,9 @@ public class WalletServiceImpl implements WalletService {
 
         // Validate
         validateDepositAmount(request.getAmount());
-        checkIpRateLimit(ipAddress);
-        checkPendingTransactionsLimit(userId);
-        checkDuplicateTransactions(userId, request.getAmount());
+        //checkIpRateLimit(ipAddress);
+        //checkPendingTransactionsLimit(userId);
+        //checkDuplicateTransactions(userId, request.getAmount());
 
         // Tạo PayOS payment link
         CreatePaymentLinkResponse payOS = payOSService.createPaymentLink(request);
@@ -146,7 +156,6 @@ public class WalletServiceImpl implements WalletService {
     }
 
 
-
     @Override
     @Transactional
     public void processPayOSCallback(Webhook webhook) {
@@ -168,7 +177,7 @@ public class WalletServiceImpl implements WalletService {
         if (!"00".equalsIgnoreCase(data.getCode())) {
 
             transactionRepository.delete(txn);
-           throw  new BusinessException(ErrorCode.INVALID_WEBHOOK);
+            throw new BusinessException(ErrorCode.INVALID_WEBHOOK);
         }
 
         // Thành công → cộng tiền
@@ -194,12 +203,75 @@ public class WalletServiceImpl implements WalletService {
     }
 
 
-
     @Override
     @Transactional(readOnly = true)
     public Page<TransactionResponseDTO> getUserTransactions(Long userId, Pageable pageable) {
         return transactionRepository.findByUserId(userId, pageable)
                 .map(transactionMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TransactionResponseDTO> searchUserTransactions(Long userId, TransactionFilterDTO filterDTO) {
+
+        Sort sort = Utils.generatedSort(filterDTO.getSort());
+        Pageable pageable = PageRequest.of(
+                filterDTO.getPage(),
+                filterDTO.getLimit(),
+                sort
+        );
+
+        Specification<TransactionEntity> specification =
+                buildTransactionSpecification(userId, filterDTO);
+
+        return transactionRepository
+                .findAll(specification, pageable)
+                .map(transactionMapper::toResponse);
+    }
+
+    private Specification<TransactionEntity> buildTransactionSpecification(
+            Long userId,
+            TransactionFilterDTO request
+    ) {
+        return (Root<TransactionEntity> root, CriteriaQuery<?> query, CriteriaBuilder cb) -> {
+
+            List<Predicate> predicates = new ArrayList<>();
+
+            // ✅ Giao dịch thuộc user hiện tại
+            predicates.add(cb.equal(root.get("user").get("id"), userId));
+
+            // ✅ Filter theo mã giao dịch
+            if (Strings.isNotBlank(request.getTransactionCode())) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("transactionCode")),
+                                "%" + request.getTransactionCode().trim().toLowerCase() + "%"
+                        )
+                );
+            }
+
+            // ✅ From date
+            if (request.getDateFrom() != null) {
+                predicates.add(
+                        cb.greaterThanOrEqualTo(
+                                root.get("createdAt"),
+                                request.getDateFrom()
+                        )
+                );
+            }
+
+            // ✅ To date
+            if (request.getDateTo() != null) {
+                predicates.add(
+                        cb.lessThanOrEqualTo(
+                                root.get("createdAt"),
+                                request.getDateTo()
+                        )
+                );
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     @Override

@@ -230,7 +230,7 @@ public class ProductServiceImpl implements ProductService {
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
 
-                .status(product.getStatus().name())
+                .status(product.getStatus().getKey())
                 .quantity(quantity)
 
                 .build();

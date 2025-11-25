@@ -1,6 +1,9 @@
 package com.mailshop_dragonvu.service;
 
+import com.mailshop_dragonvu.dto.transactions.TransactionFilterDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
+import com.mailshop_dragonvu.dto.users.UserFilterDTO;
+import com.mailshop_dragonvu.dto.users.UserResponseDTO;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -38,6 +41,7 @@ public interface WalletService {
      */
     Page<TransactionResponseDTO> getUserTransactions(Long userId, Pageable pageable);
 
+    Page<TransactionResponseDTO> searchUserTransactions(Long userId, TransactionFilterDTO transactionFilterDTO);
     /**
      * Get transaction by code
      */

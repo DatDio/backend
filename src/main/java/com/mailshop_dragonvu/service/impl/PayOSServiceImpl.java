@@ -41,8 +41,8 @@ public class PayOSServiceImpl implements PayOSService {
                     .orderCode(System.currentTimeMillis() / 1000)
                     .amount(2000L)
                     .description("NAPTIEN")
-                    .cancelUrl("https://your-domain.com/cancel")
-                    .returnUrl("https://your-domain.com/success")
+                    .cancelUrl("http://localhost:4200/transactions")
+                    .returnUrl("http://localhost:4200/transactions")
                     .build();
             CreatePaymentLinkResponse data = payOS.paymentRequests().create(paymentRequest);
             return data;

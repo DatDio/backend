@@ -6,6 +6,7 @@ import com.mailshop_dragonvu.enums.TransactionTypeEnum;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -18,7 +19,7 @@ import java.util.Optional;
  * Transaction Repository
  */
 @Repository
-public interface TransactionRepository extends JpaRepository<TransactionEntity, Long> {
+public interface TransactionRepository extends JpaRepository<TransactionEntity, Long>, JpaSpecificationExecutor<TransactionEntity> {
 
     /**
      * Find transactionEntity by code
@@ -58,15 +59,15 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
      * Find duplicate transactions by amount and userEntity in timeframe (anti-cheat)
      */
     @Query("""
-    SELECT t FROM TransactionEntity t
-    WHERE t.user.id = :userId
-      AND t.amount = :amount
-      AND t.status IN (
-           com.mailshop_dragonvu.enums.TransactionStatusEnum.PENDING,
-           com.mailshop_dragonvu.enums.TransactionStatusEnum.PROCESSING
-      )
-      AND t.createdAt > :since
-""")
+                SELECT t FROM TransactionEntity t
+                WHERE t.user.id = :userId
+                  AND t.amount = :amount
+                  AND t.status IN (
+                       com.mailshop_dragonvu.enums.TransactionStatusEnum.PENDING,
+                       com.mailshop_dragonvu.enums.TransactionStatusEnum.PROCESSING
+                  )
+                  AND t.createdAt > :since
+            """)
     List<TransactionEntity> findDuplicateTransactions(@Param("userId") Long userId,
                                                       @Param("amount") Long amount,
                                                       @Param("since") LocalDateTime since);

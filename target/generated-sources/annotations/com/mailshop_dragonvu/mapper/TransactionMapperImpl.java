@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-24T12:33:20+0700",
-    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 18.0.2.1 (Oracle Corporation)"
+    date = "2025-11-25T21:28:23+0700",
+    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
 public class TransactionMapperImpl implements TransactionMapper {
@@ -46,7 +46,6 @@ public class TransactionMapperImpl implements TransactionMapper {
         transactionResponseDTO.description( transactionEntity.getDescription() );
         transactionResponseDTO.paymentMethod( transactionEntity.getPaymentMethod() );
         transactionResponseDTO.paymentReference( transactionEntity.getPaymentReference() );
-        transactionResponseDTO.createdAt( transactionEntity.getCreatedAt() );
         transactionResponseDTO.completedAt( transactionEntity.getCompletedAt() );
 
         return transactionResponseDTO.build();

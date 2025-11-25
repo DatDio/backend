@@ -19,7 +19,7 @@ public class ProductResponseDTO {
     private Long categoryId;
     private String categoryName;
 
-    private String status;
+    private Integer status;
 
     // Số lượng còn lại (đếm từ ProductItem)
     private Long quantity;

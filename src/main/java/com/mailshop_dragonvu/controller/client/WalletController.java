@@ -1,6 +1,7 @@
 package com.mailshop_dragonvu.controller.client;
 
 import com.mailshop_dragonvu.dto.ApiResponse;
+import com.mailshop_dragonvu.dto.transactions.TransactionFilterDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
 import com.mailshop_dragonvu.security.UserPrincipal;
@@ -47,7 +48,7 @@ public class WalletController {
         return ApiResponse.success(wallet);
     }
 
-    @PostMapping("payos/deposit")
+    @PostMapping("/payos/deposit")
     @Operation(summary = "Create deposit", description = "Create deposit transaction and get PayOS QR code")
     public ApiResponse<CreatePaymentLinkResponse> createDeposit(
             @Valid @RequestBody CreatePaymentLinkRequest request,
@@ -75,24 +76,17 @@ public class WalletController {
         return ResponseEntity.ok("OK");
     }
 
-    /**
-     * Get my transaction history
-     */
-    @GetMapping("/transactions")
-    @Operation(summary = "Get my transactions", description = "Get current user's transaction history")
-    public ResponseEntity<ApiResponse<Page<TransactionResponseDTO>>> getMyTransactions(
+    @GetMapping("/transactions/search")
+    @Operation(summary = "Search my transactions with filter")
+    public ApiResponse<Page<TransactionResponseDTO>> searchTransactions(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDir) {
-
-        Sort sort = sortDir.equalsIgnoreCase("ASC") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
-        Pageable pageable = PageRequest.of(page, size, sort);
-
-        Page<TransactionResponseDTO> transactions = walletService.getUserTransactions(userPrincipal.getId(), pageable);
-        return ResponseEntity.ok(ApiResponse.success(transactions));
+            TransactionFilterDTO filterDTO
+    ) {
+        return ApiResponse.success(
+                walletService.searchUserTransactions(userPrincipal.getId(), filterDTO)
+        );
     }
+
 
     /**
      * Get transaction by code

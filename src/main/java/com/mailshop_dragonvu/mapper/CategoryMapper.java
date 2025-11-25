@@ -19,7 +19,7 @@ public class CategoryMapper {
                 .id(entity.getId())
                 .name(entity.getName())
                 .description(entity.getDescription())
-                .status(entity.getStatus().getValue())
+                .status(entity.getStatus().getKey())
                 .products(
                         entity.getProducts().stream()
                                 .filter(p -> p.getStatus() == ActiveStatusEnum.ACTIVE)
