@@ -1,9 +1,6 @@
 package com.mailshop_dragonvu.controller.client;
-import com.mailshop_dragonvu.dto.auth.LoginRequest;
-import com.mailshop_dragonvu.dto.auth.RefreshTokenRequest;
-import com.mailshop_dragonvu.dto.auth.RegisterRequest;
+import com.mailshop_dragonvu.dto.auth.*;
 import com.mailshop_dragonvu.dto.ApiResponse;
-import com.mailshop_dragonvu.dto.auth.AuthResponse;
 import com.mailshop_dragonvu.service.auth.AuthService;
 import com.mailshop_dragonvu.utils.Constants;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,7 +32,12 @@ public class AuthController {
     public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success("Login successful", authService.login(request));
     }
-
+    @PostMapping("/change-password")
+    @Operation(summary = "Đổi mật khẩu")
+    public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request);
+        return ApiResponse.success("Password changed successfully");
+    }
     @PostMapping("/google")
     @Operation(summary = "Đăng nhập bằng Google token")
     public ApiResponse<AuthResponse> googleLogin(@RequestBody Map<String, String> body) {

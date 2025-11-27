@@ -109,11 +109,12 @@ public class ProductItemServiceImpl implements ProductItemService {
         return items;
     }
 
-    public void markSold(Long itemId, Long buyerId, Long orderId) {
-        productItemRepository.markAsSold(itemId, buyerId, orderId);
+    public void markSold(Long itemId, Long buyerId) {
+        productItemRepository.markAsSold(itemId, buyerId);
     }
 
     @Override
+    @Transactional
     public void deleteItem(Long id) {
         productItemRepository.deleteById(id);
     }
@@ -157,7 +158,7 @@ public class ProductItemServiceImpl implements ProductItemService {
                 .accountData(e.getAccountData())
                 .sold(e.getSold())
                 .buyerId(e.getBuyerId())
-                .orderId(e.getOrderId())
+                //.orderId(e.getOrderId())
                 .soldAt(e.getSoldAt() != null ? e.getSoldAt().toString() : null)
                 .build();
     }

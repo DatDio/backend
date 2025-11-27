@@ -37,9 +37,10 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponseDTO createCategory(CategoryCreateDTO request) {
 
         // Check if category with same name already exists
-        if (categoryRepository.findByName(request.getName()).isPresent()) {
+        if (categoryRepository.findByNameIgnoreCase(request.getName().trim()).isPresent()) {
             throw new BusinessException(CATEGORY_NAME_ALREADY_EXISTS);
         }
+
 
         CategoryEntity category = CategoryEntity.builder()
                 .name(request.getName())
@@ -60,8 +61,11 @@ public class CategoryServiceImpl implements CategoryService {
 
         if (request.getName() != null) {
             // Check if new name already exists (and not same as current)
-            if (!category.getName().equals(request.getName()) &&
-                categoryRepository.findByName(request.getName()).isPresent()) {
+            String newName = request.getName().trim();
+            String currentName = category.getName().trim();
+
+            if (!currentName.equalsIgnoreCase(newName) &&
+                    categoryRepository.findByNameIgnoreCase(newName).isPresent()) {
                 throw new BusinessException(CATEGORY_NAME_ALREADY_EXISTS);
             }
             category.setName(request.getName());
@@ -70,6 +74,7 @@ public class CategoryServiceImpl implements CategoryService {
         if (request.getDescription() != null) {
             category.setDescription(request.getDescription());
         }
+        category.setStatus(ActiveStatusEnum.fromKey(request.getStatus()));
 
         CategoryEntity updatedCategory = categoryRepository.save(category);
         log.info("Category updated successfully with ID: {}", id);

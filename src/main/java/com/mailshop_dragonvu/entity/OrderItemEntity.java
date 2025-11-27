@@ -28,12 +28,7 @@ public class OrderItemEntity extends BaseEntity {
     @JoinColumn(name = "product_item_id", nullable = false)
     private ProductItemEntity productItem;
 
-    @Column(nullable = false)
-    private Long productId; // optional: để lưu loại sản phẩm
 
-    @Column(nullable = false, length = 255)
-    private String productName;
 
-    @Column(nullable = false)
-    private Integer quantity;
+
 }

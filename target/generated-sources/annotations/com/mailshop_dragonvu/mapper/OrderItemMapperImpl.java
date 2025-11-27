@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-11-25T21:28:23+0700",
+    date = "2025-11-27T17:00:06+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)"
 )
 @Component
@@ -22,9 +22,6 @@ public class OrderItemMapperImpl implements OrderItemMapper {
 
         OrderItemEntity.OrderItemEntityBuilder<?, ?> orderItemEntity = OrderItemEntity.builder();
 
-        orderItemEntity.productId( request.getProductId() );
-        orderItemEntity.quantity( request.getQuantity() );
-
         return orderItemEntity.build();
     }
 
@@ -37,9 +34,6 @@ public class OrderItemMapperImpl implements OrderItemMapper {
         OrderItemResponse.OrderItemResponseBuilder orderItemResponse = OrderItemResponse.builder();
 
         orderItemResponse.id( orderItemEntity.getId() );
-        orderItemResponse.productId( orderItemEntity.getProductId() );
-        orderItemResponse.productName( orderItemEntity.getProductName() );
-        orderItemResponse.createdAt( orderItemEntity.getCreatedAt() );
 
         return orderItemResponse.build();
     }
@@ -48,13 +42,6 @@ public class OrderItemMapperImpl implements OrderItemMapper {
     public void updateEntity(OrderItemEntity orderItemEntity, OrderItemRequest request) {
         if ( request == null ) {
             return;
-        }
-
-        if ( request.getProductId() != null ) {
-            orderItemEntity.setProductId( request.getProductId() );
-        }
-        if ( request.getQuantity() != null ) {
-            orderItemEntity.setQuantity( request.getQuantity() );
         }
     }
 }

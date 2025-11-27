@@ -1,9 +1,7 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.orders.OrderCreateDTO;
-import com.mailshop_dragonvu.dto.orders.OrderFilterDTO;
-import com.mailshop_dragonvu.dto.orders.OrderResponseDTO;
-import com.mailshop_dragonvu.dto.orders.OrderUpdateDTO;
+import com.mailshop_dragonvu.dto.orders.*;
+import com.mailshop_dragonvu.dto.products.ProductResponseDTO;
 import com.mailshop_dragonvu.entity.OrderEntity;
 import com.mailshop_dragonvu.entity.OrderItemEntity;
 import com.mailshop_dragonvu.entity.ProductItemEntity;
@@ -15,9 +13,7 @@ import com.mailshop_dragonvu.mapper.OrderItemMapper;
 import com.mailshop_dragonvu.mapper.OrderMapper;
 import com.mailshop_dragonvu.repository.OrderRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
-import com.mailshop_dragonvu.service.EmailService;
-import com.mailshop_dragonvu.service.OrderService;
-import com.mailshop_dragonvu.service.ProductItemService;
+import com.mailshop_dragonvu.service.*;
 import com.mailshop_dragonvu.utils.Utils;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -36,8 +32,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -47,46 +41,60 @@ import java.util.stream.Collectors;
 public class OrderServiceImpl implements OrderService {
 
     private final ProductItemService productItemService;
+    private  final ProductService productService;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final EmailService emailService;
+    private final WalletService walletService;
 
     @Override
     @Transactional
     @CacheEvict(value = "orders", allEntries = true)
-    public OrderResponseDTO createOrder(OrderCreateDTO request, Long userId) {
+    public ClientOrderCreateResponseDTO createOrder(OrderCreateDTO request, Long userId) {
+        List<String> accountDataList = new ArrayList<>();
 
         UserEntity userEntity = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        OrderEntity order = orderMapper.toEntity(request);
-        order.setUser(userEntity);
-        order.setOrderNumber(generateOrderNumber());
-        order.setOrderStatus(OrderStatusEnum.PENDING);
+        ProductResponseDTO productResponseDTO =  productService.getProductById(request.getProductId());
 
-        List<ProductItemEntity> productItems = productItemService.getRandomUnsoldItems(request.getProductId(),request.getQuantity());
+        OrderEntity order = new OrderEntity().builder()
+                .user(userEntity)
+                .orderNumber(generateOrderNumber())
+                .productId(request.getProductId())
+                .productName(productResponseDTO.getName())
+                .orderStatus(OrderStatusEnum.COMPLETED)
+                .build();
+
+        List<ProductItemEntity> productItems = productItemService.getRandomUnsoldItems(request.getProductId(), request.getQuantity());
 
         for (var productItem : productItems) {
             OrderItemEntity orderItemEntity = new OrderItemEntity().builder()
                     .order(order)
                     .productItem(productItem)
-                    .productId(request.getProductId())
-                    .quantity(request.getQuantity())
-                    .productName(productItem.getProduct().getName())
                     .build();
-
-
+            //Đánh dấu đã bán
+            productItem.markSold(userId);
             order.addOrderItem(orderItemEntity);
+
+            accountDataList.add(productItem.getAccountData());
         }
 
         //Tính toán tiền
         order.calculationTotalAmount();
 
-        order = orderRepository.save(order);
+//        WalletResponse walletResponse = walletService.getUserWallet(userId);
+//        if (walletResponse.getBalance() < order.getTotalAmount()) {
+//            throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE);
+//        }
 
-        return orderMapper.toResponse(order);
+         orderRepository.save(order);
+
+        return ClientOrderCreateResponseDTO.builder()
+                .accountData(accountDataList)
+                .build();
     }
 
     @Override
@@ -115,6 +123,7 @@ public class OrderServiceImpl implements OrderService {
         return orderRepository.findAll(specification, pageable)
                 .map(orderMapper::toResponse);
     }
+
     private Specification<OrderEntity> getSearchSpecification(final OrderFilterDTO req) {
 
         return new Specification<OrderEntity>() {
@@ -178,6 +187,7 @@ public class OrderServiceImpl implements OrderService {
         return orderRepository.findByUser(userEntity, pageable)
                 .map(orderMapper::toResponse);
     }
+
     @Override
     @Transactional
     @CacheEvict(value = "orders", key = "#id")

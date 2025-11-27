@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -64,7 +65,9 @@ public class ApiKeyServiceImpl implements ApiKeyService {
         ApiKeyEntity apiKeyEntity = com.mailshop_dragonvu.entity.ApiKeyEntity.builder()
             .user(userEntity)
             .keyHash(keyHash)
-            .name(request.getName())
+            .name( Optional.ofNullable(request.getName())
+                    .filter(name -> !name.isBlank())
+                    .orElse(userEntity.getEmail()))
             .status(ApiKeyStatusEnum.ACTIVE)
             .build();
 
@@ -175,6 +178,12 @@ public class ApiKeyServiceImpl implements ApiKeyService {
             apiKeyEntity.updateLastUsed();
             apiKeyRepository.save(apiKeyEntity);
         });
+    }
+
+    @Override
+    @Transactional
+    public void deleteApiKey(Long keyId) {
+        apiKeyRepository.delete(apiKeyRepository.findById(keyId).orElseThrow(() -> new BusinessException(ErrorCode.API_KEY_NOT_FOUND)));
     }
 
     @Override

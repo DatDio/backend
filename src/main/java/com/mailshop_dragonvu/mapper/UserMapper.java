@@ -5,6 +5,7 @@ import com.mailshop_dragonvu.dto.users.UserResponseDTO;
 import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
 import com.mailshop_dragonvu.entity.RoleEntity;
 import com.mailshop_dragonvu.entity.UserEntity;
+import com.mailshop_dragonvu.enums.ActiveStatusEnum;
 import org.mapstruct.*;
 
 import java.util.Set;
@@ -20,7 +21,12 @@ public interface UserMapper {
 
     @Mapping(target = "roles", expression = "java(mapRolesToStrings(userEntity.getRoles()))")
     @Mapping(target = "authProvider", expression = "java(userEntity.getAuthProvider().name())")
+    @Mapping(target = "status", source = "status")
     UserResponseDTO toResponse(UserEntity userEntity);
+
+    default Integer mapStatus(ActiveStatusEnum status) {
+        return status != null ? status.getKey() : null;
+    }
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "roles", ignore = true)

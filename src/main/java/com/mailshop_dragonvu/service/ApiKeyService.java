@@ -47,6 +47,7 @@ public interface ApiKeyService {
      */
     void updateLastUsed(Long keyId);
 
+    void deleteApiKey(Long keyId);
     /**
      * Get usage statistics for an API key
      */

@@ -56,6 +56,8 @@ public class ProductServiceImpl implements ProductService {
         ProductEntity product = ProductEntity.builder()
                 .name(request.getName())
                 .description(request.getDescription())
+                .liveTime(request.getLiveTime())
+                .country(request.getCountry())
                 .price(request.getPrice())
                 .category(category)
                 .status(ActiveStatusEnum.ACTIVE) // nếu bạn dùng ACTIVE / INACTIVE
@@ -73,24 +75,19 @@ public class ProductServiceImpl implements ProductService {
         log.info("Updating product {}", id);
 
         ProductEntity product = findProductOrThrow(id);
-
-        if (request.getName() != null)
-            product.setName(request.getName());
-
-        if (request.getDescription() != null)
-            product.setDescription(request.getDescription());
-
-        if (request.getPrice() != null)
-            product.setPrice(request.getPrice());
-
+        product.setName(request.getName());
+        product.setDescription(request.getDescription());
+        product.setPrice(request.getPrice());
         if (request.getCategoryId() != null) {
             CategoryEntity category = categoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
             product.setCategory(category);
         }
+        product.setLiveTime(request.getLiveTime());
+        product.setCountry(request.getCountry());
 
         if (request.getStatus() != null)
-            product.setStatus(ActiveStatusEnum.valueOf(request.getStatus()));
+            product.setStatus(ActiveStatusEnum.fromKey((request.getStatus())));
 
         ProductEntity updated = productRepository.save(product);
 
@@ -144,6 +141,7 @@ public class ProductServiceImpl implements ProductService {
 
         return page.map(this::toProductResponse);
     }
+
     private Specification<ProductEntity> getSearchSpecification(ProductFilterDTO req) {
 
         return (root, query, cb) -> {
@@ -212,7 +210,7 @@ public class ProductServiceImpl implements ProductService {
 
     private ProductEntity findProductOrThrow(Long id) {
         return productRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException("Không tìm thấy sản phẩm"));
     }
 
     /**
@@ -226,7 +224,8 @@ public class ProductServiceImpl implements ProductService {
                 .name(product.getName())
                 .description(product.getDescription())
                 .price(product.getPrice())
-
+                .liveTime(product.getLiveTime())
+                .country(product.getCountry())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
 

@@ -50,8 +50,7 @@ public class ApiKeyController {
     public ResponseEntity<ApiResponse<ApiKeyResponse>> revokeApiKey(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
-        
-        log.info("User {} revoking API key {}", currentUser.getId(), id);
+
         ApiKeyResponse response = apiKeyService.revokeApiKey(id, currentUser.getId());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -62,8 +61,7 @@ public class ApiKeyController {
     public ResponseEntity<ApiResponse<ApiKeyResponse>> activateApiKey(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
-        
-        log.info("User {} activating API key {}", currentUser.getId(), id);
+
         ApiKeyResponse response = apiKeyService.activateApiKey(id, currentUser.getId());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -73,8 +71,7 @@ public class ApiKeyController {
     @Operation(summary = "List API keys", description = "Get all API keys for the authenticated user")
     public ResponseEntity<ApiResponse<List<ApiKeyResponse>>> listApiKeys(
             @AuthenticationPrincipal UserPrincipal currentUser) {
-        
-        log.info("User {} listing API keys", currentUser.getId());
+
         List<ApiKeyResponse> response = apiKeyService.getUserApiKeys(currentUser.getId());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -85,8 +82,7 @@ public class ApiKeyController {
     public ResponseEntity<ApiResponse<ApiKeyResponse>> getUsageStats(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
-        
-        log.info("User {} fetching usage stats for API key {}", currentUser.getId(), id);
+
         ApiKeyResponse response = apiKeyService.getUsageStats(id, currentUser.getId());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -97,9 +93,15 @@ public class ApiKeyController {
     public ResponseEntity<ApiResponse<ApiKeyResponse>> getApiKeyById(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
-        
-        log.info("User {} fetching API key {}", currentUser.getId(), id);
+
         ApiKeyResponse response = apiKeyService.getApiKeyById(id, currentUser.getId());
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    // DELETE ITEM
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        apiKeyService.deleteApiKey(id);
+        return ApiResponse.success("Deleted");
     }
 }

@@ -23,7 +23,7 @@ public class UserResponseDTO {
     private String authProvider;
     private Boolean emailVerified;
     private Set<String> roles;
-    private String status;
+    private Integer status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

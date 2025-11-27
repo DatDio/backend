@@ -40,14 +40,14 @@ public class CategoryController {
         return ApiResponse.success("Tạo danh mục thành công", response);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/update/{id}")
     @Operation(summary = "Update category", description = "Update category details (Admin only)")
     public ApiResponse<CategoryResponseDTO> updateCategory(
             @PathVariable Long id,
             @Valid @RequestBody CategoryUpdateDTO request) {
         log.info("Updating category with ID: {}", id);
         CategoryResponseDTO response = categoryService.updateCategory(id, request);
-        return ApiResponse.success("Category updated successfully", response);
+        return ApiResponse.success("Cập nhật danh mục thành công", response);
     }
 
     @GetMapping("/{id}")
@@ -58,11 +58,11 @@ public class CategoryController {
         return ApiResponse.success(response);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/delete/{id}")
     @Operation(summary = "Delete category", description = "Delete a category (Admin only)")
     public ApiResponse<Void> deleteCategory(@PathVariable Long id) {
         log.info("Deleting category with ID: {}", id);
         categoryService.deleteCategory(id);
-        return ApiResponse.success("Category deleted successfully");
+        return ApiResponse.success("Xóa danh mục thành công");
     }
 }

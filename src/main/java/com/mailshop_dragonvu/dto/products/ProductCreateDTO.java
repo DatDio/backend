@@ -15,6 +15,10 @@ public class ProductCreateDTO {
 
     private String description;
 
+    private String liveTime;
+
+    private String country;
+
     @NotNull
     private Long price;
 

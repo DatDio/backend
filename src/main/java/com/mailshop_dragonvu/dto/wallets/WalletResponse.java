@@ -18,9 +18,9 @@ public class WalletResponse {
 
     private Long id;
     private Long userId;
-    private BigDecimal balance;
-    private BigDecimal totalDeposited;
-    private BigDecimal totalSpent;
+    private Long balance;
+    private Long totalDeposited;
+    private Long totalSpent;
     private Boolean isLocked;
     private String lockReason;
 }

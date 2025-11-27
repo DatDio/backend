@@ -17,13 +17,5 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApiKeyGenerateRequest {
-
-    @NotBlank(message = "API key name is required")
-    @Size(max = 100, message = "Name must not exceed 100 characters")
     private String name;
-
-    @Size(max = 500, message = "Description must not exceed 500 characters")
-    private String description;
-
-    private LocalDateTime expiredAt;
 }

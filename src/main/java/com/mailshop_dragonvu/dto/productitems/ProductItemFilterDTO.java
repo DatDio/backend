@@ -6,5 +6,5 @@ import lombok.Data;
 @Data
 public class ProductItemFilterDTO extends PageFilterDTO {
     private Long productId;
-    private Boolean sold = false;
+    private Boolean sold;
 }

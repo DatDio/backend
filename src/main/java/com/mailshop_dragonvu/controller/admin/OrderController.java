@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
     private final OrderService orderService;
 
-    @GetMapping
+    @GetMapping("/search")
     @Operation(summary = "Get all users with pagination")
     public ApiResponse<Page<OrderResponseDTO>> search(OrderFilterDTO orderFilterDTO) {
         return ApiResponse.success(orderService.search(orderFilterDTO));

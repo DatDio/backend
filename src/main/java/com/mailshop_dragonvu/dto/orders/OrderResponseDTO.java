@@ -21,11 +21,13 @@ public class OrderResponseDTO {
     private Long userId;
     private String userEmail;
     private String orderStatus;
-    private BigDecimal totalAmount;
-    private String notes;
-    private List<OrderItemResponse> orderItems;
-    private String status;
+    private Long totalAmount;
+    // Thông tin product
+    private Long productId;
+    private String productName;
+
+    private List<String> accountData;
+
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 
 }

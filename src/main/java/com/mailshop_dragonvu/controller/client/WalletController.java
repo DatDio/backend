@@ -26,6 +26,8 @@ import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
 import vn.payos.model.webhooks.Webhook;
 
+import java.util.List;
+
 /**
  * Wallet Controller - User wallet and deposit operations
  */
@@ -98,5 +100,11 @@ public class WalletController {
 
         TransactionResponseDTO transaction = walletService.getTransactionByCode(transactionCode);
         return ResponseEntity.ok(ApiResponse.success(transaction));
+    }
+    @DeleteMapping("/transactions/delete/{id}")
+    public ApiResponse<Void> deleteTransaction(@AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable Long transactionID) {
+        walletService.deleteTransaction(transactionID);
+        return ApiResponse.success("Xóa giao dịch thành công");
     }
 }

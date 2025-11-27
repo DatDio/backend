@@ -1,8 +1,6 @@
 package com.mailshop_dragonvu.controller.client;
 
-import com.mailshop_dragonvu.dto.orders.OrderCreateDTO;
-import com.mailshop_dragonvu.dto.orders.OrderResponseDTO;
-import com.mailshop_dragonvu.dto.orders.OrderUpdateDTO;
+import com.mailshop_dragonvu.dto.orders.*;
 import com.mailshop_dragonvu.dto.ApiResponse;
 import com.mailshop_dragonvu.security.UserPrincipal;
 import com.mailshop_dragonvu.service.OrderService;
@@ -13,7 +11,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -30,10 +27,10 @@ public class OrderController {
     @PostMapping("/buy")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new order")
-    public ApiResponse<OrderResponseDTO> createOrder(
+    public ApiResponse<ClientOrderCreateResponseDTO> createOrder(
             @Valid @RequestBody OrderCreateDTO request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ApiResponse.success("Order created successfully", 
+        return ApiResponse.success("Mua hàng thành công",
                 orderService.createOrder(request, userPrincipal.getId()));
     }
 
@@ -49,8 +46,12 @@ public class OrderController {
     @Operation(summary = "Get current user's orders")
     public ApiResponse<Page<OrderResponseDTO>> getMyOrders(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            Pageable pageable) {
-        return ApiResponse.success(orderService.getOrdersByUser(userPrincipal.getId(), pageable));
+            OrderFilterDTO filterDTO) {
+
+        filterDTO.setUserId(userPrincipal.getId()); // ÉP USER ID TỪ TOKEN
+
+        return ApiResponse.success(orderService.search(filterDTO));
     }
+
 
 }

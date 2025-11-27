@@ -1,9 +1,6 @@
 package com.mailshop_dragonvu.service.auth;
 
-import com.mailshop_dragonvu.dto.auth.LoginRequest;
-import com.mailshop_dragonvu.dto.auth.RefreshTokenRequest;
-import com.mailshop_dragonvu.dto.auth.RegisterRequest;
-import com.mailshop_dragonvu.dto.auth.AuthResponse;
+import com.mailshop_dragonvu.dto.auth.*;
 import com.mailshop_dragonvu.entity.RefreshTokenEntity;
 import com.mailshop_dragonvu.entity.RoleEntity;
 import com.mailshop_dragonvu.entity.UserEntity;
@@ -15,9 +12,11 @@ import com.mailshop_dragonvu.repository.RefreshTokenRepository;
 import com.mailshop_dragonvu.repository.RoleRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.security.JwtTokenProvider;
+import com.mailshop_dragonvu.service.ApiKeyService;
 import com.mailshop_dragonvu.service.EmailService;
 import com.mailshop_dragonvu.service.WalletService;
 import com.mailshop_dragonvu.utils.Constants;
+import com.mailshop_dragonvu.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,7 +45,6 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final GoogleTokenVerifier googleTokenVerifier;
     private final WalletService walletService;
-
     @Value("${jwt.refresh-expiration}")
     private long refreshExpirationMs;
 
@@ -120,6 +118,34 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
+    @Override
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+
+        UserEntity currentUser = userRepository
+                .findById(SecurityUtils.getCurrentUserId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // Kiểm tra mật khẩu cũ
+        if (!passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPassword())) {
+            throw new BusinessException("Mật khẩu hiện tại không đúng");
+        }
+
+        // Không cho trùng mật khẩu cũ
+        if (passwordEncoder.matches(request.getNewPassword(), currentUser.getPassword())) {
+            throw new BusinessException("Mật khẩu mới không được trùng mật khẩu hiện tại");
+        }
+
+        currentUser.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(currentUser);
+
+        // Thu hồi toàn bộ refresh token => buộc đăng nhập lại
+        refreshTokenRepository.revokeAllByUser(currentUser);
+
+        log.info("Password changed for user {}", currentUser.getEmail());
+    }
+
+
 
     private RefreshTokenEntity createOrUpdateRefreshToken(UserEntity userEntity) {
         String newToken = jwtTokenProvider.generateRefreshToken(userEntity.getId());
@@ -168,6 +194,9 @@ public class AuthServiceImpl implements AuthService {
 
                     return userRepository.save(newUserEntity);
                 });
+
+        //Tạo ví
+        walletService.createWallet(userEntity.getId());
 
         // ---- JWT + Refresh token ----
         String authorities = userEntity.getRoles().stream()

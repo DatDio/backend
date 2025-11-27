@@ -7,7 +7,7 @@ public class Constants {
     public class API_PATH {
         private static final String CONTEXT_PATH = "api/v1/";
         public static final String AUTH = CONTEXT_PATH + "auth";
-        public static final String APIKEY = CONTEXT_PATH + "api-key";
+        public static final String APIKEY = CONTEXT_PATH + "api-keys";
         public static final String EMAILS = CONTEXT_PATH + "emails";
         public static final String USERS = CONTEXT_PATH + "users";
         public static final String ORDERS = CONTEXT_PATH + "orders";

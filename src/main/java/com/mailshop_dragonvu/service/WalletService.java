@@ -58,4 +58,6 @@ public interface WalletService {
     WalletResponse lockWallet(Long userId, String reason);
 
     WalletResponse unlockWallet(Long userId);
+
+    void deleteTransaction(Long transactionId);
 }

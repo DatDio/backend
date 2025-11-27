@@ -79,10 +79,24 @@ public class WalletServiceImpl implements WalletService {
     private String secretKey;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public WalletResponse getUserWallet(Long userId) {
+
+        UserEntity userEntity = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
         WalletEntity walletEntity = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+                .orElseGet(() -> {
+                    WalletEntity newWallet = WalletEntity.builder()
+                            .user(userEntity)
+                            .balance(0L)
+                            .totalDeposited(0L)
+                            .totalSpent(0L)
+                            .isLocked(false)
+                            .build();
+                    return walletRepository.save(newWallet);
+                });
+
         return walletMapper.toResponse(walletEntity);
     }
 
@@ -196,7 +210,6 @@ public class WalletServiceImpl implements WalletService {
         } catch (PessimisticLockException | CannotAcquireLockException e) {
 
             log.warn("Wallet đang lock. Bỏ qua webhook lần này.");
-            return;
         }
 
 
@@ -360,6 +373,12 @@ public class WalletServiceImpl implements WalletService {
         log.info("Wallet unlocked for user: {}", userId);
 
         return walletMapper.toResponse(walletEntity);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTransaction(Long transactionId) {
+        transactionRepository.deleteById(transactionId);
     }
 
     /**

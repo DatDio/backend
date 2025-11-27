@@ -13,8 +13,16 @@ public class ProductUpdateDTO {
     private Long id;
 
     private String name;
+
     private String description;
+
     private Long price;
+
     private Long categoryId;
-    private String status;
+
+    private Integer status;
+
+    private String liveTime;
+
+    private String country;
 }

@@ -43,9 +43,14 @@ public class OrderEntity extends BaseEntity {
     @Column(name = "notes", length = 1000)
     private String notes;
 
-    @Column(name = "completed_date")
-    private LocalDateTime completedDate;
+    @Column(nullable = false)
+    private Integer quantity;
 
+    @Column(nullable = false)
+    private Long productId; // optional: để lưu loại sản phẩm
+
+    @Column(nullable = false, length = 255)
+    private String productName;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -73,10 +78,15 @@ public class OrderEntity extends BaseEntity {
     }
 
     public void calculationTotalAmount() {
-        Long totalAmount = 0L;
+        long total = 0L;
+
         for (OrderItemEntity item : orderItems) {
-            totalAmount += item.getProductItem().getProduct().getPrice() * item.getQuantity();
+            Long price = item.getProductItem().getProduct().getPrice();
+            total += price; // mỗi OrderItem = 1 sản phẩm
         }
-        this.totalAmount = totalAmount;
+
+        this.totalAmount = total;
+        this.quantity = orderItems.size();
     }
+
 }

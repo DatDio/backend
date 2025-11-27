@@ -54,7 +54,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "users", allEntries = true)
+    //@CacheEvict(value = "users", allEntries = true)
     public UserResponseDTO createUser(UserCreateDTO request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -77,7 +77,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "users", key = "#id")
+    //@CacheEvict(value = "users", key = "#id")
     public UserResponseDTO updateUser(Long id, UserUpdateDTO request) {
         log.info("Updating user with ID: {}", id);
 
@@ -98,7 +98,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value = "users", key = "#id")
+    //@Cacheable(value = "users", key = "#id")
     public UserResponseDTO getUserById(Long id) {
         log.debug("Fetching user by ID: {}", id);
 
@@ -109,7 +109,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value = "users", key = "#email")
+    //@Cacheable(value = "users", key = "#email")
     public UserResponseDTO getUserByEmail(String email) {
         log.debug("Fetching user by email: {}", email);
 
@@ -167,7 +167,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "users", key = "#id")
+    //@CacheEvict(value = "users", key = "#id")
     public void deleteUser(Long id) {
 
         UserEntity userEntity = userRepository.findById(id)
@@ -180,7 +180,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "users", key = "#userId")
+    //@CacheEvict(value = "users", key = "#userId")
     public void assignRolesToUser(Long userId, List<Long> roleIds) {
         UserEntity userEntity = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -197,7 +197,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "users", key = "#userId")
+   // @CacheEvict(value = "users", key = "#userId")
     public void removeRolesFromUser(Long userId, List<Long> roleIds) {
         log.info("Removing roles from user ID: {}", userId);
 

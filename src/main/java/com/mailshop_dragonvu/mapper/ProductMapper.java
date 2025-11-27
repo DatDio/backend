@@ -64,6 +64,6 @@ public class ProductMapper {
             product.setCategory(category);
 
         if (request.getStatus() != null)
-            product.setStatus(ActiveStatusEnum.valueOf(request.getStatus()));
+            product.setStatus(ActiveStatusEnum.fromKey(request.getStatus()));
     }
 }

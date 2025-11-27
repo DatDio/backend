@@ -32,8 +32,8 @@ public interface ProductItemRepository extends JpaRepository<ProductItemEntity, 
     );
 
     @Modifying
-    @Query("UPDATE ProductItemEntity pi SET pi.sold = true, pi.buyerId = :buyerId, pi.orderId = :orderId, pi.soldAt = CURRENT_TIMESTAMP WHERE pi.id = :id")
-    void markAsSold(@Param("id") Long id, @Param("buyerId") Long buyerId, @Param("orderId") Long orderId);
+    @Query("UPDATE ProductItemEntity pi SET pi.sold = true, pi.buyerId = :buyerId, pi.soldAt = CURRENT_TIMESTAMP WHERE pi.id = :id")
+    void markAsSold(@Param("id") Long id, @Param("buyerId") Long buyerId);
 
     Page<ProductItemEntity> findByProduct_Id(Long productId, Pageable pageable);
 }

@@ -32,16 +32,15 @@ public class ProductItemEntity extends BaseEntity {
     @Column(name = "buyer_id")
     private Long buyerId;
 
-    @Column(name = "order_id")
-    private Long orderId;
+//    @Column(name = "order_id")
+//    private Long orderId;
 
     @Column(name = "sold_at")
     private LocalDateTime soldAt;
 
-    public void markSold(Long buyerId, Long orderId) {
+    public void markSold(Long buyerId) {
         this.sold = true;
         this.buyerId = buyerId;
-        this.orderId = orderId;
         this.soldAt = LocalDateTime.now();
     }
 }

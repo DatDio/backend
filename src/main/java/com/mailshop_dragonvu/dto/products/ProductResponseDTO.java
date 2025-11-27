@@ -1,7 +1,9 @@
 package com.mailshop_dragonvu.dto.products;
 
-import lombok.*;
-import java.math.BigDecimal;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
@@ -15,6 +17,10 @@ public class ProductResponseDTO {
     private String description;
 
     private Long price;
+
+    private String liveTime;
+
+    private String country;
 
     private Long categoryId;
     private String categoryName;

@@ -99,7 +99,6 @@ com\mailshop_dragonvu\enums\ActiveStatusEnum$ActiveStatusEnumConverter.class
 com\mailshop_dragonvu\dto\transactions\TransactionResponseDTO$TransactionResponseDTOBuilder.class
 com\mailshop_dragonvu\service\impl\ProductItemServiceImpl.class
 com\mailshop_dragonvu\dto\apikeys\ApiKeyResponse.class
-com\mailshop_dragonvu\mapper\OrderMapperImpl.class
 com\mailshop_dragonvu\entity\WalletEntity$WalletEntityBuilderImpl.class
 com\mailshop_dragonvu\dto\ApiResponse$ApiResponseBuilder.class
 com\mailshop_dragonvu\dto\orders\OrderCreateDTO.class
