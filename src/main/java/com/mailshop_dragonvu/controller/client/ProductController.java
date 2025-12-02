@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,10 +33,17 @@ public class ProductController {
         return ApiResponse.success(response);
     }
 
-    @GetMapping("search")
-    @Operation(summary = "Get all products", description = "Get all products with pagination")
+    @GetMapping("/search")
+    @Operation(summary = "Search products", description = "Get all products with pagination")
     public ApiResponse<Page<ProductResponseDTO>> searchProducts(ProductFilterDTO productFilterDTO) {
         Page<ProductResponseDTO> response = productService.searchProducts(productFilterDTO);
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/get-all")
+    @Operation(summary = "Get all active products", description = "Get all active products without pagination")
+    public ApiResponse<List<ProductResponseDTO>> getAllActiveProducts() {
+        List<ProductResponseDTO> response = productService.getAllActiveProducts();
         return ApiResponse.success(response);
     }
 }

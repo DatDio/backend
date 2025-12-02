@@ -1,145 +1,75 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   error:
     include-message: always
 
 spring:
   application:
-    name: mailshop-dragonvu-backend
+    name: ${SPRING_APP_NAME:mailshop-dragonvu-backend}
 
-  # ======================= DATABASE =======================
   datasource:
-    url: jdbc:mysql://localhost:3306/mailshop_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: ${DB_USERNAME:mailshop_user}
-    password: ${DB_PASSWORD:mailshop_pass}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    hikari:
-      maximum-pool-size: 15
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
 
-  # ======================= JPA =======================
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate.format_sql: true
-      hibernate.use_sql_comments: true
-      hibernate.jdbc.batch_size: 20
-      hibernate.order_inserts: true
-      hibernate.order_updates: true
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:true}
 
-  # ======================= REDIS + CACHE =======================
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:RedisPassword123}
-      timeout: 60000
-      lettuce:
-        pool:
-          max-active: 10
-          max-idle: 8
-          min-idle: 2
+      password: ${REDIS_PASSWORD}
 
   cache:
     type: redis
     redis:
-      time-to-live: 3600000
-      cache-null-values: false
+      time-to-live: ${CACHE_TTL:3600000}
 
-  # ======================= MAIL SMTP =======================
   mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:your-email@gmail.com}
-    password: ${MAIL_PASSWORD:your-app-password}
-    properties:
-      mail.smtp.auth: true
-      mail.smtp.starttls.enable: true
-      mail.smtp.starttls.required: true
-      mail.smtp.timeout: 5000
-      mail.smtp.connectiontimeout: 5000
-      mail.smtp.writetimeout: 5000
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
 
-  # ======================= GOOGLE OAUTH2 =======================
   security:
     oauth2:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
-            client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
-            scope:
-              - email
-              - profile
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             redirect-uri: "{baseUrl}/oauth2/callback/google"
-        provider:
-          google:
-            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
-            token-uri: https://oauth2.googleapis.com/token
-            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
-            user-name-attribute: sub
 
-# ======================= JWT =======================
 jwt:
-  secret: ${JWT_SECRET:1ddbfdc05934a744b92f533954e5bdeb}
-  expiration: 86400000          # 24h
-  refresh-expiration: 604800000 # 7d
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
-# ======================= APP CONFIG =======================
 app:
   frontend:
-    url: ${FRONTEND_URL:http://localhost:4200}
-
-  google:
-    clientId: ${GOOGLE_CLIENT_ID:558354084862-p0nv0cls220qem34e8mno0a8le2ug1fo.apps.googleusercontent.com}
-    clientSecret: ${GOOGLE_CLIENT_SECRET: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}
-
-  cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:4200}
+    url: ${FRONTEND_URL}
 
   admin:
-    default-email: ${ADMIN_EMAIL:admin@mailshop.com}
-    default-password: ${ADMIN_PASSWORD:Admin@123456}
+    default-email: ${ADMIN_EMAIL}
+    default-password: ${ADMIN_PASSWORD}
 
   payment:
-    min-amount: ${MIN_DEPOSIT_AMOUNT:10000}
-    max-amount: ${MAX_DEPOSIT_AMOUNT:50000000}
+    min-amount: ${MIN_DEPOSIT_AMOUNT}
+    max-amount: ${MAX_DEPOSIT_AMOUNT}
 
-  security:
-    max-pending-transactions: ${MAX_PENDING_TRANSACTIONS:3}
-    transaction-timeout-minutes: ${TRANSACTION_TIMEOUT:15}
-    max-transactions-per-ip-per-hour: ${MAX_TRANSACTIONS_PER_IP:10}
+  google:
+    clientId: ${GOOGLE_CLIENT_ID}
 
-  email:
-    max-retries: 3
-
-# ======================= PAYOS =======================
 payos:
-  api-url: ${PAYOS_API_URL:https://api-merchant.payos.vn}
-  client-id: ${PAYOS_CLIENT_ID:56bc0bcd-9bbb-418e-a267-d4ce388b1761}
-  api-key: ${PAYOS_API_KEY:205b5960-0433-4010-a504-535a224836eb}
-  checksum-key: ${PAYOS_CHECKSUM_KEY:4f35850232c1516a8ff297d1b068b2e27e24713e1904932e3ec86e175bccb228}
+  api-url: ${PAYOS_API_URL}
+  client-id: ${PAYOS_CLIENT_ID}
+  api-key: ${PAYOS_API_KEY}
+  checksum-key: ${PAYOS_CHECKSUM_KEY}
 
-# ======================= ACTUATOR & MONITORING =======================
 management:
   endpoints.web.exposure.include: health,info,metrics,prometheus
   endpoint.health.show-details: always
-
-# ======================= LOGGING =======================
-logging:
-  level:
-    root: INFO
-    com.mailshop_dragonvu: DEBUG
-    org.springframework.security: INFO
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-  file:
-    name: logs/application.log
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

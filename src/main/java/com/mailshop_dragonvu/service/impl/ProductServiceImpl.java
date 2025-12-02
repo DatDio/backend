@@ -45,7 +45,14 @@ public class ProductServiceImpl implements ProductService {
     private final ProductItemRepository productItemRepository;
     private final CategoryRepository categoryRepository;
 
-    // ================== CREATE PRODUCT ==================
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponseDTO> getAllActiveProducts() {
+        return productRepository.findAllByStatus(ActiveStatusEnum.ACTIVE)
+                .stream()
+                .map(this::toProductResponse)
+                .toList();
+    }
 
     @Override
     public ProductResponseDTO createProduct(ProductCreateDTO request) {
