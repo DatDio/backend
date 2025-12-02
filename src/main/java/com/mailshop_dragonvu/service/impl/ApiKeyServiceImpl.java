@@ -39,6 +39,7 @@ public class ApiKeyServiceImpl implements ApiKeyService {
     private final PasswordEncoder passwordEncoder;
 
     private static final int MAX_ACTIVE_KEYS_PER_USER = 5;
+    private static final int PREFIX_LENGTH = 12;
 
     @Override
     @Transactional
@@ -60,11 +61,13 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
         // Mã hóa apikey trước khi lưu vào db
         String keyHash = passwordEncoder.encode(plaintextKey);
+        String prefix = plaintextKey.substring(0, Math.min(PREFIX_LENGTH, plaintextKey.length()));
 
 
         ApiKeyEntity apiKeyEntity = com.mailshop_dragonvu.entity.ApiKeyEntity.builder()
             .user(userEntity)
             .keyHash(keyHash)
+            .prefix(prefix)
             .name( Optional.ofNullable(request.getName())
                     .filter(name -> !name.isBlank())
                     .orElse(userEntity.getEmail()))
@@ -156,15 +159,20 @@ public class ApiKeyServiceImpl implements ApiKeyService {
             throw new BusinessException(ErrorCode.API_KEY_INVALID);
         }
 
-        // Get all active API keys and check against the provided key
-        List<ApiKeyEntity> activeKeys = apiKeyRepository.findAll().stream()
-                .filter(key -> key.getStatus() == ApiKeyStatusEnum.ACTIVE)
-                .collect(Collectors.toList());
+        String prefix = apiKey.substring(0, Math.min(PREFIX_LENGTH, apiKey.length()));
 
-        for (ApiKeyEntity key : activeKeys) {
-            if (passwordEncoder.matches(apiKey, key.getKeyHash())) {
-                return key.getUser();
+        Optional<ApiKeyEntity> apiKeyEntityOpt = apiKeyRepository.findActiveByPrefixWithUser(prefix);
+
+        if (apiKeyEntityOpt.isPresent() && passwordEncoder.matches(apiKey, apiKeyEntityOpt.get().getKeyHash())) {
+            ApiKeyEntity key = apiKeyEntityOpt.get();
+            UserEntity user = key.getUser();
+            if (user == null) {
+                log.warn("API key {} has no user bound, treating as invalid", key.getId());
+                throw new BusinessException(ErrorCode.API_KEY_INVALID);
             }
+            // touch to ensure initialized
+            user.getEmail();
+            return user;
         }
 
         log.warn("Invalid API key provided");

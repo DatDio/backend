@@ -96,6 +96,8 @@ public class SecurityConfig {
                                 "api/v1/wallets/payos/webhook",
                                 "api/v1/categories/search",
                                 "/api/payment/*/notify",
+                                "/ws/**",
+                                "/ws",
                                 "/actuator/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",

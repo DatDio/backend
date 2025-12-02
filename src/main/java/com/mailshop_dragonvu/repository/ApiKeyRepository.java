@@ -50,4 +50,11 @@ public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, Long> {
     @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM ApiKeyEntity a WHERE a.user.id = :userId AND a.status = com.mailshop_dragonvu.enums.ApiKeyStatusEnum.ACTIVE")
     boolean hasActiveKeys(@Param("userId") Long userId);
 
+    @Query("""
+            SELECT a FROM ApiKeyEntity a
+            JOIN FETCH a.user u
+            WHERE a.prefix = :prefix AND a.status = com.mailshop_dragonvu.enums.ApiKeyStatusEnum.ACTIVE
+            """)
+    Optional<ApiKeyEntity> findActiveByPrefixWithUser(@Param("prefix") String prefix);
+
 }

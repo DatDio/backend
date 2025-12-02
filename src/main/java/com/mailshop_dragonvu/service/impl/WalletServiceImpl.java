@@ -297,6 +297,48 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     @Transactional
+    public WalletResponse spend(Long userId, Long amount, String description) {
+        if (amount == null || amount <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_AMOUNT);
+        }
+
+        WalletEntity walletEntity = walletRepository.findByUserIdWithLock(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+
+        if (walletEntity.getIsLocked()) {
+            throw new BusinessException(ErrorCode.WALLET_LOCKED);
+        }
+        if (!walletEntity.hasSufficientBalance(amount)) {
+            throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE);
+        }
+
+        UserEntity userEntity = walletEntity.getUser();
+        Long balanceBefore = walletEntity.getBalance();
+
+        TransactionEntity transactionEntity = TransactionEntity.builder()
+                .transactionCode(generateOrderCode())
+                .user(userEntity)
+                .wallet(walletEntity)
+                .type(TransactionTypeEnum.PURCHASE)
+                .amount(amount)
+                .balanceBefore(balanceBefore)
+                .status(TransactionStatusEnum.SUCCESS)
+                .description(description != null ? description : "Thanh toán đơn hàng")
+                .paymentMethod("WALLET")
+                .build();
+
+        walletEntity.deductBalance(amount);
+        transactionEntity.setBalanceAfter(walletEntity.getBalance());
+        transactionEntity.setCompletedAt(LocalDateTime.now());
+
+        walletRepository.save(walletEntity);
+        transactionRepository.save(transactionEntity);
+
+        return walletMapper.toResponse(walletEntity);
+    }
+
+    @Override
+    @Transactional
     public WalletResponse adjustBalance(Long userId, Long amount, String reason) {
 
         if (amount == null || amount == 0) {

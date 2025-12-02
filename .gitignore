@@ -1,0 +1,44 @@
+# --- Maven / Java Build ---
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# --- IntelliJ IDEA ---
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+# File cấu hình cá nhân của IntelliJ
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/datasources.xml
+.idea/dataSources/
+
+# --- Environment & Security (QUAN TRỌNG) ---
+# Chặn tất cả các file .env để không lộ mật khẩu
+.env
+.env.*
+# Nếu dùng file properties chứa mật khẩu local
+application-local.properties
+application-local.yml
+
+# --- Logs ---
+logs/
+*.log
+*.log.*
+*.gz
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OS System Files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Visual Studio Code (Phòng khi team có người dùng) ---
+.vscode/

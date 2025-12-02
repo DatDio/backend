@@ -1,5 +1,6 @@
 package com.mailshop_dragonvu.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -23,5 +24,6 @@ public class RoleEntity extends BaseEntity {
 
     @ManyToMany(mappedBy = "roles")
     @Builder.Default
+    @JsonIgnore
     private Set<UserEntity> users = new HashSet<>();
 }

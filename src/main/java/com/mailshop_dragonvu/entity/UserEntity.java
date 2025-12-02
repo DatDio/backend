@@ -1,5 +1,6 @@
 package com.mailshop_dragonvu.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.mailshop_dragonvu.enums.ActiveStatusEnum;
 import com.mailshop_dragonvu.enums.AuthProvider;
 import jakarta.persistence.*;
@@ -56,6 +57,7 @@ public class UserEntity extends BaseEntity {
     private Set<RoleEntity> roles = new HashSet<>();
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private RefreshTokenEntity refreshToken;
 
     @Builder.Default

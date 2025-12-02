@@ -10,6 +10,7 @@ import com.mailshop_dragonvu.exception.ErrorCode;
 import com.mailshop_dragonvu.repository.ProductItemRepository;
 import com.mailshop_dragonvu.repository.ProductRepository;
 import com.mailshop_dragonvu.service.ProductItemService;
+import com.mailshop_dragonvu.service.ProductQuantityNotifier;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +39,7 @@ public class ProductItemServiceImpl implements ProductItemService {
 
     private final ProductRepository productRepository;
     private final ProductItemRepository productItemRepository;
+    private final ProductQuantityNotifier productQuantityNotifier;
     @Override
     public void batchCreateProductItems(ProductItemCreateDTO productItemCreateDTO) {
         ProductEntity product = productRepository.findById(productItemCreateDTO.getProductId())
@@ -63,6 +66,7 @@ public class ProductItemServiceImpl implements ProductItemService {
         }
 
         productItemRepository.saveAll(items);
+        productQuantityNotifier.publishAfterCommit(productItemCreateDTO.getProductId());
     }
 
     @Override
@@ -116,7 +120,12 @@ public class ProductItemServiceImpl implements ProductItemService {
     @Override
     @Transactional
     public void deleteItem(Long id) {
-        productItemRepository.deleteById(id);
+        Optional<ProductItemEntity> itemOptional = productItemRepository.findById(id);
+        itemOptional.ifPresent(item -> {
+            Long productId = item.getProduct().getId();
+            productItemRepository.delete(item);
+            productQuantityNotifier.publishAfterCommit(productId);
+        });
     }
 
     @Override
@@ -128,7 +137,7 @@ public class ProductItemServiceImpl implements ProductItemService {
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
 
             String line;
-            int count = 0;
+            List<ProductItemEntity> items = new ArrayList<>();
 
             while ((line = br.readLine()) != null) {
                 String trimmed = line.trim();
@@ -141,8 +150,13 @@ public class ProductItemServiceImpl implements ProductItemService {
                         .sold(false)
                         .build();
 
-                productItemRepository.save(item);
-                count++;
+                items.add(item);
+            }
+
+
+            if (!items.isEmpty()) {
+                productItemRepository.saveAll(items);
+                productQuantityNotifier.publishAfterCommit(productId);
             }
 
         } catch (IOException e) {

@@ -60,4 +60,9 @@ public interface WalletService {
     WalletResponse unlockWallet(Long userId);
 
     void deleteTransaction(Long transactionId);
+
+    /**
+     * Deduct balance when user purchases items
+     */
+    WalletResponse spend(Long userId, Long amount, String description);
 }

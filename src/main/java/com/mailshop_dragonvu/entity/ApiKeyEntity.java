@@ -1,5 +1,6 @@
 package com.mailshop_dragonvu.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.mailshop_dragonvu.enums.ApiKeyStatusEnum;
 import jakarta.persistence.*;
 import lombok.*;
@@ -13,7 +14,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "api_keys", indexes = {
         @Index(name = "idx_api_key_user", columnList = "user_id"),
-        @Index(name = "idx_api_key_status", columnList = "status")
+        @Index(name = "idx_api_key_status", columnList = "status"),
+        @Index(name = "idx_api_key_prefix", columnList = "prefix")
 })
 @Getter
 @Setter
@@ -24,6 +26,7 @@ public class ApiKeyEntity extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private UserEntity user;
 
     @Column(name = "key_hash", nullable = false, length = 255)
@@ -34,6 +37,9 @@ public class ApiKeyEntity extends BaseEntity {
     @Builder.Default
     private ApiKeyStatusEnum status = ApiKeyStatusEnum.ACTIVE;
 
+    @Column(name = "prefix", nullable = false, length = 24)
+    private String prefix;
+
     @Column(name = "last_used_at")
     private LocalDateTime lastUsedAt;
 
@@ -41,6 +47,7 @@ public class ApiKeyEntity extends BaseEntity {
     private String name;
 
 
+    @JsonIgnore
     public boolean isValid() {
         return status == ApiKeyStatusEnum.ACTIVE;
     }

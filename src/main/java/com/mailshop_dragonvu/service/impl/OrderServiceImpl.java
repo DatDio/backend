@@ -48,6 +48,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderItemMapper orderItemMapper;
     private final EmailService emailService;
     private final WalletService walletService;
+    private final ProductQuantityNotifier productQuantityNotifier;
 
     @Override
     @Transactional
@@ -85,12 +86,10 @@ public class OrderServiceImpl implements OrderService {
         //Tính toán tiền
         order.calculationTotalAmount();
 
-//        WalletResponse walletResponse = walletService.getUserWallet(userId);
-//        if (walletResponse.getBalance() < order.getTotalAmount()) {
-//            throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE);
-//        }
+        walletService.spend(userId, order.getTotalAmount(), "Thanh toán đơn hàng " + order.getOrderNumber());
 
          orderRepository.save(order);
+         productQuantityNotifier.publishAfterCommit(request.getProductId());
 
         return ClientOrderCreateResponseDTO.builder()
                 .accountData(accountDataList)

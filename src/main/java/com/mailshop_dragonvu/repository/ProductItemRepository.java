@@ -19,12 +19,13 @@ public interface ProductItemRepository extends JpaRepository<ProductItemEntity, 
     @Query("SELECT COUNT(pi) FROM ProductItemEntity pi WHERE pi.product.id = :productId AND pi.sold = false")
     long countAvailableItems(@Param("productId") Long productId);
 
-    //Lấy random tài khoản theo số lượng muốn lấy
+    //Lay random tai khoan theo so luong muon lay, khoa row de tranh double-sell
     @Query(value = """
     SELECT * FROM product_items
     WHERE product_id = :productId AND sold = false
     ORDER BY RAND()
     LIMIT :quantity
+    FOR UPDATE SKIP LOCKED
 """, nativeQuery = true)
     List<ProductItemEntity> findRandomUnsoldItems(
             @Param("productId") Long productId,
