@@ -69,6 +69,8 @@ payos:
   client-id: ${PAYOS_CLIENT_ID}
   api-key: ${PAYOS_API_KEY}
   checksum-key: ${PAYOS_CHECKSUM_KEY}
+  return-url: ${PAYOS_RETURN_URL:http://localhost:4200/transactions}
+  cancel-url: ${PAYOS_CANCEL_URL:http://localhost:4200/transactions}
 
 management:
   endpoints.web.exposure.include: health,info,metrics,prometheus

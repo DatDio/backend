@@ -23,26 +23,28 @@ public class PayOSServiceImpl implements PayOSService {
     @Value("${payos.checksum-key}")
     private String secretKey;
 
+    @Value("${payos.return-url}")
+    private String returnUrl;
+
+    @Value("${payos.cancel-url}")
+    private String cancelUrl;
+
     private final PayOS payOS;
 
     @Override
     public CreatePaymentLinkResponse createPaymentLink(CreatePaymentLinkRequest createPaymentLinkRequest) {
 
         try {
-            //final String productName = createPaymentLinkRequest.getProductName();
             final String description = createPaymentLinkRequest.getDescription();
 
-            final String returnUrl = createPaymentLinkRequest.getReturnUrl();
-            final String cancelUrl = createPaymentLinkRequest.getCancelUrl();
             long orderCode = System.currentTimeMillis() / 1000;
-            // PaymentLinkItem item =PaymentLinkItem.builder().name(productName).quantity(1).price(price).build();
 
             CreatePaymentLinkRequest paymentRequest = CreatePaymentLinkRequest.builder()
-                    .orderCode(System.currentTimeMillis() / 1000)
-                    .amount(2000L)
-                    .description("NAPTIEN")
-                    .cancelUrl("http://localhost:4200/transactions")
-                    .returnUrl("http://localhost:4200/transactions")
+                    .orderCode(orderCode)
+                    .amount(createPaymentLinkRequest.getAmount())
+                    .description(description != null ? description : "NAPTIEN")
+                    .cancelUrl(cancelUrl)
+                    .returnUrl(returnUrl)
                     .build();
             CreatePaymentLinkResponse data = payOS.paymentRequests().create(paymentRequest);
             return data;

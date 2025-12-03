@@ -30,7 +30,7 @@ public class GlobalExceptionHandler {
                 ex.getCustomMessage(),
                 ex.getErrorCode().getCode()
         );
-        
+         log.error("PayOS create link failed", ex);
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
