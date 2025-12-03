@@ -30,10 +30,10 @@ spring:
       time-to-live: ${CACHE_TTL:3600000}
 
   mail:
-    host: ${MAIL_HOST}
-    port: ${MAIL_PORT}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:0}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
 
   security:
     oauth2:

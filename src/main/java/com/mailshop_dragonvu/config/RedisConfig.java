@@ -3,11 +3,16 @@ package com.mailshop_dragonvu.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
@@ -18,7 +23,11 @@ import java.time.Duration;
 
 @Configuration
 @EnableCaching
+@Slf4j
 public class RedisConfig {
+
+    @Value("${spring.cache.redis.time-to-live:3600000ms}")
+    private Duration redisTtl;
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
@@ -42,9 +51,21 @@ public class RedisConfig {
     }
 
     @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        if (isRedisAvailable(connectionFactory)) {
+            return createRedisCacheManager(connectionFactory);
+        }
+
+        log.warn("Redis unavailable. Falling back to in-memory cache manager (ConcurrentMapCacheManager). "
+                + "TTL will not be enforced in fallback mode.");
+        ConcurrentMapCacheManager fallback = new ConcurrentMapCacheManager();
+        fallback.setAllowNullValues(false);
+        return fallback;
+    }
+
+    private CacheManager createRedisCacheManager(RedisConnectionFactory connectionFactory) {
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofHours(1))
+                .entryTtl(redisTtl)
                 .serializeKeysWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer())
                 )
@@ -55,10 +76,26 @@ public class RedisConfig {
                 )
                 .disableCachingNullValues();
 
+        log.info("Redis cache manager initialized with TTL: {}", redisTtl);
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
                 .transactionAware()
                 .build();
+    }
+
+    private boolean isRedisAvailable(RedisConnectionFactory connectionFactory) {
+        try (RedisConnection connection = connectionFactory.getConnection()) {
+            String pong = connection.ping();
+            boolean available = pong != null;
+            if (available) {
+                log.info("Redis ping successful. Using Redis for caching.");
+            }
+            return available;
+        } catch (Exception ex) {
+            log.warn("Redis connection check failed: {}. Falling back to in-memory cache.", ex.getMessage());
+            log.debug("Redis connection check failed", ex);
+            return false;
+        }
     }
 
     private ObjectMapper objectMapper() {
