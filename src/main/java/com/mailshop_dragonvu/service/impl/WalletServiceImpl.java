@@ -162,6 +162,7 @@ public class WalletServiceImpl implements WalletService {
                 .paymentMethod("PAYOS")
                 .ipAddress(ipAddress)
                 .userAgent(userAgent)
+                .completedAt(LocalDateTime.now())
                 .build();
 
         transactionRepository.save(txn);
