@@ -173,44 +173,44 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     public void processPayOSCallback(Webhook webhook) {
-
-        WebhookData data = payOSService.verifyWebhook(webhook);
-
-        Long orderCode = data.getOrderCode();
-
-        // Lấy transaction theo orderCode
-        TransactionEntity txn = transactionRepository.findByTransactionCode(orderCode)
-                .orElseThrow(() -> new BusinessException(ErrorCode.TRANSACTION_NOT_FOUND));
-
-        // Nếu đã xử lý rồi → bỏ qua để tránh double webhook
-        if (txn.getStatus() == TransactionStatusEnum.SUCCESS) {
-            return;
-        }
-
-        // Nếu thất bại → xóa luôn transaction
-        if (!"00".equalsIgnoreCase(data.getCode())) {
-
-            transactionRepository.delete(txn);
-            throw new BusinessException(ErrorCode.INVALID_WEBHOOK);
-        }
-
-        // Thành công → cộng tiền
-        try {
-            WalletEntity walletEntity = walletRepository.findByUserIdWithLock(txn.getUser().getId())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
-
-            walletEntity.addBalance(data.getAmount());
-            txn.setBalanceAfter(walletEntity.getBalance());
-            txn.setPaymentReference(data.getReference());
-            txn.markAsSuccess();
-
-            walletRepository.save(walletEntity);
-            transactionRepository.save(txn);
-
-        } catch (PessimisticLockException | CannotAcquireLockException e) {
-
-            log.warn("Wallet đang lock. Bỏ qua webhook lần này.");
-        }
+//
+//        WebhookData data = payOSService.verifyWebhook(webhook);
+//
+//        Long orderCode = data.getOrderCode();
+//
+//        // Lấy transaction theo orderCode
+//        TransactionEntity txn = transactionRepository.findByTransactionCode(orderCode)
+//                .orElseThrow(() -> new BusinessException(ErrorCode.TRANSACTION_NOT_FOUND));
+//
+//        // Nếu đã xử lý rồi → bỏ qua để tránh double webhook
+//        if (txn.getStatus() == TransactionStatusEnum.SUCCESS) {
+//            return;
+//        }
+//
+//        // Nếu thất bại → xóa luôn transaction
+//        if (!"00".equalsIgnoreCase(data.getCode())) {
+//
+//            transactionRepository.delete(txn);
+//            throw new BusinessException(ErrorCode.INVALID_WEBHOOK);
+//        }
+//
+//        // Thành công → cộng tiền
+//        try {
+//            WalletEntity walletEntity = walletRepository.findByUserIdWithLock(txn.getUser().getId())
+//                    .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+//
+//            walletEntity.addBalance(data.getAmount());
+//            txn.setBalanceAfter(walletEntity.getBalance());
+//            txn.setPaymentReference(data.getReference());
+//            txn.markAsSuccess();
+//
+//            walletRepository.save(walletEntity);
+//            transactionRepository.save(txn);
+//
+//        } catch (PessimisticLockException | CannotAcquireLockException e) {
+//
+//            log.warn("Wallet đang lock. Bỏ qua webhook lần này.");
+//        }
 
 
     }
