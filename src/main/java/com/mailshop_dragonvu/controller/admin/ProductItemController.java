@@ -29,7 +29,10 @@ public class ProductItemController {
 
     @PostMapping("/create")
     public ApiResponse<String> Create(@RequestBody ProductItemCreateDTO productItemCreateDTO) {
-        productItemService.batchCreateProductItems(productItemCreateDTO);
+        int duplicateCount = productItemService.batchCreateProductItems(productItemCreateDTO);
+        if (duplicateCount > 0) {
+            return ApiResponse.success("Thêm thành công. Có " + duplicateCount + " tài khoản bị trùng.");
+        }
         return ApiResponse.success("Tạo thành công");
     }
 

@@ -41,7 +41,7 @@ public class ProductItemServiceImpl implements ProductItemService {
     private final ProductItemRepository productItemRepository;
     private final ProductQuantityNotifier productQuantityNotifier;
     @Override
-    public void batchCreateProductItems(ProductItemCreateDTO productItemCreateDTO) {
+    public int batchCreateProductItems(ProductItemCreateDTO productItemCreateDTO) {
         ProductEntity product = productRepository.findById(productItemCreateDTO.getProductId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
@@ -50,23 +50,62 @@ public class ProductItemServiceImpl implements ProductItemService {
         }
 
         String[] lines = productItemCreateDTO.getAccountData().split("\\r?\\n");
-        List<ProductItemEntity> items = new ArrayList<>();
+        
+        // 1. Deduplicate input
+        java.util.Set<String> uniqueInputLines = new java.util.HashSet<>();
         for (String line : lines) {
-            line = line.trim();
-            if (line.isEmpty()) continue;
+            String trimmed = line.trim();
+            if (!trimmed.isEmpty()) {
+                uniqueInputLines.add(trimmed);
+            }
+        }
 
-            // Tạo entity
+        if (uniqueInputLines.isEmpty()) {
+             return 0;
+        }
+
+        // 2. Find existing items in DB
+        List<ProductItemEntity> existingItems = productItemRepository.findByProductIdAndAccountDataIn(
+                productItemCreateDTO.getProductId(), uniqueInputLines);
+        
+        java.util.Set<String> existingAccounts = existingItems.stream()
+                .map(ProductItemEntity::getAccountData)
+                .collect(java.util.stream.Collectors.toSet());
+
+        // 3. Filter and create new items
+        List<ProductItemEntity> newItems = new ArrayList<>();
+        for (String line : uniqueInputLines) {
+            if (existingAccounts.contains(line)) {
+                continue; // Skip duplicate
+            }
+
             ProductItemEntity item = ProductItemEntity.builder()
                     .product(product)
                     .accountData(line)
                     .sold(false)
                     .build();
 
-            items.add(item);
+            newItems.add(item);
         }
 
-        productItemRepository.saveAll(items);
-        productQuantityNotifier.publishAfterCommit(productItemCreateDTO.getProductId());
+        if (!newItems.isEmpty()) {
+            productItemRepository.saveAll(newItems);
+            productQuantityNotifier.publishAfterCommit(productItemCreateDTO.getProductId());
+        }
+        
+        // Calculate duplicates count
+        // Total unique input - inserted items = duplicates (either in input or DB)
+        // Wait, the user wants "duplicate count".
+        // If input has "A", "A" -> 1 duplicate in input.
+        // If DB has "B", input has "B" -> 1 duplicate in DB.
+        // Total duplicates = (Original non-empty lines) - (New items saved)
+        
+        long nonEmptyInputCount = 0;
+        for(String line : lines) {
+            if(!line.trim().isEmpty()) nonEmptyInputCount++;
+        }
+        
+        return (int) (nonEmptyInputCount - newItems.size());
     }
 
     @Override

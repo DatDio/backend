@@ -10,7 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface ProductItemService {
-    void batchCreateProductItems(ProductItemCreateDTO productItemCreateDTO);
+    int batchCreateProductItems(ProductItemCreateDTO productItemCreateDTO);
 
     Page<ProductItemResponseDTO> searchProductItems(ProductItemFilterDTO productItemFilterDTO);
 

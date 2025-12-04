@@ -37,4 +37,6 @@ public interface ProductItemRepository extends JpaRepository<ProductItemEntity, 
     void markAsSold(@Param("id") Long id, @Param("buyerId") Long buyerId);
 
     Page<ProductItemEntity> findByProduct_Id(Long productId, Pageable pageable);
+
+    List<ProductItemEntity> findByProductIdAndAccountDataIn(Long productId, java.util.Collection<String> accountData);
 }
