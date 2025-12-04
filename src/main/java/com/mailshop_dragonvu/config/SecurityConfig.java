@@ -30,100 +30,96 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-    private final RateLimitingFilter rateLimitingFilter;
-    private final UserDetailsService userDetailsService;
+        private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+        private final RateLimitingFilter rateLimitingFilter;
+        private final UserDetailsService userDetailsService;
 
-    // Đăng ký JwtAuthenticationFilter là Bean
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenProvider tokenProvider,
-                                                           CustomUserDetailsService userDetailsService) {
-        return new JwtAuthenticationFilter(tokenProvider, userDetailsService);
-    }
+        // Đăng ký JwtAuthenticationFilter là Bean
+        @Bean
+        public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenProvider tokenProvider,
+                        CustomUserDetailsService userDetailsService) {
+                return new JwtAuthenticationFilter(tokenProvider, userDetailsService);
+        }
 
+        // Đăng ký ApiKeyAuthenticationFilter là Bean
+        @Bean
+        public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter(ApiKeyService apiKeyService,
+                        CustomUserDetailsService customUserDetailsService) {
+                return new ApiKeyAuthenticationFilter(apiKeyService, customUserDetailsService);
+        }
 
-    // Đăng ký ApiKeyAuthenticationFilter là Bean
-    @Bean
-    public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter(ApiKeyService apiKeyService,
-                                                                 CustomUserDetailsService customUserDetailsService) {
-        return new ApiKeyAuthenticationFilter(apiKeyService, customUserDetailsService);
-    }
+        @Bean
+        public DaoAuthenticationProvider authenticationProvider(PasswordEncoder passwordEncoder) {
+                DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+                authProvider.setUserDetailsService(userDetailsService);
+                authProvider.setPasswordEncoder(passwordEncoder);
+                return authProvider;
+        }
 
-    @Bean
-    public DaoAuthenticationProvider authenticationProvider(PasswordEncoder passwordEncoder) {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder);
-        return authProvider;
-    }
+        @Bean
+        public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+                return config.getAuthenticationManager();
+        }
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration configuration = new CorsConfiguration();
+                configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+                configuration.setAllowedHeaders(List.of("*"));
+                configuration.setExposedHeaders(List.of("Authorization", "Content-Type", "X-API-KEY"));
+                configuration.setAllowCredentials(true);
+                configuration.setMaxAge(3600L);
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization", "Content-Type", "X-API-KEY"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+                // Cho phép local + mọi domain vercel
+                configuration.setAllowedOrigins(List.of(
+                                "http://localhost:4200",
+                                "http://localhost:3000"));
+                configuration.addAllowedOriginPattern("https://*.vercel.app");
 
-        // Cho phép local + mọi domain vercel
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:4200",
-                "http://localhost:3000"
-        ));
-        configuration.addAllowedOriginPattern("https://*.vercel.app");
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", configuration);
+                return source;
+        }
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http,
+                        ApiKeyAuthenticationFilter apiKeyFilter,
+                        JwtAuthenticationFilter jwtFilter) throws Exception {
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http,
-                                           ApiKeyAuthenticationFilter apiKeyFilter,
-                                           JwtAuthenticationFilter jwtFilter) throws Exception {
+                http.csrf(AbstractHttpConfigurer::disable)
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .exceptionHandling(exception -> exception
+                                                .authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(
+                                                                "/api/v1/auth/**",
+                                                                "/api/v1/hotmail/**",
+                                                                "/api/v1/wallets/payos/webhook",
+                                                                "/api/v1/categories/search",
+                                                                "/api/v1/products/get-all",
+                                                                "/api/payment/*/notify",
+                                                                "/ws/**",
+                                                                "/ws",
+                                                                "/",
+                                                                "/health",
+                                                                "/api/health",
+                                                                "/actuator/**",
+                                                                "/swagger-ui/**",
+                                                                "/v3/api-docs/**",
+                                                                "/swagger-resources/**",
+                                                                "/webjars/**")
+                                                .permitAll()
+                                                .requestMatchers("/api/admin/**")
+                                                .hasRole("ADMIN")
+                                                .anyRequest()
+                                                .authenticated())
+                                .authenticationProvider(authenticationProvider(null))
+                                .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
-        http.csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .exceptionHandling(exception ->
-                        exception.authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                )
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/v1/auth/**",
-                                "/api/v1/wallets/payos/webhook",
-                                "/api/v1/categories/search",
-                                "/api/v1/products/get-all",
-                                "/api/payment/*/notify",
-                                "/ws/**",
-                                "/ws",
-                                "/",
-                                "/health",
-                                "/api/health",
-                                "/actuator/**",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/swagger-resources/**",
-                                "/webjars/**"
-                        ).permitAll()
-                        .requestMatchers("/api/admin/**")
-                        .hasRole("ADMIN")
-                        .anyRequest()
-                        .authenticated()
-                )
-                .authenticationProvider(authenticationProvider(null))
-                .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return http.build();
-    }
+                return http.build();
+        }
 }

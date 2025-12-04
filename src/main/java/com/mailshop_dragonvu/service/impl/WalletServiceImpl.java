@@ -124,7 +124,7 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     public CreatePaymentLinkResponse createDepositPayOS(Long userId, CreatePaymentLinkRequest request,
-                                                        String ipAddress, String userAgent) {
+            String ipAddress, String userAgent) {
 
         UserEntity userEntity = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -142,9 +142,9 @@ public class WalletServiceImpl implements WalletService {
 
         // Validate
         validateDepositAmount(request.getAmount());
-        //checkIpRateLimit(ipAddress);
-        //checkPendingTransactionsLimit(userId);
-        //checkDuplicateTransactions(userId, request.getAmount());
+        // checkIpRateLimit(ipAddress);
+        // checkPendingTransactionsLimit(userId);
+        // checkDuplicateTransactions(userId, request.getAmount());
 
         // Tạo PayOS payment link
         CreatePaymentLinkResponse payOS = payOSService.createPaymentLink(request);
@@ -169,7 +169,6 @@ public class WalletServiceImpl implements WalletService {
 
         return payOS;
     }
-
 
     @Override
     @Transactional
@@ -213,9 +212,7 @@ public class WalletServiceImpl implements WalletService {
             log.warn("Wallet đang lock. Bỏ qua webhook lần này.");
         }
 
-
     }
-
 
     @Override
     @Transactional(readOnly = true)
@@ -232,11 +229,9 @@ public class WalletServiceImpl implements WalletService {
         Pageable pageable = PageRequest.of(
                 filterDTO.getPage(),
                 filterDTO.getLimit(),
-                sort
-        );
+                sort);
 
-        Specification<TransactionEntity> specification =
-                buildTransactionSpecification(userId, filterDTO);
+        Specification<TransactionEntity> specification = buildTransactionSpecification(userId, filterDTO);
 
         return transactionRepository
                 .findAll(specification, pageable)
@@ -245,8 +240,7 @@ public class WalletServiceImpl implements WalletService {
 
     private Specification<TransactionEntity> buildTransactionSpecification(
             Long userId,
-            TransactionFilterDTO request
-    ) {
+            TransactionFilterDTO request) {
         return (Root<TransactionEntity> root, CriteriaQuery<?> query, CriteriaBuilder cb) -> {
 
             List<Predicate> predicates = new ArrayList<>();
@@ -254,14 +248,12 @@ public class WalletServiceImpl implements WalletService {
             // ✅ Giao dịch thuộc user hiện tại
             predicates.add(cb.equal(root.get("user").get("id"), userId));
 
-            // ✅ Filter theo mã giao dịch
+            // ✅ Filter theo mã giao dịch (Long -> String for like search)
             if (Strings.isNotBlank(request.getTransactionCode())) {
                 predicates.add(
                         cb.like(
-                                cb.lower(root.get("transactionCode")),
-                                "%" + request.getTransactionCode().trim().toLowerCase() + "%"
-                        )
-                );
+                                root.get("transactionCode").as(String.class),
+                                "%" + request.getTransactionCode().trim() + "%"));
             }
 
             // ✅ From date
@@ -269,9 +261,7 @@ public class WalletServiceImpl implements WalletService {
                 predicates.add(
                         cb.greaterThanOrEqualTo(
                                 root.get("createdAt"),
-                                request.getDateFrom()
-                        )
-                );
+                                request.getDateFrom()));
             }
 
             // ✅ To date
@@ -279,9 +269,7 @@ public class WalletServiceImpl implements WalletService {
                 predicates.add(
                         cb.lessThanOrEqualTo(
                                 root.get("createdAt"),
-                                request.getDateTo()
-                        )
-                );
+                                request.getDateTo()));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -363,7 +351,7 @@ public class WalletServiceImpl implements WalletService {
                 .user(userEntity)
                 .wallet(walletEntity)
                 .type(TransactionTypeEnum.ADMIN_ADJUST)
-                .amount(Math.abs(amount))  // transaction nên lưu số dương
+                .amount(Math.abs(amount)) // transaction nên lưu số dương
                 .balanceBefore(balanceBefore)
                 .status(TransactionStatusEnum.SUCCESS)
                 .description(reason != null ? reason : (isIncrease ? "Admin tăng số dư" : "Admin giảm số dư"))
@@ -386,7 +374,6 @@ public class WalletServiceImpl implements WalletService {
 
         return walletMapper.toResponse(walletEntity);
     }
-
 
     @Override
     @Transactional
@@ -431,13 +418,13 @@ public class WalletServiceImpl implements WalletService {
         if (amount.compareTo(minDepositAmount) < 0) {
             throw new BusinessException(ErrorCode.DEPOSIT_AMOUNT_TOO_LOW);
         }
-        if (amount.compareTo(maxDepositAmount) > 0) {
-            throw new BusinessException(ErrorCode.DEPOSIT_AMOUNT_TOO_HIGH);
-        }
+        // if (amount.compareTo(maxDepositAmount) > 0) {
+        // throw new BusinessException(ErrorCode.DEPOSIT_AMOUNT_TOO_HIGH);
+        // }
         // Check if amount is a valid number (no decimals for VND)
-//        if (amount.scale() > 0) {
-//            throw new BusinessException(ErrorCode.INVALID_AMOUNT_FORMAT);
-//        }
+        // if (amount.scale() > 0) {
+        // throw new BusinessException(ErrorCode.INVALID_AMOUNT_FORMAT);
+        // }
     }
 
     /**

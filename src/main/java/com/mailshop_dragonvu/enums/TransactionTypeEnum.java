@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 public enum TransactionTypeEnum implements BaseEnum {
 
     DEPOSIT(0, "Nạp tiền vào ví"),
-    PURCHASE(1, "Mua tài khoản mail"),
+    PURCHASE(1, "Mua tài khoản "),
     REFUND(2, "Hoàn tiền"),
     ADMIN_ADJUST(3, "Admin điều chỉnh số dư");
 
