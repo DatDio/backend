@@ -6,6 +6,7 @@ import com.mailshop_dragonvu.entity.OrderEntity;
 import com.mailshop_dragonvu.entity.OrderItemEntity;
 import com.mailshop_dragonvu.entity.ProductItemEntity;
 import com.mailshop_dragonvu.entity.UserEntity;
+import com.mailshop_dragonvu.entity.WalletEntity;
 import com.mailshop_dragonvu.enums.OrderStatusEnum;
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
@@ -13,7 +14,9 @@ import com.mailshop_dragonvu.mapper.OrderItemMapper;
 import com.mailshop_dragonvu.mapper.OrderMapper;
 import com.mailshop_dragonvu.repository.OrderRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
+import com.mailshop_dragonvu.repository.WalletRepository;
 import com.mailshop_dragonvu.service.*;
+import com.mailshop_dragonvu.utils.Constants;
 import com.mailshop_dragonvu.utils.Utils;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -44,6 +47,7 @@ public class OrderServiceImpl implements OrderService {
     private  final ProductService productService;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final WalletRepository walletRepository;
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final EmailService emailService;
@@ -59,7 +63,23 @@ public class OrderServiceImpl implements OrderService {
         UserEntity userEntity = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        ProductResponseDTO productResponseDTO =  productService.getProductById(request.getProductId());
+        ProductResponseDTO productResponseDTO = productService.getProductById(request.getProductId());
+
+        // VALIDATION: Kiểm tra số dư TRƯỚC KHI lock product items ==========
+        Long estimatedTotal = productResponseDTO.getPrice() * request.getQuantity();
+        WalletEntity wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+        
+        if (wallet.getIsLocked()) {
+            throw new BusinessException(ErrorCode.WALLET_LOCKED);
+        }
+        
+        if (!wallet.hasSufficientBalance(estimatedTotal)) {
+            log.warn("User {} attempted to purchase but insufficient balance. Required: {}, Available: {}", 
+                    userId, estimatedTotal, wallet.getBalance());
+            throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE);
+        }
+        // =============================================================================
 
         OrderEntity order = new OrderEntity().builder()
                 .user(userEntity)
@@ -104,8 +124,15 @@ public class OrderServiceImpl implements OrderService {
         OrderEntity orderEntity = orderRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
-        // Check if user owns the order
-        if (!orderEntity.getUser().getId().equals(userId)) {
+        // Get user to check if admin
+        UserEntity currentUser = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(role -> Constants.ROLE_ADMIN.equals(role.getName()));
+
+        // Check if user is admin OR owns the order
+        if (!isAdmin && !orderEntity.getUser().getId().equals(userId)) {
             throw new BusinessException(ErrorCode.PERMISSION_DENIED);
         }
 

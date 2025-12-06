@@ -24,25 +24,25 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Đăng ký người dùng mới")
     public ApiResponse<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ApiResponse.success("User registered successfully", authService.register(request));
+        return ApiResponse.success("Đăng ký thành công", authService.register(request));
     }
 
     @PostMapping("/login")
     @Operation(summary = "Đăng nhập người dùng")
     public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ApiResponse.success("Login successful", authService.login(request));
+        return ApiResponse.success("Đăng nhập thành công", authService.login(request));
     }
     @PostMapping("/change-password")
     @Operation(summary = "Đổi mật khẩu")
     public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(request);
-        return ApiResponse.success("Password changed successfully");
+        return ApiResponse.success("Đổi mật khẩu thành công");
     }
     @PostMapping("/google")
     @Operation(summary = "Đăng nhập bằng Google token")
     public ApiResponse<AuthResponse> googleLogin(@RequestBody Map<String, String> body) {
         String idToken = body.get("idToken");
-        return ApiResponse.success("Google login successful", authService.googleLogin(idToken));
+        return ApiResponse.success("Google đăng nhập thành công", authService.googleLogin(idToken));
     }
 
     @PostMapping("/refresh")

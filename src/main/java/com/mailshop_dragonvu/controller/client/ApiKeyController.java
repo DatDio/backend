@@ -100,8 +100,12 @@ public class ApiKeyController {
 
     // DELETE ITEM
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
-        apiKeyService.deleteApiKey(id);
-        return ApiResponse.success("Deleted");
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Delete API key", description = "Delete an API key")
+    public ApiResponse<Void> delete(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        apiKeyService.deleteApiKey(id, currentUser.getId());
+        return ApiResponse.success("Xoá thành công");
     }
 }

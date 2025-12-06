@@ -190,8 +190,14 @@ public class ApiKeyServiceImpl implements ApiKeyService {
 
     @Override
     @Transactional
-    public void deleteApiKey(Long keyId) {
-        apiKeyRepository.delete(apiKeyRepository.findById(keyId).orElseThrow(() -> new BusinessException(ErrorCode.API_KEY_NOT_FOUND)));
+    public void deleteApiKey(Long keyId, Long userId) {
+        UserEntity userEntity = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        ApiKeyEntity apiKeyEntity = apiKeyRepository.findByIdAndUser(keyId, userEntity)
+                .orElseThrow(() -> new BusinessException(ErrorCode.API_KEY_NOT_FOUND));
+
+        apiKeyRepository.delete(apiKeyEntity);
     }
 
     @Override

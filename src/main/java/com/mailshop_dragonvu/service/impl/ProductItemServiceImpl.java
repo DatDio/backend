@@ -9,6 +9,7 @@ import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
 import com.mailshop_dragonvu.repository.ProductItemRepository;
 import com.mailshop_dragonvu.repository.ProductRepository;
+import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.service.ProductItemService;
 import com.mailshop_dragonvu.service.ProductQuantityNotifier;
 import jakarta.persistence.criteria.Predicate;
@@ -40,6 +41,7 @@ public class ProductItemServiceImpl implements ProductItemService {
     private final ProductRepository productRepository;
     private final ProductItemRepository productItemRepository;
     private final ProductQuantityNotifier productQuantityNotifier;
+    private final UserRepository userRepository;
     @Override
     public int batchCreateProductItems(ProductItemCreateDTO productItemCreateDTO) {
         ProductEntity product = productRepository.findById(productItemCreateDTO.getProductId())
@@ -205,12 +207,21 @@ public class ProductItemServiceImpl implements ProductItemService {
 
     // Convert ENTITY → DTO
     private ProductItemResponseDTO toDTO(ProductItemEntity e) {
+        // Get buyer email if buyerId exists
+        String buyerEmail = null;
+        if (e.getBuyerId() != null) {
+            buyerEmail = userRepository.findById(e.getBuyerId())
+                    .map(user -> user.getEmail())
+                    .orElse(null);
+        }
+        
         return ProductItemResponseDTO.builder()
                 .id(e.getId())
                 .productId(e.getProduct().getId())
                 .accountData(e.getAccountData())
                 .sold(e.getSold())
                 .buyerId(e.getBuyerId())
+                .buyerName(buyerEmail)
                 //.orderId(e.getOrderId())
                 .soldAt(e.getSoldAt() != null ? e.getSoldAt().toString() : null)
                 .build();

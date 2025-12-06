@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 @Slf4j
-@Tag(name = "Category Management (Admin)", description = "Admin category management APIs")
 @SecurityRequirement(name = "Bearer Authentication")
 public class CategoryController {
 

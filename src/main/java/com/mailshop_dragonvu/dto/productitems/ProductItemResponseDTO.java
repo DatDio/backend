@@ -13,6 +13,7 @@ public class ProductItemResponseDTO {
     private Boolean sold;
 
     private Long buyerId;         // null nếu chưa bán
+    private String buyerName;
     private Long orderId;         // null nếu chưa bán
     private String soldAt;
 }

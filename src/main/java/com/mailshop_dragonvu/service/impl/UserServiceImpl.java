@@ -6,13 +6,16 @@ import com.mailshop_dragonvu.dto.users.UserResponseDTO;
 import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
 import com.mailshop_dragonvu.entity.RoleEntity;
 import com.mailshop_dragonvu.entity.UserEntity;
+import com.mailshop_dragonvu.entity.WalletEntity;
 import com.mailshop_dragonvu.enums.ActiveStatusEnum;
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
 import com.mailshop_dragonvu.mapper.UserMapper;
 import com.mailshop_dragonvu.repository.RoleRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
+import com.mailshop_dragonvu.repository.WalletRepository;
 import com.mailshop_dragonvu.service.UserService;
+import com.mailshop_dragonvu.utils.Constants;
 import com.mailshop_dragonvu.utils.Utils;
 import com.mailshop_dragonvu.utils.EnumParseUtils;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -49,6 +52,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final WalletRepository walletRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
@@ -78,8 +82,20 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     //@CacheEvict(value = "users", key = "#id")
-    public UserResponseDTO updateUser(Long id, UserUpdateDTO request) {
+    public UserResponseDTO updateUser(Long id, UserUpdateDTO request, Long currentUserId) {
         log.info("Updating user with ID: {}", id);
+
+        // Get current user to check if admin
+        UserEntity currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(role -> Constants.ROLE_ADMIN.equals(role.getName()));
+
+        // Check if user is admin OR is updating their own profile
+        if (!isAdmin && !id.equals(currentUserId)) {
+            throw new BusinessException(ErrorCode.PERMISSION_DENIED);
+        }
 
         UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -104,8 +120,16 @@ public class UserServiceImpl implements UserService {
 
         UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-
-        return userMapper.toResponse(userEntity);
+        
+        // Get wallet balance
+        Long balance = walletRepository.findByUserId(id)
+                .map(WalletEntity::getBalance)
+                .orElse(0L);
+        
+        UserResponseDTO response = userMapper.toResponse(userEntity);
+        response.setBalance(balance);
+        
+        return response;
     }
 
     @Override

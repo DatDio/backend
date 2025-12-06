@@ -10,11 +10,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/admin/" + Constants.API_PATH.PRODUCTITEMS)
+@PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 @Slf4j
 public class ProductItemController {
@@ -33,7 +35,7 @@ public class ProductItemController {
         if (duplicateCount > 0) {
             return ApiResponse.success("Thêm thành công. Có " + duplicateCount + " tài khoản bị trùng.");
         }
-        return ApiResponse.success("Tạo thành công");
+        return ApiResponse.success("Thêm thành công");
     }
 
     // IMPORT TXT FILE

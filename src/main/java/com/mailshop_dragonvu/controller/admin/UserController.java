@@ -43,8 +43,9 @@ public class UserController {
     @Operation(summary = "Update user by ID")
     public ApiResponse<UserResponseDTO> updateUser(
             @PathVariable Long id,
-            @Valid @RequestBody UserUpdateDTO request) {
-        return ApiResponse.success("User updated successfully", userService.updateUser(id, request));
+            @Valid @RequestBody UserUpdateDTO request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ApiResponse.success("User updated successfully", userService.updateUser(id, request, userPrincipal.getId()));
     }
 
 
