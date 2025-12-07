@@ -41,8 +41,8 @@ public class HotmailController {
     public ResponseEntity<ApiResponse<List<HotmailGetCodeResponseDTO>>> getCode(
             @RequestBody HotmailGetCodeRequestDTO request) {
 
-        log.info("Getting code for email type: {}, get type: {}",
-                request.getEmailType(), request.getGetType());
+        log.info("Getting code for email types: {}, get type: {}",
+                request.getEmailTypes(), request.getGetType());
 
         List<HotmailGetCodeResponseDTO> codes = hotmailService.getCode(request);
 

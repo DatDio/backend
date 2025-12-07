@@ -41,45 +41,95 @@ public class HotmailServiceImpl implements HotmailService {
 
     // Regex pattern to extract 5-10 digit codes
     private static final Pattern CODE_PATTERN = Pattern.compile("(\\d{5,10})");
+    
+    // Date formatter for response
+    private static final java.time.format.DateTimeFormatter DATE_FORMATTER = 
+        java.time.format.DateTimeFormatter.ofPattern("HH:mm - dd/MM/yyyy");
 
     @Override
     public List<HotmailGetCodeResponseDTO> getCode(HotmailGetCodeRequestDTO request) {
+        List<HotmailGetCodeResponseDTO> allResults = new ArrayList<>();
+        
+        // Split emailData by newlines to support multiple emails
+        String[] emailLines = request.getEmailData().trim().split("\\n");
+        
+        for (String emailLine : emailLines) {
+            emailLine = emailLine.trim();
+            if (emailLine.isEmpty()) continue;
+            
+            HotmailGetCodeResponseDTO result = processEmailLine(emailLine, request);
+            allResults.add(result);
+        }
+        
+        return allResults;
+    }
+
+    /**
+     * Process a single email line and get verification code
+     */
+    private HotmailGetCodeResponseDTO processEmailLine(String emailLine, HotmailGetCodeRequestDTO request) {
         try {
             // Parse email data: email|password|refresh_token|client_id
-            String[] parts = request.getEmailData().trim().split("\\|");
+            String[] parts = emailLine.split("\\|");
             if (parts.length < 3) {
-                log.error("Invalid email data format. Expected: email|password|refresh_token|client_id");
-                return Collections.emptyList();
+                log.error("Invalid email data format for line: {}", emailLine);
+                return HotmailGetCodeResponseDTO.builder()
+                        .email(parts.length > 0 ? parts[0] : emailLine)
+                        .password(parts.length > 1 ? parts[1] : "")
+                        .status(false)
+                        .content("Invalid format")
+                        .build();
             }
 
             String emailAddr = parts[0];
-            // parts[1] is password - not used for OAuth but kept for compatibility
+            String password = parts[1];
             String refreshToken = parts.length > 2 ? parts[2] : "";
             String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3] : DEFAULT_CLIENT_ID;
 
+            // Try to get code using Graph API or IMAP
+            List<String> emailTypes = request.getEmailTypes();
+            if (emailTypes == null || emailTypes.isEmpty()) {
+                emailTypes = List.of("Auto");
+            }
+
             // Try Graph API first (OAuth2)
-            if ("Oauth2".equalsIgnoreCase(request.getGetType())) {
+            if ("Oauth2".equalsIgnoreCase(request.getGetType()) || "Graph API".equalsIgnoreCase(request.getGetType())) {
                 TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
                 if (graphToken != null && graphToken.isGraphToken) {
                     log.info("Reading mail using Graph API for: {}", emailAddr);
-                    return readMailByGraph(graphToken.accessToken, emailAddr, request.getEmailType());
+                    HotmailGetCodeResponseDTO codeResult = readMailByGraphNew(graphToken.accessToken, emailAddr, password, emailTypes);
+                    if (codeResult != null) {
+                        return codeResult;
+                    }
                 }
 
                 // Fallback to IMAP with OAuth
                 TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
                 if (imapToken != null) {
                     log.info("Reading mail using IMAP OAuth for: {}", emailAddr);
-                    return readMailByImap(emailAddr, imapToken.accessToken, request.getEmailType());
+                    HotmailGetCodeResponseDTO codeResult = readMailByImapNew(emailAddr, password, imapToken.accessToken, emailTypes);
+                    if (codeResult != null) {
+                        return codeResult;
+                    }
                 }
             }
 
-            // POP3/Basic auth not supported for Hotmail OAuth
-            log.warn("Could not get access token for: {}", emailAddr);
-            return Collections.emptyList();
+            // Could not get access token or no code found
+            log.warn("Could not get access token or code for: {}", emailAddr);
+            return HotmailGetCodeResponseDTO.builder()
+                    .email(emailAddr)
+                    .password(password)
+                    .status(false)
+                    .content("Could not get access token")
+                    .build();
 
         } catch (Exception e) {
-            log.error("Error reading Hotmail: {}", e.getMessage(), e);
-            return Collections.emptyList();
+            log.error("Error processing email line: {}", e.getMessage(), e);
+            return HotmailGetCodeResponseDTO.builder()
+                    .email(emailLine.split("\\|")[0])
+                    .status(false)
+                    .content("Error: " + e.getMessage())
+                    .build();
         }
     }
 
@@ -144,11 +194,9 @@ public class HotmailServiceImpl implements HotmailService {
     }
 
     /**
-     * Read emails using Microsoft Graph API
+     * Read emails using Microsoft Graph API - new format returning single result
      */
-    private List<HotmailGetCodeResponseDTO> readMailByGraph(String accessToken, String emailAddr, String emailType) {
-        List<HotmailGetCodeResponseDTO> emails = new ArrayList<>();
-
+    private HotmailGetCodeResponseDTO readMailByGraphNew(String accessToken, String emailAddr, String password, List<String> emailTypes) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(accessToken);
@@ -167,22 +215,25 @@ public class HotmailServiceImpl implements HotmailService {
                     String subject = msg.path("subject").asText();
                     String receivedDateTime = msg.path("receivedDateTime").asText();
 
-                    // Filter by email type if needed
-                    if (!matchesEmailType(fromAddr, subject, emailType)) {
+                    // Filter by email types
+                    if (!matchesEmailTypes(fromAddr, subject, emailTypes)) {
                         continue;
                     }
 
                     // Extract code from subject
                     String code = extractCode(subject);
                     if (code != null && !code.isEmpty()) {
-                        HotmailGetCodeResponseDTO dto = HotmailGetCodeResponseDTO.builder()
+                        LocalDateTime dateTime = parseDateTime(receivedDateTime);
+                        String formattedDate = dateTime != null ? dateTime.format(DATE_FORMATTER) : "";
+                        
+                        return HotmailGetCodeResponseDTO.builder()
                                 .email(emailAddr)
+                                .password(password)
+                                .status(true)
                                 .code(code)
-                                .from(fromAddr)
-                                .subject(subject)
-                                .receivedAt(parseDateTime(receivedDateTime))
+                                .content(subject)
+                                .date(formattedDate)
                                 .build();
-                        emails.add(dto);
                     }
                 }
             }
@@ -190,14 +241,18 @@ public class HotmailServiceImpl implements HotmailService {
             log.error("Error reading mail by Graph API: {}", e.getMessage(), e);
         }
 
-        return emails;
+        return HotmailGetCodeResponseDTO.builder()
+                .email(emailAddr)
+                .password(password)
+                .status(false)
+                .content("No verification code found")
+                .build();
     }
 
     /**
-     * Read emails using IMAP with OAuth2
+     * Read emails using IMAP with OAuth2 - new format returning single result
      */
-    private List<HotmailGetCodeResponseDTO> readMailByImap(String emailAddr, String accessToken, String emailType) {
-        List<HotmailGetCodeResponseDTO> emails = new ArrayList<>();
+    private HotmailGetCodeResponseDTO readMailByImapNew(String emailAddr, String password, String accessToken, List<String> emailTypes) {
         Store store = null;
         Folder inbox = null;
 
@@ -211,43 +266,41 @@ public class HotmailServiceImpl implements HotmailService {
 
             Session session = Session.getInstance(props);
             store = session.getStore("imaps");
-
-            // Connect using OAuth2
             store.connect(IMAP_HOST, emailAddr, accessToken);
 
             inbox = store.getFolder("INBOX");
             inbox.open(Folder.READ_ONLY);
 
-            // Get last 50 messages
             int messageCount = inbox.getMessageCount();
             int start = Math.max(1, messageCount - 49);
             Message[] messages = inbox.getMessages(start, messageCount);
 
-            // Process in reverse order (newest first)
             for (int i = messages.length - 1; i >= 0; i--) {
                 Message msg = messages[i];
                 String subject = msg.getSubject();
                 String from = getFromAddress(msg);
                 Date sentDate = msg.getSentDate();
 
-                // Filter by email type if needed
-                if (!matchesEmailType(from, subject, emailType)) {
+                if (!matchesEmailTypes(from, subject, emailTypes)) {
                     continue;
                 }
 
-                // Extract code from subject
                 String code = extractCode(subject);
                 if (code != null && !code.isEmpty()) {
-                    HotmailGetCodeResponseDTO dto = HotmailGetCodeResponseDTO.builder()
+                    String formattedDate = "";
+                    if (sentDate != null) {
+                        LocalDateTime dateTime = LocalDateTime.ofInstant(sentDate.toInstant(), ZoneId.systemDefault());
+                        formattedDate = dateTime.format(DATE_FORMATTER);
+                    }
+                    
+                    return HotmailGetCodeResponseDTO.builder()
                             .email(emailAddr)
+                            .password(password)
+                            .status(true)
                             .code(code)
-                            .from(from)
-                            .subject(subject)
-                            .receivedAt(sentDate != null
-                                    ? LocalDateTime.ofInstant(sentDate.toInstant(), ZoneId.systemDefault())
-                                    : null)
+                            .content(subject)
+                            .date(formattedDate)
                             .build();
-                    emails.add(dto);
                 }
             }
 
@@ -255,18 +308,50 @@ public class HotmailServiceImpl implements HotmailService {
             log.error("Error reading mail by IMAP: {}", e.getMessage(), e);
         } finally {
             try {
-                if (inbox != null && inbox.isOpen()) {
-                    inbox.close(false);
-                }
-                if (store != null && store.isConnected()) {
-                    store.close();
-                }
-            } catch (Exception e) {
-                log.warn("Error closing IMAP connection: {}", e.getMessage());
-            }
+                if (inbox != null && inbox.isOpen()) inbox.close(false);
+                if (store != null && store.isConnected()) store.close();
+            } catch (Exception ignored) {}
         }
 
-        return emails;
+        return HotmailGetCodeResponseDTO.builder()
+                .email(emailAddr)
+                .password(password)
+                .status(false)
+                .content("No verification code found")
+                .build();
+    }
+
+    /**
+     * Check if email matches any of the specified type filters
+     */
+    private boolean matchesEmailTypes(String from, String subject, List<String> emailTypes) {
+        if (emailTypes == null || emailTypes.isEmpty() || emailTypes.contains("Auto")) {
+            return true;
+        }
+        
+        String combined = (from + " " + subject).toLowerCase();
+        
+        for (String type : emailTypes) {
+            String typeLower = type.toLowerCase();
+            boolean matches = switch (typeLower) {
+                case "facebook" -> combined.contains("facebook") || combined.contains("fb.com");
+                case "instagram" -> combined.contains("instagram");
+                case "twitter" -> combined.contains("twitter") || combined.contains("x.com");
+                case "apple" -> combined.contains("apple");
+                case "tiktok" -> combined.contains("tiktok");
+                case "amazon" -> combined.contains("amazon");
+                case "lazada" -> combined.contains("lazada");
+                case "shopee" -> combined.contains("shopee");
+                case "kakaotalk" -> combined.contains("kakao");
+                case "telegram" -> combined.contains("telegram");
+                case "google" -> combined.contains("google");
+                case "wechat" -> combined.contains("wechat") || combined.contains("weixin");
+                default -> true;
+            };
+            if (matches) return true;
+        }
+        
+        return false;
     }
 
     /**
@@ -281,32 +366,6 @@ public class HotmailServiceImpl implements HotmailService {
             return matcher.group(1);
         }
         return null;
-    }
-
-    /**
-     * Check if email matches the specified type filter
-     */
-    private boolean matchesEmailType(String from, String subject, String emailType) {
-        if (emailType == null || "Auto".equalsIgnoreCase(emailType)) {
-            return true;
-        }
-
-        String combined = (from + " " + subject).toLowerCase();
-        String type = emailType.toLowerCase();
-
-        return switch (type) {
-            case "facebook" -> combined.contains("facebook") || combined.contains("fb.com");
-            case "instagram" -> combined.contains("instagram");
-            case "twitter" -> combined.contains("twitter") || combined.contains("x.com");
-            case "apple" -> combined.contains("apple");
-            case "tiktok" -> combined.contains("tiktok");
-            case "amazon" -> combined.contains("amazon");
-            case "lazada" -> combined.contains("lazada");
-            case "shopee" -> combined.contains("shopee");
-            case "kakaotalk" -> combined.contains("kakao");
-            case "telegram" -> combined.contains("telegram");
-            default -> true;
-        };
     }
 
     /**

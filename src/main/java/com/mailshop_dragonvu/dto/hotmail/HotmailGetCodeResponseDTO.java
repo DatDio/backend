@@ -6,8 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 /**
  * Response DTO for Hotmail get code API
  */
@@ -24,22 +22,29 @@ public class HotmailGetCodeResponseDTO {
     private String email;
 
     /**
-     * Extracted code from email
+     * Password (from input data)
+     */
+    private String password;
+
+    /**
+     * Whether code was found successfully
+     */
+    @Builder.Default
+    private boolean status = false;
+
+    /**
+     * Extracted verification code
      */
     private String code;
 
     /**
-     * Sender email address
+     * Full message content/subject
      */
-    private String from;
+    private String content;
 
     /**
-     * Email subject
+     * Time when code was received (formatted string)
      */
-    private String subject;
-
-    /**
-     * Time when email was received
-     */
-    private LocalDateTime receivedAt;
+    private String date;
 }
+
