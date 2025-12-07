@@ -33,6 +33,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
     private final String CATEGORY_NAME_ALREADY_EXISTS = "Danh mục đã tồn tại";
+
     @Override
     public CategoryResponseDTO createCategory(CategoryCreateDTO request) {
 
@@ -71,9 +72,8 @@ public class CategoryServiceImpl implements CategoryService {
             category.setName(request.getName());
         }
 
-        if (request.getDescription() != null) {
-            category.setDescription(request.getDescription());
-        }
+        category.setDescription(request.getDescription());
+
         category.setStatus(ActiveStatusEnum.fromKey(request.getStatus()));
 
         CategoryEntity updatedCategory = categoryRepository.save(category);
