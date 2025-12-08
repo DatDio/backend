@@ -77,4 +77,15 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
      */
     @Query("SELECT COUNT(t) FROM TransactionEntity t WHERE t.ipAddress = :ipAddress AND t.createdAt > :since")
     Long countTransactionsByIpSince(@Param("ipAddress") String ipAddress, @Param("since") LocalDateTime since);
+
+    /**
+     * Calculate total successful deposit amount for a user within a time period
+     * Used for rank calculation
+     */
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM TransactionEntity t " +
+           "WHERE t.user.id = :userId " +
+           "AND t.type = com.mailshop_dragonvu.enums.TransactionTypeEnum.DEPOSIT " +
+           "AND t.status = com.mailshop_dragonvu.enums.TransactionStatusEnum.SUCCESS " +
+           "AND t.createdAt >= :since")
+    Long getTotalDepositInPeriod(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 }

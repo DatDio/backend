@@ -14,6 +14,7 @@ import com.mailshop_dragonvu.mapper.UserMapper;
 import com.mailshop_dragonvu.repository.RoleRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.repository.WalletRepository;
+import com.mailshop_dragonvu.service.RankService;
 import com.mailshop_dragonvu.service.UserService;
 import com.mailshop_dragonvu.utils.Constants;
 import com.mailshop_dragonvu.utils.Utils;
@@ -55,6 +56,7 @@ public class UserServiceImpl implements UserService {
     private final WalletRepository walletRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final RankService rankService;
 
     @Override
     @Transactional
@@ -131,6 +133,14 @@ public class UserServiceImpl implements UserService {
         response.setBalance(balance);
         response.setTotalDeposit(totalDeposit);
         response.setTotalSpent(totalSpent);
+        
+        // Get user rank info
+        try {
+            var rankInfo = rankService.getUserRankInfo(id);
+            response.setRank(rankInfo);
+        } catch (Exception e) {
+            log.warn("Could not get rank info for user {}: {}", id, e.getMessage());
+        }
         
         return response;
     }
