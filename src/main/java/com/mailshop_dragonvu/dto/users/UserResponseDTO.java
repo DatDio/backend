@@ -27,5 +27,7 @@ public class UserResponseDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long balance; // Wallet balance
+    private Long totalDeposit; // Total deposited amount
+    private Long totalSpent; // Total spent amount
 
 }

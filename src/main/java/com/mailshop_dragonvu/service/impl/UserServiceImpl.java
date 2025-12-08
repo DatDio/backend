@@ -121,13 +121,16 @@ public class UserServiceImpl implements UserService {
         UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         
-        // Get wallet balance
-        Long balance = walletRepository.findByUserId(id)
-                .map(WalletEntity::getBalance)
-                .orElse(0L);
+        // Get wallet info
+        WalletEntity wallet = walletRepository.findByUserId(id).orElse(null);
+        Long balance = wallet != null ? wallet.getBalance() : 0L;
+        Long totalDeposit = wallet != null ? wallet.getTotalDeposited() : 0L;
+        Long totalSpent = wallet != null ? wallet.getTotalSpent() : 0L;
         
         UserResponseDTO response = userMapper.toResponse(userEntity);
         response.setBalance(balance);
+        response.setTotalDeposit(totalDeposit);
+        response.setTotalSpent(totalSpent);
         
         return response;
     }
