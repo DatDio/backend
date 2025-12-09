@@ -1,5 +1,6 @@
 package com.mailshop_dragonvu.dto.users;
 
+import com.mailshop_dragonvu.dto.ranks.UserRankInfoDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,5 +28,9 @@ public class UserResponseDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long balance; // Wallet balance
+    private Long totalDeposit; // Total deposited amount
+    private Long totalSpent; // Total spent amount
+    private UserRankInfoDTO rank; // User's current rank info
 
 }
+

@@ -14,6 +14,7 @@ import com.mailshop_dragonvu.mapper.UserMapper;
 import com.mailshop_dragonvu.repository.RoleRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.repository.WalletRepository;
+import com.mailshop_dragonvu.service.RankService;
 import com.mailshop_dragonvu.service.UserService;
 import com.mailshop_dragonvu.utils.Constants;
 import com.mailshop_dragonvu.utils.Utils;
@@ -55,6 +56,7 @@ public class UserServiceImpl implements UserService {
     private final WalletRepository walletRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final RankService rankService;
 
     @Override
     @Transactional
@@ -121,13 +123,24 @@ public class UserServiceImpl implements UserService {
         UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         
-        // Get wallet balance
-        Long balance = walletRepository.findByUserId(id)
-                .map(WalletEntity::getBalance)
-                .orElse(0L);
+        // Get wallet info
+        WalletEntity wallet = walletRepository.findByUserId(id).orElse(null);
+        Long balance = wallet != null ? wallet.getBalance() : 0L;
+        Long totalDeposit = wallet != null ? wallet.getTotalDeposited() : 0L;
+        Long totalSpent = wallet != null ? wallet.getTotalSpent() : 0L;
         
         UserResponseDTO response = userMapper.toResponse(userEntity);
         response.setBalance(balance);
+        response.setTotalDeposit(totalDeposit);
+        response.setTotalSpent(totalSpent);
+        
+        // Get user rank info
+        try {
+            var rankInfo = rankService.getUserRankInfo(id);
+            response.setRank(rankInfo);
+        } catch (Exception e) {
+            log.warn("Could not get rank info for user {}: {}", id, e.getMessage());
+        }
         
         return response;
     }
