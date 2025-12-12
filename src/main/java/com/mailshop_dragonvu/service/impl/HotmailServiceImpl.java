@@ -2,8 +2,7 @@ package com.mailshop_dragonvu.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mailshop_dragonvu.dto.hotmail.HotmailGetCodeRequestDTO;
-import com.mailshop_dragonvu.dto.hotmail.HotmailGetCodeResponseDTO;
+import com.mailshop_dragonvu.dto.hotmail.*;
 import com.mailshop_dragonvu.service.HotmailService;
 import jakarta.mail.*;
 import lombok.RequiredArgsConstructor;
@@ -395,6 +394,184 @@ public class HotmailServiceImpl implements HotmailService {
         } catch (Exception e) {
             log.warn("Error parsing datetime: {}", dateTimeStr);
             return null;
+        }
+    }
+
+    /**
+     * Check if email accounts are live by verifying OAuth2 token refresh
+     */
+    @Override
+    public List<CheckLiveMailResponseDTO> checkLiveMail(CheckLiveMailRequestDTO request) {
+        List<CheckLiveMailResponseDTO> results = new ArrayList<>();
+        
+        if (request.getEmailData() == null || request.getEmailData().isEmpty()) {
+            return results;
+        }
+        
+        String[] emailLines = request.getEmailData().trim().split("\\n");
+        
+        for (String emailLine : emailLines) {
+            emailLine = emailLine.trim();
+            if (emailLine.isEmpty()) continue;
+            
+            CheckLiveMailResponseDTO result = checkSingleMail(emailLine);
+            results.add(result);
+        }
+        
+        return results;
+    }
+    
+    /**
+     * Check a single email line for live status
+     */
+    private CheckLiveMailResponseDTO checkSingleMail(String emailLine) {
+        try {
+            String[] parts = emailLine.split("\\|");
+            if (parts.length < 3) {
+                return CheckLiveMailResponseDTO.builder()
+                        .email(parts.length > 0 ? parts[0] : emailLine)
+                        .password(parts.length > 1 ? parts[1] : "")
+                        .isLive(false)
+                        .error("Invalid format: requires email|password|refresh_token|client_id")
+                        .build();
+            }
+            
+            String email = parts[0].trim();
+            String password = parts[1].trim();
+            String refreshToken = parts[2].trim();
+            String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3].trim() : DEFAULT_CLIENT_ID;
+            
+            // Try to refresh token - if successful, email is live
+            TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
+            if (graphToken != null && graphToken.accessToken != null && !graphToken.accessToken.isEmpty()) {
+                return CheckLiveMailResponseDTO.builder()
+                        .email(email)
+                        .password(password)
+                        .refreshToken(refreshToken)
+                        .clientId(clientId)
+                        .isLive(true)
+                        .build();
+            }
+            
+            // Try IMAP token as fallback
+            TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
+            if (imapToken != null && imapToken.accessToken != null && !imapToken.accessToken.isEmpty()) {
+                return CheckLiveMailResponseDTO.builder()
+                        .email(email)
+                        .password(password)
+                        .refreshToken(refreshToken)
+                        .clientId(clientId)
+                        .isLive(true)
+                        .build();
+            }
+            
+            // All token refresh attempts failed
+            return CheckLiveMailResponseDTO.builder()
+                    .email(email)
+                    .password(password)
+                    .refreshToken(refreshToken)
+                    .clientId(clientId)
+                    .isLive(false)
+                    .error("Token refresh failed")
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("Error checking mail live status: {}", e.getMessage());
+            return CheckLiveMailResponseDTO.builder()
+                    .email(emailLine.split("\\|")[0])
+                    .isLive(false)
+                    .error("Error: " + e.getMessage())
+                    .build();
+        }
+    }
+    
+    /**
+     * Get OAuth2 access token from refresh token
+     */
+    @Override
+    public List<GetOAuth2ResponseDTO> getOAuth2Token(GetOAuth2RequestDTO request) {
+        List<GetOAuth2ResponseDTO> results = new ArrayList<>();
+        
+        if (request.getEmailData() == null || request.getEmailData().isEmpty()) {
+            return results;
+        }
+        
+        String[] emailLines = request.getEmailData().trim().split("\\n");
+        
+        for (String emailLine : emailLines) {
+            emailLine = emailLine.trim();
+            if (emailLine.isEmpty()) continue;
+            
+            GetOAuth2ResponseDTO result = getOAuth2ForSingleMail(emailLine);
+            results.add(result);
+        }
+        
+        return results;
+    }
+    
+    /**
+     * Get OAuth2 token for a single email line
+     */
+    private GetOAuth2ResponseDTO getOAuth2ForSingleMail(String emailLine) {
+        try {
+            String[] parts = emailLine.split("\\|");
+            if (parts.length < 3) {
+                return GetOAuth2ResponseDTO.builder()
+                        .email(parts.length > 0 ? parts[0] : emailLine)
+                        .password(parts.length > 1 ? parts[1] : "")
+                        .success(false)
+                        .error("Invalid format: requires email|password|refresh_token|client_id")
+                        .build();
+            }
+            
+            String email = parts[0].trim();
+            String password = parts[1].trim();
+            String refreshToken = parts[2].trim();
+            String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3].trim() : DEFAULT_CLIENT_ID;
+            
+            // Try Graph API token first
+            TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
+            if (graphToken != null && graphToken.accessToken != null && !graphToken.accessToken.isEmpty()) {
+                return GetOAuth2ResponseDTO.builder()
+                        .email(email)
+                        .password(password)
+                        .refreshToken(refreshToken)
+                        .clientId(clientId)
+                        .accessToken(graphToken.accessToken)
+                        .success(true)
+                        .build();
+            }
+            
+            // Try IMAP token as fallback
+            TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
+            if (imapToken != null && imapToken.accessToken != null && !imapToken.accessToken.isEmpty()) {
+                return GetOAuth2ResponseDTO.builder()
+                        .email(email)
+                        .password(password)
+                        .refreshToken(refreshToken)
+                        .clientId(clientId)
+                        .accessToken(imapToken.accessToken)
+                        .success(true)
+                        .build();
+            }
+            
+            // All token refresh attempts failed
+            return GetOAuth2ResponseDTO.builder()
+                    .email(email)
+                    .password(password)
+                    .refreshToken(refreshToken)
+                    .clientId(clientId)
+                    .success(false)
+                    .error("Could not get access token")
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("Error getting OAuth2 token: {}", e.getMessage());
+            return GetOAuth2ResponseDTO.builder()
+                    .email(emailLine.split("\\|")[0])
+                    .success(false)
+                    .error("Error: " + e.getMessage())
+                    .build();
         }
     }
 

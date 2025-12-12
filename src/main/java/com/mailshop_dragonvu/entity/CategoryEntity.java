@@ -22,6 +22,9 @@ public class CategoryEntity extends BaseEntity {
     @Column(name = "description", length = 255)
     private String description;
 
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
     @Builder.Default
     @Column(name = "status", length = 20, nullable = false)
     private ActiveStatusEnum status = ActiveStatusEnum.ACTIVE;

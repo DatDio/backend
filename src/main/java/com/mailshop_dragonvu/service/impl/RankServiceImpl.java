@@ -7,7 +7,9 @@ import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.mapper.RankMapper;
 import com.mailshop_dragonvu.repository.RankRepository;
 import com.mailshop_dragonvu.repository.TransactionRepository;
+import com.mailshop_dragonvu.service.FileUploadService;
 import com.mailshop_dragonvu.service.RankService;
+import com.mailshop_dragonvu.service.SystemSettingService;
 import com.mailshop_dragonvu.utils.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,9 +38,15 @@ public class RankServiceImpl implements RankService {
     private final RankRepository rankRepository;
     private final TransactionRepository transactionRepository;
     private final RankMapper rankMapper;
+    private final SystemSettingService systemSettingService;
+    private final FileUploadService fileUploadService;
+
+    private static final String ICON_FOLDER = "icons";
 
     private static final String RANK_NOT_FOUND = "Không tìm thấy thứ hạng";
     private static final String RANK_NAME_EXISTS = "Tên thứ hạng đã tồn tại";
+    private static final String SETTING_RANK_PERIOD_DAYS = "rank.period_days";
+    private static final Integer DEFAULT_PERIOD_DAYS = 7;
 
     @Override
     public RankResponseDTO createRank(RankCreateDTO request) {
@@ -50,6 +58,13 @@ public class RankServiceImpl implements RankService {
         }
 
         RankEntity entity = rankMapper.toEntity(request);
+
+        // Handle icon upload
+        if (request.getIcon() != null && !request.getIcon().isEmpty()) {
+            String iconUrl = fileUploadService.uploadImage(request.getIcon(), ICON_FOLDER);
+            entity.setIconUrl(iconUrl);
+        }
+
         entity = rankRepository.save(entity);
 
         log.info("Rank created successfully with ID: {}", entity.getId());
@@ -70,6 +85,17 @@ public class RankServiceImpl implements RankService {
         }
 
         rankMapper.updateEntity(entity, request);
+
+        if (entity.getIconUrl() != null) {
+            fileUploadService.deleteFile(entity.getIconUrl());
+        }
+
+        // Handle icon upload
+        if (request.getIcon() != null && !request.getIcon().isEmpty()) {
+            String iconUrl = fileUploadService.uploadImage(request.getIcon(), ICON_FOLDER);
+            entity.setIconUrl(iconUrl);
+        }
+
         entity = rankRepository.save(entity);
 
         log.info("Rank updated successfully with ID: {}", id);
@@ -136,8 +162,8 @@ public class RankServiceImpl implements RankService {
                     .build();
         }
 
-        // Use the first rank's period days (they should all be the same)
-        Integer periodDays = allRanks.get(0).getPeriodDays();
+        // Get period days from system settings
+        Integer periodDays = systemSettingService.getIntValue(SETTING_RANK_PERIOD_DAYS, DEFAULT_PERIOD_DAYS);
         Long totalDeposit = getTotalDepositInPeriod(userId, periodDays);
 
         // Find current rank (highest minDeposit that is <= totalDeposit)

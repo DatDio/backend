@@ -1,7 +1,6 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.hotmail.HotmailGetCodeRequestDTO;
-import com.mailshop_dragonvu.dto.hotmail.HotmailGetCodeResponseDTO;
+import com.mailshop_dragonvu.dto.hotmail.*;
 
 import java.util.List;
 
@@ -17,4 +16,20 @@ public interface HotmailService {
      * @return list of emails with extracted codes
      */
     List<HotmailGetCodeResponseDTO> getCode(HotmailGetCodeRequestDTO request);
+
+    /**
+     * Check if email accounts are live by verifying OAuth2 token refresh
+     * 
+     * @param request contains email credentials
+     * @return list of results with live/die status
+     */
+    List<CheckLiveMailResponseDTO> checkLiveMail(CheckLiveMailRequestDTO request);
+
+    /**
+     * Get OAuth2 access token from refresh token
+     * 
+     * @param request contains email credentials with refresh token
+     * @return list of results with access tokens
+     */
+    List<GetOAuth2ResponseDTO> getOAuth2Token(GetOAuth2RequestDTO request);
 }

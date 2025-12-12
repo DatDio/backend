@@ -22,6 +22,8 @@ public class ProductResponseDTO {
 
     private String country;
 
+    private String imageUrl;
+
     private Long categoryId;
     private String categoryName;
 

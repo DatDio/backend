@@ -2,7 +2,7 @@ package com.mailshop_dragonvu.dto.products;
 
 import jakarta.validation.constraints.*;
 import lombok.*;
-import java.math.BigDecimal;
+import org.springframework.web.multipart.MultipartFile;
 
 @Data
 @NoArgsConstructor
@@ -25,4 +25,6 @@ public class ProductUpdateDTO {
     private String liveTime;
 
     private String country;
+
+    private MultipartFile image;
 }

@@ -2,7 +2,7 @@ package com.mailshop_dragonvu.dto.products;
 
 import jakarta.validation.constraints.*;
 import lombok.*;
-import java.math.BigDecimal;
+import org.springframework.web.multipart.MultipartFile;
 
 @Data
 @NoArgsConstructor
@@ -24,4 +24,6 @@ public class ProductCreateDTO {
 
     @NotNull
     private Long categoryId;
+
+    private MultipartFile image;
 }

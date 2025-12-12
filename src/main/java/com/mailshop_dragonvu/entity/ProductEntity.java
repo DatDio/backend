@@ -29,6 +29,9 @@ public class ProductEntity extends BaseEntity {
     @Column(nullable = false)
     private Long price;   // Giá 1 tài khoản
 
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private CategoryEntity category;

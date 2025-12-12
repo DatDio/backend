@@ -42,20 +42,20 @@ public class RankController {
         return ApiResponse.success(result);
     }
 
-    @PostMapping("/create")
+    @PostMapping(value = "/create", consumes = "multipart/form-data")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Tạo thứ hạng", description = "Tạo thứ hạng mới")
-    public ApiResponse<RankResponseDTO> createRank(@Valid @RequestBody RankCreateDTO request) {
+    public ApiResponse<RankResponseDTO> createRank(@Valid @ModelAttribute RankCreateDTO request) {
         log.info("Creating new rank: {}", request.getName());
         RankResponseDTO result = rankService.createRank(request);
         return ApiResponse.success("Tạo thứ hạng thành công", result);
     }
 
-    @PutMapping("/update/{id}")
+    @PutMapping(value = "/update/{id}", consumes = "multipart/form-data")
     @Operation(summary = "Cập nhật thứ hạng", description = "Cập nhật thông tin thứ hạng")
     public ApiResponse<RankResponseDTO> updateRank(
             @PathVariable Long id,
-            @Valid @RequestBody RankUpdateDTO request) {
+            @Valid @ModelAttribute RankUpdateDTO request) {
         log.info("Updating rank ID: {}", id);
         RankResponseDTO result = rankService.updateRank(id, request);
         return ApiResponse.success("Cập nhật thứ hạng thành công", result);

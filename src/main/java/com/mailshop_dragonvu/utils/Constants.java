@@ -17,6 +17,7 @@ public class Constants {
         public static final String PRODUCTITEMS = CONTEXT_PATH + "product-items";
         public static final String STATISTICS = CONTEXT_PATH + "statistics";
         public static final String RANKS = CONTEXT_PATH + "ranks";
+        public static final String SETTINGS = CONTEXT_PATH + "settings";
     }
 
 

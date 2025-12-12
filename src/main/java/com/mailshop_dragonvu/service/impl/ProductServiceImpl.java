@@ -13,6 +13,7 @@ import com.mailshop_dragonvu.exception.ErrorCode;
 import com.mailshop_dragonvu.repository.CategoryRepository;
 import com.mailshop_dragonvu.repository.ProductItemRepository;
 import com.mailshop_dragonvu.repository.ProductRepository;
+import com.mailshop_dragonvu.service.FileUploadService;
 import com.mailshop_dragonvu.service.ProductService;
 import com.mailshop_dragonvu.utils.Utils;
 import jakarta.persistence.criteria.Predicate;
@@ -44,6 +45,9 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final ProductItemRepository productItemRepository;
     private final CategoryRepository categoryRepository;
+    private final FileUploadService fileUploadService;
+
+    private static final String IMAGE_FOLDER = "products";
 
     @Override
     @Transactional(readOnly = true)
@@ -67,8 +71,14 @@ public class ProductServiceImpl implements ProductService {
                 .country(request.getCountry())
                 .price(request.getPrice())
                 .category(category)
-                .status(ActiveStatusEnum.ACTIVE) // nếu bạn dùng ACTIVE / INACTIVE
+                .status(ActiveStatusEnum.ACTIVE)
                 .build();
+
+        // Handle image upload
+        if (request.getImage() != null && !request.getImage().isEmpty()) {
+            String imageUrl = fileUploadService.uploadImage(request.getImage(), IMAGE_FOLDER);
+            product.setImageUrl(imageUrl);
+        }
 
         ProductEntity saved = productRepository.save(product);
 
@@ -95,6 +105,17 @@ public class ProductServiceImpl implements ProductService {
 
         if (request.getStatus() != null)
             product.setStatus(ActiveStatusEnum.fromKey((request.getStatus())));
+        // Delete old image if exists
+        if (product.getImageUrl() != null) {
+            fileUploadService.deleteFile(product.getImageUrl());
+        }
+
+        // Handle image upload
+        if (request.getImage() != null && !request.getImage().isEmpty()) {
+
+            String imageUrl = fileUploadService.uploadImage(request.getImage(), IMAGE_FOLDER);
+            product.setImageUrl(imageUrl);
+        }
 
         ProductEntity updated = productRepository.save(product);
 
@@ -233,6 +254,7 @@ public class ProductServiceImpl implements ProductService {
                 .price(product.getPrice())
                 .liveTime(product.getLiveTime())
                 .country(product.getCountry())
+                .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
 

@@ -3,6 +3,7 @@ package com.mailshop_dragonvu.dto.categories;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Data
 @NoArgsConstructor
@@ -15,4 +16,6 @@ public class CategoryCreateDTO {
 
     @Size(max = 255, message = "Mô tả không được quá 255 kí tự")
     private String description;
+
+    private MultipartFile image;
 }

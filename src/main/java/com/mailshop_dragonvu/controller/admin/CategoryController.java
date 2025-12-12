@@ -30,20 +30,20 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
-    @PostMapping("/create")
+    @PostMapping(value = "/create", consumes = "multipart/form-data")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create category", description = "Create a new category (Admin only)")
-    public ApiResponse<CategoryResponseDTO> createCategory(@Valid @RequestBody CategoryCreateDTO request) {
+    public ApiResponse<CategoryResponseDTO> createCategory(@Valid @ModelAttribute CategoryCreateDTO request) {
         log.info("Creating new category");
         CategoryResponseDTO response = categoryService.createCategory(request);
         return ApiResponse.success("Tạo danh mục thành công", response);
     }
 
-    @PutMapping("/update/{id}")
+    @PutMapping(value = "/update/{id}", consumes = "multipart/form-data")
     @Operation(summary = "Update category", description = "Update category details (Admin only)")
     public ApiResponse<CategoryResponseDTO> updateCategory(
             @PathVariable Long id,
-            @Valid @RequestBody CategoryUpdateDTO request) {
+            @Valid @ModelAttribute CategoryUpdateDTO request) {
         log.info("Updating category with ID: {}", id);
         CategoryResponseDTO response = categoryService.updateCategory(id, request);
         return ApiResponse.success("Cập nhật danh mục thành công", response);

@@ -14,8 +14,6 @@ public class RankResponseDTO {
     private String name;
     private Integer bonusPercent;
     private Long minDeposit;
-    private Integer periodDays;
-    private Integer displayOrder;
     private String iconUrl;
     private String color;
     private Integer status;

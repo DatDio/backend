@@ -38,6 +38,7 @@ public class CategoryMapper {
                             .country(p.getCountry())
                             .description(p.getDescription())
                             .price(p.getPrice())
+                            .imageUrl(p.getImageUrl())
                             .quantity(quantity)
                             .build();
                 })
@@ -47,6 +48,7 @@ public class CategoryMapper {
                 .id(entity.getId())
                 .name(entity.getName())
                 .description(entity.getDescription())
+                .imageUrl(entity.getImageUrl())
                 .status(entity.getStatus().getKey())
                 .createdAt(entity.getCreatedAt())
                 .products(productResponses)

@@ -30,19 +30,19 @@ public class ProductController {
 
     private final ProductService productService;
 
-    @PostMapping("create")
+    @PostMapping(value = "create", consumes = "multipart/form-data")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create product", description = "Create a new product (Admin only)")
-    public ApiResponse<ProductResponseDTO> createProduct(@Valid @RequestBody ProductCreateDTO request) {
+    public ApiResponse<ProductResponseDTO> createProduct(@Valid @ModelAttribute ProductCreateDTO request) {
         ProductResponseDTO response = productService.createProduct(request);
         return ApiResponse.success("Product created successfully", response);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = "multipart/form-data")
     @Operation(summary = "Update product", description = "Update product details (Admin only)")
     public ApiResponse<ProductResponseDTO> updateProduct(
             @PathVariable Long id,
-            @Valid @RequestBody ProductUpdateDTO request) {
+            @Valid @ModelAttribute ProductUpdateDTO request) {
         ProductResponseDTO response = productService.updateProduct(id, request);
         return ApiResponse.success("Product updated successfully", response);
     }

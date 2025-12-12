@@ -94,6 +94,7 @@ public class SecurityConfig {
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(
+                                                                "/uploads/**",
                                                                 "/api/v1/auth/**",
                                                                 "/api/v1/hotmail/**",
                                                                 "/api/v1/wallets/payos/webhook",

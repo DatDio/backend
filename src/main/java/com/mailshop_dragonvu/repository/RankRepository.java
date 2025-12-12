@@ -18,11 +18,6 @@ import java.util.Optional;
 public interface RankRepository extends JpaRepository<RankEntity, Long>, JpaSpecificationExecutor<RankEntity> {
 
     /**
-     * Find all active ranks ordered by display order
-     */
-    List<RankEntity> findAllByStatusOrderByDisplayOrderAsc(ActiveStatusEnum status);
-
-    /**
      * Find rank by name
      */
     Optional<RankEntity> findByName(String name);

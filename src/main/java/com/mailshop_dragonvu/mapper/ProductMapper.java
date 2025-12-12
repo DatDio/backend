@@ -22,7 +22,9 @@ public class ProductMapper {
                 .name(product.getName())
                 .description(product.getDescription())
                 .price(product.getPrice())
-
+                .liveTime(product.getLiveTime())
+                .country(product.getCountry())
+                .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
 

@@ -29,14 +29,6 @@ public class RankEntity extends BaseEntity {
     @Builder.Default
     private Long minDeposit = 0L;
 
-    @Column(name = "period_days", nullable = false)
-    @Builder.Default
-    private Integer periodDays = 7;
-
-    @Column(name = "display_order", nullable = false)
-    @Builder.Default
-    private Integer displayOrder = 0;
-
     @Column(name = "icon_url", length = 255)
     private String iconUrl;
 

@@ -11,6 +11,7 @@ import com.mailshop_dragonvu.exception.ErrorCode;
 import com.mailshop_dragonvu.mapper.CategoryMapper;
 import com.mailshop_dragonvu.repository.CategoryRepository;
 import com.mailshop_dragonvu.service.CategoryService;
+import com.mailshop_dragonvu.service.FileUploadService;
 import com.mailshop_dragonvu.utils.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +33,10 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
-    private final String CATEGORY_NAME_ALREADY_EXISTS = "Danh mục đã tồn tại";
+    private final FileUploadService fileUploadService;
+
+    private static final String CATEGORY_NAME_ALREADY_EXISTS = "Danh mục đã tồn tại";
+    private static final String IMAGE_FOLDER = "categories";
 
     @Override
     public CategoryResponseDTO createCategory(CategoryCreateDTO request) {
@@ -42,12 +46,17 @@ public class CategoryServiceImpl implements CategoryService {
             throw new BusinessException(CATEGORY_NAME_ALREADY_EXISTS);
         }
 
-
         CategoryEntity category = CategoryEntity.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .status(ActiveStatusEnum.ACTIVE)
                 .build();
+
+        // Handle image upload
+        if (request.getImage() != null && !request.getImage().isEmpty()) {
+            String imageUrl = fileUploadService.uploadImage(request.getImage(), IMAGE_FOLDER);
+            category.setImageUrl(imageUrl);
+        }
 
         CategoryEntity savedCategory = categoryRepository.save(category);
         log.info("Category created successfully with ID: {}", savedCategory.getId());
@@ -75,6 +84,17 @@ public class CategoryServiceImpl implements CategoryService {
         category.setDescription(request.getDescription());
 
         category.setStatus(ActiveStatusEnum.fromKey(request.getStatus()));
+
+        // Delete old image if exists
+        if (category.getImageUrl() != null) {
+            fileUploadService.deleteFile(category.getImageUrl());
+        }
+
+        // Handle image upload
+        if (request.getImage() != null && !request.getImage().isEmpty()) {
+            String imageUrl = fileUploadService.uploadImage(request.getImage(), IMAGE_FOLDER);
+            category.setImageUrl(imageUrl);
+        }
 
         CategoryEntity updatedCategory = categoryRepository.save(category);
         log.info("Category updated successfully with ID: {}", id);
