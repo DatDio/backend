@@ -47,6 +47,15 @@ public class StreamSessionStore {
     }
     
     /**
+     * Create a new session for Facebook check-live
+     */
+    public String createFacebookCheckLiveSession(String uidData) {
+        String sessionId = UUID.randomUUID().toString();
+        sessions.put(sessionId, new SessionData("FACEBOOK_CHECK_LIVE", uidData, null));
+        return sessionId;
+    }
+    
+    /**
      * Get session data and remove it (one-time use)
      */
     public SessionData getAndRemove(String sessionId) {

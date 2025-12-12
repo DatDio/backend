@@ -64,104 +64,8 @@ public class HotmailServiceImpl implements HotmailService {
     private static final java.time.format.DateTimeFormatter DATE_FORMATTER = 
         java.time.format.DateTimeFormatter.ofPattern("HH:mm - dd/MM/yyyy");
 
-    @Override
-    public List<HotmailGetCodeResponseDTO> getCode(HotmailGetCodeRequestDTO request) {
-        List<HotmailGetCodeResponseDTO> allResults = new ArrayList<>();
-        
-        // Split emailData by newlines to support multiple emails
-        String[] emailLines = request.getEmailData().trim().split("\\n");
-        
-        for (String emailLine : emailLines) {
-            emailLine = emailLine.trim();
-            if (emailLine.isEmpty()) continue;
-            
-            HotmailGetCodeResponseDTO result = processEmailLine(emailLine, request);
-            allResults.add(result);
-        }
-        
-        return allResults;
-    }
 
-    /**
-     * Process a single email line and get verification code
-     */
-    private HotmailGetCodeResponseDTO processEmailLine(String emailLine, HotmailGetCodeRequestDTO request) {
-        try {
-            // Parse email data: email|password|refresh_token|client_id
-            String[] parts = emailLine.split("\\|");
-            if (parts.length < 3) {
-                log.error("Invalid email data format for line: {}", emailLine);
-                return HotmailGetCodeResponseDTO.builder()
-                        .email(parts.length > 0 ? parts[0] : emailLine)
-                        .password(parts.length > 1 ? parts[1] : "")
-                        .refreshToken("")
-                        .clientId("")
-                        .status(false)
-                        .content("Invalid format: requires email|password|refresh_token|client_id")
-                        .build();
-            }
 
-            String emailAddr = parts[0];
-            String password = parts[1];
-            String refreshToken = parts.length > 2 ? parts[2] : "";
-            String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3] : DEFAULT_CLIENT_ID;
-
-            // Try to get code using Graph API or IMAP
-            List<String> emailTypes = request.getEmailTypes();
-            if (emailTypes == null || emailTypes.isEmpty()) {
-                emailTypes = List.of("Auto");
-            }
-
-            // Try Graph API first (OAuth2)
-            if ("Oauth2".equalsIgnoreCase(request.getGetType()) || "Graph API".equalsIgnoreCase(request.getGetType())) {
-                TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
-                if (graphToken != null && graphToken.isGraphToken) {
-                    log.info("Reading mail using Graph API for: {}", emailAddr);
-                    HotmailGetCodeResponseDTO codeResult = readMailByGraphNew(graphToken.accessToken, emailAddr, password, emailTypes);
-                    if (codeResult != null) {
-                        codeResult.setRefreshToken(refreshToken);
-                        codeResult.setClientId(clientId);
-                        return codeResult;
-                    }
-                }
-
-                // Fallback to IMAP with OAuth
-                TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
-                if (imapToken != null) {
-                    log.info("Reading mail using IMAP OAuth for: {}", emailAddr);
-                    HotmailGetCodeResponseDTO codeResult = readMailByImapNew(emailAddr, password, imapToken.accessToken, emailTypes);
-                    if (codeResult != null) {
-                        codeResult.setRefreshToken(refreshToken);
-                        codeResult.setClientId(clientId);
-                        return codeResult;
-                    }
-                }
-            }
-
-            // Could not get access token or no code found
-            log.warn("Could not get access token or code for: {}", emailAddr);
-            return HotmailGetCodeResponseDTO.builder()
-                    .email(emailAddr)
-                    .password(password)
-                    .refreshToken(refreshToken)
-                    .clientId(clientId)
-                    .status(false)
-                    .content("Could not get access token")
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Error processing email line: {}", e.getMessage(), e);
-            String[] errorParts = emailLine.split("\\|");
-            return HotmailGetCodeResponseDTO.builder()
-                    .email(errorParts[0])
-                    .password(errorParts.length > 1 ? errorParts[1] : "")
-                    .refreshToken(errorParts.length > 2 ? errorParts[2] : "")
-                    .clientId(errorParts.length > 3 ? errorParts[3] : "")
-                    .status(false)
-                    .content("Error: " + e.getMessage())
-                    .build();
-        }
-    }
 
     /**
      * Refresh token for Graph API
@@ -428,188 +332,6 @@ public class HotmailServiceImpl implements HotmailService {
         }
     }
 
-    /**
-     * Check if email accounts are live by verifying OAuth2 token refresh
-     */
-    @Override
-    public List<CheckLiveMailResponseDTO> checkLiveMail(CheckLiveMailRequestDTO request) {
-        List<CheckLiveMailResponseDTO> results = new ArrayList<>();
-        
-        if (request.getEmailData() == null || request.getEmailData().isEmpty()) {
-            return results;
-        }
-        
-        String[] emailLines = request.getEmailData().trim().split("\\n");
-        
-        for (String emailLine : emailLines) {
-            emailLine = emailLine.trim();
-            if (emailLine.isEmpty()) continue;
-            
-            CheckLiveMailResponseDTO result = checkSingleMail(emailLine);
-            results.add(result);
-        }
-        
-        return results;
-    }
-    
-    /**
-     * Check a single email line for live status
-     */
-    private CheckLiveMailResponseDTO checkSingleMail(String emailLine) {
-        try {
-            String[] parts = emailLine.split("\\|");
-            if (parts.length < 3) {
-                return CheckLiveMailResponseDTO.builder()
-                        .email(parts.length > 0 ? parts[0] : emailLine)
-                        .password(parts.length > 1 ? parts[1] : "")
-                        .refreshToken("")
-                        .clientId("")
-                        .isLive(false)
-                        .error("Invalid format: requires email|password|refresh_token|client_id")
-                        .build();
-            }
-            
-            String email = parts[0].trim();
-            String password = parts[1].trim();
-            String refreshToken = parts[2].trim();
-            String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3].trim() : DEFAULT_CLIENT_ID;
-            
-            // Try to refresh token - if successful, email is live
-            TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
-            if (graphToken != null && graphToken.accessToken != null && !graphToken.accessToken.isEmpty()) {
-                return CheckLiveMailResponseDTO.builder()
-                        .email(email)
-                        .password(password)
-                        .refreshToken(refreshToken)
-                        .clientId(clientId)
-                        .isLive(true)
-                        .build();
-            }
-            
-            // Try IMAP token as fallback
-            TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
-            if (imapToken != null && imapToken.accessToken != null && !imapToken.accessToken.isEmpty()) {
-                return CheckLiveMailResponseDTO.builder()
-                        .email(email)
-                        .password(password)
-                        .refreshToken(refreshToken)
-                        .clientId(clientId)
-                        .isLive(true)
-                        .build();
-            }
-            
-            // All token refresh attempts failed
-            return CheckLiveMailResponseDTO.builder()
-                    .email(email)
-                    .password(password)
-                    .refreshToken(refreshToken)
-                    .clientId(clientId)
-                    .isLive(false)
-                    .error("Token refresh failed")
-                    .build();
-                    
-        } catch (Exception e) {
-            log.error("Error checking mail live status: {}", e.getMessage());
-            return CheckLiveMailResponseDTO.builder()
-                    .email(emailLine.split("\\|")[0])
-                    .isLive(false)
-                    .error("Error: " + e.getMessage())
-                    .build();
-        }
-    }
-    
-    /**
-     * Get OAuth2 access token from refresh token
-     */
-    @Override
-    public List<GetOAuth2ResponseDTO> getOAuth2Token(GetOAuth2RequestDTO request) {
-        List<GetOAuth2ResponseDTO> results = new ArrayList<>();
-        
-        if (request.getEmailData() == null || request.getEmailData().isEmpty()) {
-            return results;
-        }
-        
-        String[] emailLines = request.getEmailData().trim().split("\\n");
-        
-        for (String emailLine : emailLines) {
-            emailLine = emailLine.trim();
-            if (emailLine.isEmpty()) continue;
-            
-            GetOAuth2ResponseDTO result = getOAuth2ForSingleMail(emailLine);
-            results.add(result);
-        }
-        
-        return results;
-    }
-    
-    /**
-     * Get OAuth2 token for a single email line
-     */
-    private GetOAuth2ResponseDTO getOAuth2ForSingleMail(String emailLine) {
-        try {
-            String[] parts = emailLine.split("\\|");
-            if (parts.length < 3) {
-                return GetOAuth2ResponseDTO.builder()
-                        .email(parts.length > 0 ? parts[0] : emailLine)
-                        .password(parts.length > 1 ? parts[1] : "")
-                        .refreshToken("")
-                        .clientId("")
-                        .success(false)
-                        .error("Invalid format: requires email|password|refresh_token|client_id")
-                        .build();
-            }
-            
-            String email = parts[0].trim();
-            String password = parts[1].trim();
-            String refreshToken = parts[2].trim();
-            String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3].trim() : DEFAULT_CLIENT_ID;
-            
-            // Try Graph API token first
-            TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
-            if (graphToken != null && graphToken.accessToken != null && !graphToken.accessToken.isEmpty()) {
-                return GetOAuth2ResponseDTO.builder()
-                        .email(email)
-                        .password(password)
-                        .refreshToken(refreshToken)
-                        .clientId(clientId)
-                        .accessToken(graphToken.accessToken)
-                        .success(true)
-                        .build();
-            }
-            
-            // Try IMAP token as fallback
-            TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
-            if (imapToken != null && imapToken.accessToken != null && !imapToken.accessToken.isEmpty()) {
-                return GetOAuth2ResponseDTO.builder()
-                        .email(email)
-                        .password(password)
-                        .refreshToken(refreshToken)
-                        .clientId(clientId)
-                        .accessToken(imapToken.accessToken)
-                        .success(true)
-                        .build();
-            }
-            
-            // All token refresh attempts failed
-            return GetOAuth2ResponseDTO.builder()
-                    .email(email)
-                    .password(password)
-                    .refreshToken(refreshToken)
-                    .clientId(clientId)
-                    .success(false)
-                    .error("Could not get access token")
-                    .build();
-                    
-        } catch (Exception e) {
-            log.error("Error getting OAuth2 token: {}", e.getMessage());
-            return GetOAuth2ResponseDTO.builder()
-                    .email(emailLine.split("\\|")[0])
-                    .success(false)
-                    .error("Error: " + e.getMessage())
-                    .build();
-        }
-    }
-
     // ==================== SSE STREAMING METHODS ====================
 
     /**
@@ -623,7 +345,6 @@ public class HotmailServiceImpl implements HotmailService {
             } catch (Exception ignored) {}
             return;
         }
-
         String[] emailLines = request.getEmailData().trim().split("\\n");
         AtomicInteger completed = new AtomicInteger(0);
         int total = emailLines.length;
@@ -643,7 +364,7 @@ public class HotmailServiceImpl implements HotmailService {
 
             executor.submit(() -> {
                 try {
-                    HotmailGetCodeResponseDTO result = processEmailLine(line, request);
+                    HotmailGetCodeResponseDTO result = processGetCodeSingleEmailLine(line, request);
                     // Set CheckStatus based on result
                     if (result.isStatus() && result.getCode() != null && !result.getCode().isEmpty()) {
                         result.setCheckStatus(CheckStatus.SUCCESS);
@@ -682,6 +403,89 @@ public class HotmailServiceImpl implements HotmailService {
     }
 
     /**
+     * Process a single email line and get verification code
+     */
+    private HotmailGetCodeResponseDTO processGetCodeSingleEmailLine(String emailLine, HotmailGetCodeRequestDTO request) {
+        try {
+            // Parse email data: email|password|refresh_token|client_id
+            String[] parts = emailLine.split("\\|");
+            if (parts.length < 3) {
+                log.error("Invalid email data format for line: {}", emailLine);
+                return HotmailGetCodeResponseDTO.builder()
+                        .email(parts.length > 0 ? parts[0] : emailLine)
+                        .password(parts.length > 1 ? parts[1] : "")
+                        .refreshToken("")
+                        .clientId("")
+                        .status(false)
+                        .content("Invalid format: requires email|password|refresh_token|client_id")
+                        .build();
+            }
+
+            String emailAddr = parts[0];
+            String password = parts[1];
+            String refreshToken = parts.length > 2 ? parts[2] : "";
+            String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3] : DEFAULT_CLIENT_ID;
+
+            // Try to get code using Graph API or IMAP
+            List<String> emailTypes = request.getEmailTypes();
+            if (emailTypes == null || emailTypes.isEmpty()) {
+                emailTypes = List.of("Auto");
+            }
+
+            // Try Graph API first (OAuth2)
+            if ("Oauth2".equalsIgnoreCase(request.getGetType()) || "Graph API".equalsIgnoreCase(request.getGetType())) {
+                TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
+                if (graphToken != null && graphToken.isGraphToken) {
+                    log.info("Reading mail using Graph API for: {}", emailAddr);
+                    HotmailGetCodeResponseDTO codeResult = readMailByGraphNew(graphToken.accessToken, emailAddr, password, emailTypes);
+                    if (codeResult != null) {
+                        codeResult.setRefreshToken(refreshToken);
+                        codeResult.setClientId(clientId);
+                        return codeResult;
+                    }
+                }
+
+                // Fallback to IMAP with OAuth
+                TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
+                if (imapToken != null) {
+                    log.info("Reading mail using IMAP OAuth for: {}", emailAddr);
+                    HotmailGetCodeResponseDTO codeResult = readMailByImapNew(emailAddr, password, imapToken.accessToken, emailTypes);
+                    if (codeResult != null) {
+                        codeResult.setRefreshToken(refreshToken);
+                        codeResult.setClientId(clientId);
+                        return codeResult;
+                    }
+                }
+            }
+
+            // Could not get access token or no code found
+            log.warn("Could not get access token or code for: {}", emailAddr);
+            return HotmailGetCodeResponseDTO.builder()
+                    .email(emailAddr)
+                    .password(password)
+                    .refreshToken(refreshToken)
+                    .clientId(clientId)
+                    .status(false)
+                    .content("Could not get access token")
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error processing email line: {}", e.getMessage(), e);
+            String[] errorParts = emailLine.split("\\|");
+            return HotmailGetCodeResponseDTO.builder()
+                    .email(errorParts[0])
+                    .password(errorParts.length > 1 ? errorParts[1] : "")
+                    .refreshToken(errorParts.length > 2 ? errorParts[2] : "")
+                    .clientId(errorParts.length > 3 ? errorParts[3] : "")
+                    .status(false)
+                    .content("Error: " + e.getMessage())
+                    .build();
+        }
+    }
+
+
+
+    /**
      * Check live mail with SSE streaming (real-time, multi-threaded)
      */
     @Override
@@ -709,7 +513,7 @@ public class HotmailServiceImpl implements HotmailService {
 
             executor.submit(() -> {
                 try {
-                    CheckLiveMailResponseDTO result = checkSingleMail(line);
+                    CheckLiveMailResponseDTO result = checkLiveSingleMail(line);
                     // Set CheckStatus based on isLive and error
                     if (result.isLive()) {
                         result.setStatus(CheckStatus.SUCCESS);
@@ -744,6 +548,72 @@ public class HotmailServiceImpl implements HotmailService {
                     }
                 }
             });
+        }
+    }
+
+    /**
+     * Check a single email line for live status
+     */
+    private CheckLiveMailResponseDTO checkLiveSingleMail(String emailLine) {
+        try {
+            String[] parts = emailLine.split("\\|");
+            if (parts.length < 3) {
+                return CheckLiveMailResponseDTO.builder()
+                        .email(parts.length > 0 ? parts[0] : emailLine)
+                        .password(parts.length > 1 ? parts[1] : "")
+                        .refreshToken("")
+                        .clientId("")
+                        .isLive(false)
+                        .error("Invalid format: requires email|password|refresh_token|client_id")
+                        .build();
+            }
+
+            String email = parts[0].trim();
+            String password = parts[1].trim();
+            String refreshToken = parts[2].trim();
+            String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3].trim() : DEFAULT_CLIENT_ID;
+
+            // Try to refresh token - if successful, email is live
+            TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
+            if (graphToken != null && graphToken.accessToken != null && !graphToken.accessToken.isEmpty()) {
+                return CheckLiveMailResponseDTO.builder()
+                        .email(email)
+                        .password(password)
+                        .refreshToken(refreshToken)
+                        .clientId(clientId)
+                        .isLive(true)
+                        .build();
+            }
+
+            // Try IMAP token as fallback
+            TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
+            if (imapToken != null && imapToken.accessToken != null && !imapToken.accessToken.isEmpty()) {
+                return CheckLiveMailResponseDTO.builder()
+                        .email(email)
+                        .password(password)
+                        .refreshToken(refreshToken)
+                        .clientId(clientId)
+                        .isLive(true)
+                        .build();
+            }
+
+            // All token refresh attempts failed
+            return CheckLiveMailResponseDTO.builder()
+                    .email(email)
+                    .password(password)
+                    .refreshToken(refreshToken)
+                    .clientId(clientId)
+                    .isLive(false)
+                    .error("Token refresh failed")
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error checking mail live status: {}", e.getMessage());
+            return CheckLiveMailResponseDTO.builder()
+                    .email(emailLine.split("\\|")[0])
+                    .isLive(false)
+                    .error("Error: " + e.getMessage())
+                    .build();
         }
     }
 
@@ -813,6 +683,73 @@ public class HotmailServiceImpl implements HotmailService {
         }
     }
 
+    /**
+     * Get OAuth2 token for a single email line
+     */
+    private GetOAuth2ResponseDTO getOAuth2ForSingleMail(String emailLine) {
+        try {
+            String[] parts = emailLine.split("\\|");
+            if (parts.length < 3) {
+                return GetOAuth2ResponseDTO.builder()
+                        .email(parts.length > 0 ? parts[0] : emailLine)
+                        .password(parts.length > 1 ? parts[1] : "")
+                        .refreshToken("")
+                        .clientId("")
+                        .success(false)
+                        .error("Invalid format: requires email|password|refresh_token|client_id")
+                        .build();
+            }
+
+            String email = parts[0].trim();
+            String password = parts[1].trim();
+            String refreshToken = parts[2].trim();
+            String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3].trim() : DEFAULT_CLIENT_ID;
+
+            // Try Graph API token first
+            TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
+            if (graphToken != null && graphToken.accessToken != null && !graphToken.accessToken.isEmpty()) {
+                return GetOAuth2ResponseDTO.builder()
+                        .email(email)
+                        .password(password)
+                        .refreshToken(refreshToken)
+                        .clientId(clientId)
+                        .accessToken(graphToken.accessToken)
+                        .success(true)
+                        .build();
+            }
+
+            // Try IMAP token as fallback
+            TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
+            if (imapToken != null && imapToken.accessToken != null && !imapToken.accessToken.isEmpty()) {
+                return GetOAuth2ResponseDTO.builder()
+                        .email(email)
+                        .password(password)
+                        .refreshToken(refreshToken)
+                        .clientId(clientId)
+                        .accessToken(imapToken.accessToken)
+                        .success(true)
+                        .build();
+            }
+
+            // All token refresh attempts failed
+            return GetOAuth2ResponseDTO.builder()
+                    .email(email)
+                    .password(password)
+                    .refreshToken(refreshToken)
+                    .clientId(clientId)
+                    .success(false)
+                    .error("Could not get access token")
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error getting OAuth2 token: {}", e.getMessage());
+            return GetOAuth2ResponseDTO.builder()
+                    .email(emailLine.split("\\|")[0])
+                    .success(false)
+                    .error("Error: " + e.getMessage())
+                    .build();
+        }
+    }
     /**
      * Token result holder
      */
