@@ -1,5 +1,6 @@
 package com.mailshop_dragonvu.dto.hotmail;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,6 +18,11 @@ public class CheckLiveMailResponseDTO {
     private String password;
     private String refreshToken;
     private String clientId;
+    
+    @JsonProperty("isLive")
     private boolean isLive;
+    
+    private CheckStatus status;
     private String error;
 }
+

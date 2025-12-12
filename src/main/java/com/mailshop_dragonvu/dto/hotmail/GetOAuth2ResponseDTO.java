@@ -19,5 +19,6 @@ public class GetOAuth2ResponseDTO {
     private String clientId;
     private String accessToken;
     private boolean success;
+    private CheckStatus status;
     private String error;
 }

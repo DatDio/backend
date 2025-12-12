@@ -4,32 +4,51 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mailshop_dragonvu.dto.hotmail.*;
 import com.mailshop_dragonvu.service.HotmailService;
+import jakarta.annotation.PreDestroy;
 import jakarta.mail.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Implementation of HotmailService
  * Supports both Graph API and IMAP methods for reading emails
+ * Uses multi-threading for parallel processing
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class HotmailServiceImpl implements HotmailService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    
+    // Thread pool for parallel processing
+    private final ExecutorService executor = Executors.newFixedThreadPool(10);
+
+    public HotmailServiceImpl(RestTemplate restTemplate, ObjectMapper objectMapper) {
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+    }
+    
+    @PreDestroy
+    public void shutdown() {
+        executor.shutdown();
+    }
 
     private static final String GRAPH_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
     private static final String IMAP_TOKEN_URL = "https://login.live.com/oauth20_token.srf";
@@ -75,8 +94,10 @@ public class HotmailServiceImpl implements HotmailService {
                 return HotmailGetCodeResponseDTO.builder()
                         .email(parts.length > 0 ? parts[0] : emailLine)
                         .password(parts.length > 1 ? parts[1] : "")
+                        .refreshToken("")
+                        .clientId("")
                         .status(false)
-                        .content("Invalid format")
+                        .content("Invalid format: requires email|password|refresh_token|client_id")
                         .build();
             }
 
@@ -98,6 +119,8 @@ public class HotmailServiceImpl implements HotmailService {
                     log.info("Reading mail using Graph API for: {}", emailAddr);
                     HotmailGetCodeResponseDTO codeResult = readMailByGraphNew(graphToken.accessToken, emailAddr, password, emailTypes);
                     if (codeResult != null) {
+                        codeResult.setRefreshToken(refreshToken);
+                        codeResult.setClientId(clientId);
                         return codeResult;
                     }
                 }
@@ -108,6 +131,8 @@ public class HotmailServiceImpl implements HotmailService {
                     log.info("Reading mail using IMAP OAuth for: {}", emailAddr);
                     HotmailGetCodeResponseDTO codeResult = readMailByImapNew(emailAddr, password, imapToken.accessToken, emailTypes);
                     if (codeResult != null) {
+                        codeResult.setRefreshToken(refreshToken);
+                        codeResult.setClientId(clientId);
                         return codeResult;
                     }
                 }
@@ -118,14 +143,20 @@ public class HotmailServiceImpl implements HotmailService {
             return HotmailGetCodeResponseDTO.builder()
                     .email(emailAddr)
                     .password(password)
+                    .refreshToken(refreshToken)
+                    .clientId(clientId)
                     .status(false)
                     .content("Could not get access token")
                     .build();
 
         } catch (Exception e) {
             log.error("Error processing email line: {}", e.getMessage(), e);
+            String[] errorParts = emailLine.split("\\|");
             return HotmailGetCodeResponseDTO.builder()
-                    .email(emailLine.split("\\|")[0])
+                    .email(errorParts[0])
+                    .password(errorParts.length > 1 ? errorParts[1] : "")
+                    .refreshToken(errorParts.length > 2 ? errorParts[2] : "")
+                    .clientId(errorParts.length > 3 ? errorParts[3] : "")
                     .status(false)
                     .content("Error: " + e.getMessage())
                     .build();
@@ -431,6 +462,8 @@ public class HotmailServiceImpl implements HotmailService {
                 return CheckLiveMailResponseDTO.builder()
                         .email(parts.length > 0 ? parts[0] : emailLine)
                         .password(parts.length > 1 ? parts[1] : "")
+                        .refreshToken("")
+                        .clientId("")
                         .isLive(false)
                         .error("Invalid format: requires email|password|refresh_token|client_id")
                         .build();
@@ -519,6 +552,8 @@ public class HotmailServiceImpl implements HotmailService {
                 return GetOAuth2ResponseDTO.builder()
                         .email(parts.length > 0 ? parts[0] : emailLine)
                         .password(parts.length > 1 ? parts[1] : "")
+                        .refreshToken("")
+                        .clientId("")
                         .success(false)
                         .error("Invalid format: requires email|password|refresh_token|client_id")
                         .build();
@@ -575,6 +610,209 @@ public class HotmailServiceImpl implements HotmailService {
         }
     }
 
+    // ==================== SSE STREAMING METHODS ====================
+
+    /**
+     * Get verification code with SSE streaming (real-time, multi-threaded)
+     */
+    @Override
+    public void getCodeStream(HotmailGetCodeRequestDTO request, SseEmitter emitter) {
+        if (request.getEmailData() == null || request.getEmailData().isEmpty()) {
+            try {
+                emitter.complete();
+            } catch (Exception ignored) {}
+            return;
+        }
+
+        String[] emailLines = request.getEmailData().trim().split("\\n");
+        AtomicInteger completed = new AtomicInteger(0);
+        int total = emailLines.length;
+
+        // Setup error/timeout handlers
+        emitter.onError(e -> log.warn("SSE error: {}", e.getMessage()));
+        emitter.onTimeout(() -> log.warn("SSE timeout"));
+
+        for (String emailLine : emailLines) {
+            String line = emailLine.trim();
+            if (line.isEmpty()) {
+                if (completed.incrementAndGet() == total) {
+                    try { emitter.complete(); } catch (Exception ignored) {}
+                }
+                continue;
+            }
+
+            executor.submit(() -> {
+                try {
+                    HotmailGetCodeResponseDTO result = processEmailLine(line, request);
+                    // Set CheckStatus based on result
+                    if (result.isStatus() && result.getCode() != null && !result.getCode().isEmpty()) {
+                        result.setCheckStatus(CheckStatus.SUCCESS);
+                    } else if (result.getContent() != null && result.getContent().contains("Error")) {
+                        result.setCheckStatus(CheckStatus.UNKNOWN);
+                    } else {
+                        result.setCheckStatus(CheckStatus.FAILED);
+                    }
+                    
+                    emitter.send(SseEmitter.event()
+                            .name("result")
+                            .data(result));
+                } catch (IOException e) {
+                    log.error("Error sending SSE for get-code: {}", e.getMessage());
+                } catch (Exception e) {
+                    log.error("Error processing email for get-code stream: {}", e.getMessage());
+                    try {
+                        HotmailGetCodeResponseDTO errorResult = HotmailGetCodeResponseDTO.builder()
+                                .email(line.split("\\|")[0])
+                                .status(false)
+                                .checkStatus(CheckStatus.UNKNOWN)
+                                .content("Error: " + e.getMessage())
+                                .build();
+                        emitter.send(SseEmitter.event().name("result").data(errorResult));
+                    } catch (IOException ignored) {}
+                } finally {
+                    if (completed.incrementAndGet() == total) {
+                        try {
+                            emitter.send(SseEmitter.event().name("done").data("complete"));
+                            emitter.complete();
+                        } catch (Exception ignored) {}
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Check live mail with SSE streaming (real-time, multi-threaded)
+     */
+    @Override
+    public void checkLiveMailStream(String emailData, SseEmitter emitter) {
+        if (emailData == null || emailData.isEmpty()) {
+            try { emitter.complete(); } catch (Exception ignored) {}
+            return;
+        }
+
+        String[] emailLines = emailData.trim().split("\\n");
+        AtomicInteger completed = new AtomicInteger(0);
+        int total = emailLines.length;
+
+        emitter.onError(e -> log.warn("SSE error: {}", e.getMessage()));
+        emitter.onTimeout(() -> log.warn("SSE timeout"));
+
+        for (String emailLine : emailLines) {
+            String line = emailLine.trim();
+            if (line.isEmpty()) {
+                if (completed.incrementAndGet() == total) {
+                    try { emitter.complete(); } catch (Exception ignored) {}
+                }
+                continue;
+            }
+
+            executor.submit(() -> {
+                try {
+                    CheckLiveMailResponseDTO result = checkSingleMail(line);
+                    // Set CheckStatus based on isLive and error
+                    if (result.isLive()) {
+                        result.setStatus(CheckStatus.SUCCESS);
+                    } else if (result.getError() != null && (result.getError().contains("Error") || result.getError().contains("exception"))) {
+                        result.setStatus(CheckStatus.UNKNOWN);
+                    } else {
+                        result.setStatus(CheckStatus.FAILED);
+                    }
+                    
+                    emitter.send(SseEmitter.event()
+                            .name("result")
+                            .data(result));
+                } catch (IOException e) {
+                    log.error("Error sending SSE for check-live-mail: {}", e.getMessage());
+                } catch (Exception e) {
+                    log.error("Error processing email for check-live-mail stream: {}", e.getMessage());
+                    try {
+                        CheckLiveMailResponseDTO errorResult = CheckLiveMailResponseDTO.builder()
+                                .email(line.split("\\|")[0])
+                                .isLive(false)
+                                .status(CheckStatus.UNKNOWN)
+                                .error("Error: " + e.getMessage())
+                                .build();
+                        emitter.send(SseEmitter.event().name("result").data(errorResult));
+                    } catch (IOException ignored) {}
+                } finally {
+                    if (completed.incrementAndGet() == total) {
+                        try {
+                            emitter.send(SseEmitter.event().name("done").data("complete"));
+                            emitter.complete();
+                        } catch (Exception ignored) {}
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Get OAuth2 token with SSE streaming (real-time, multi-threaded)
+     */
+    @Override
+    public void getOAuth2Stream(String emailData, SseEmitter emitter) {
+        if (emailData == null || emailData.isEmpty()) {
+            try { emitter.complete(); } catch (Exception ignored) {}
+            return;
+        }
+
+        String[] emailLines = emailData.trim().split("\\n");
+        AtomicInteger completed = new AtomicInteger(0);
+        int total = emailLines.length;
+
+        emitter.onError(e -> log.warn("SSE error: {}", e.getMessage()));
+        emitter.onTimeout(() -> log.warn("SSE timeout"));
+
+        for (String emailLine : emailLines) {
+            String line = emailLine.trim();
+            if (line.isEmpty()) {
+                if (completed.incrementAndGet() == total) {
+                    try { emitter.complete(); } catch (Exception ignored) {}
+                }
+                continue;
+            }
+
+            executor.submit(() -> {
+                try {
+                    GetOAuth2ResponseDTO result = getOAuth2ForSingleMail(line);
+                    // Set CheckStatus based on success and error
+                    if (result.isSuccess() && result.getAccessToken() != null) {
+                        result.setStatus(CheckStatus.SUCCESS);
+                    } else if (result.getError() != null && (result.getError().contains("Error") || result.getError().contains("exception"))) {
+                        result.setStatus(CheckStatus.UNKNOWN);
+                    } else {
+                        result.setStatus(CheckStatus.FAILED);
+                    }
+                    
+                    emitter.send(SseEmitter.event()
+                            .name("result")
+                            .data(result));
+                } catch (IOException e) {
+                    log.error("Error sending SSE for get-oauth2: {}", e.getMessage());
+                } catch (Exception e) {
+                    log.error("Error processing email for get-oauth2 stream: {}", e.getMessage());
+                    try {
+                        GetOAuth2ResponseDTO errorResult = GetOAuth2ResponseDTO.builder()
+                                .email(line.split("\\|")[0])
+                                .success(false)
+                                .status(CheckStatus.UNKNOWN)
+                                .error("Error: " + e.getMessage())
+                                .build();
+                        emitter.send(SseEmitter.event().name("result").data(errorResult));
+                    } catch (IOException ignored) {}
+                } finally {
+                    if (completed.incrementAndGet() == total) {
+                        try {
+                            emitter.send(SseEmitter.event().name("done").data("complete"));
+                            emitter.complete();
+                        } catch (Exception ignored) {}
+                    }
+                }
+            });
+        }
+    }
+
     /**
      * Token result holder
      */
@@ -588,3 +826,4 @@ public class HotmailServiceImpl implements HotmailService {
         }
     }
 }
+

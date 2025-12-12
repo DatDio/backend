@@ -25,12 +25,27 @@ public class HotmailGetCodeResponseDTO {
      * Password (from input data)
      */
     private String password;
+    
+    /**
+     * Refresh token (from input data)
+     */
+    private String refreshToken;
+    
+    /**
+     * Client ID (from input data)
+     */
+    private String clientId;
 
     /**
      * Whether code was found successfully
      */
     @Builder.Default
     private boolean status = false;
+    
+    /**
+     * Status category for 3-column display
+     */
+    private CheckStatus checkStatus;
 
     /**
      * Extracted verification code
