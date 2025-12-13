@@ -33,4 +33,12 @@ public interface HotmailService {
      * @param emitter SSE emitter for streaming results
      */
     void getOAuth2Stream(String emailData, SseEmitter emitter);
+
+    /**
+     * Read mailbox with SSE streaming (real-time)
+     * 
+     * @param request contains email credentials and options
+     * @param emitter SSE emitter for streaming results
+     */
+    void readMailStream(ReadMailRequestDTO request, SseEmitter emitter);
 }

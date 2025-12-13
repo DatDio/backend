@@ -3,9 +3,12 @@ package com.mailshop_dragonvu.controller.client;
 import com.mailshop_dragonvu.dto.ApiResponse;
 import com.mailshop_dragonvu.dto.facebook.FacebookCheckLiveRequestDTO;
 import com.mailshop_dragonvu.dto.hotmail.*;
+import com.mailshop_dragonvu.dto.totp.TotpRequestDTO;
+import com.mailshop_dragonvu.dto.totp.TotpResponseDTO;
 import com.mailshop_dragonvu.service.FacebookService;
 import com.mailshop_dragonvu.service.HotmailService;
 import com.mailshop_dragonvu.service.StreamSessionStore;
+import com.mailshop_dragonvu.service.TotpService;
 import com.mailshop_dragonvu.utils.Constants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,18 +19,49 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping(Constants.API_PATH.TOOLS)
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Tools", description = "Utility tools - Hotmail operations, Facebook check live")
+@Tag(name = "Tools", description = "Utility tools - Hotmail operations, Facebook check live, TOTP 2FA")
 public class ToolController {
 
     private final HotmailService hotmailService;
     private final FacebookService facebookService;
     private final StreamSessionStore sessionStore;
+    private final TotpService totpService;
+
+    // ==================== TOTP - 2FA CODE GENERATION ====================
+
+    /**
+     * Generate TOTP 2FA codes for list of secrets
+     */
+    @PostMapping("/totp/generate")
+    @Operation(summary = "Generate 2FA codes", description = "Generate TOTP 2FA codes from secret keys")
+    public ResponseEntity<ApiResponse<List<TotpResponseDTO>>> generateTotpCodes(@RequestBody TotpRequestDTO request) {
+        log.info("Generating TOTP codes for {} secrets", 
+            request.getSecretData() != null ? request.getSecretData().split("\n").length : 0);
+        
+        List<TotpResponseDTO> results = totpService.generateCodes(request.getSecretData());
+        
+        long successCount = results.stream().filter(r -> "success".equals(r.getStatus())).count();
+        String message = String.format("Generated %d/%d 2FA codes", successCount, results.size());
+        
+        return ResponseEntity.ok(ApiResponse.success(message, results));
+    }
+
+    /**
+     * Get current TOTP time remaining
+     */
+    @GetMapping("/totp/time-remaining")
+    @Operation(summary = "Get time remaining", description = "Get seconds remaining until current TOTP codes expire")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> getTotpTimeRemaining() {
+        int timeRemaining = totpService.getTimeRemaining();
+        return ResponseEntity.ok(ApiResponse.success("Time remaining", Map.of("timeRemaining", timeRemaining)));
+    }
 
     // ==================== HOTMAIL - GET CODE ====================
     
@@ -164,4 +198,39 @@ public class ToolController {
         facebookService.checkLiveStream(session.emailData, emitter);
         return emitter;
     }
+
+    // ==================== HOTMAIL - READ MAIL ====================
+    
+    /**
+     * Step 1: POST email data, get sessionId
+     */
+    @PostMapping("/hotmail/read-mail/start")
+    @Operation(summary = "Start read-mail session", description = "Submit email data and get sessionId for streaming")
+    public ResponseEntity<ApiResponse<Map<String, String>>> startReadMail(@RequestBody ReadMailRequestDTO request) {
+        String sessionId = sessionStore.createReadMailSession(request);
+        log.info("Created read-mail session: {}", sessionId);
+        return ResponseEntity.ok(ApiResponse.success("Session created", Map.of("sessionId", sessionId)));
+    }
+
+    /**
+     * Step 2: GET stream with sessionId
+     */
+    @GetMapping(value = "/hotmail/read-mail/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "Stream read-mail results")
+    public SseEmitter readMailStream(@RequestParam String sessionId) {
+        StreamSessionStore.SessionData session = sessionStore.getAndRemove(sessionId);
+        
+        if (session == null || session.isExpired()) {
+            log.warn("Invalid or expired session: {}", sessionId);
+            SseEmitter emitter = new SseEmitter(0L);
+            emitter.complete();
+            return emitter;
+        }
+        
+        log.info("Starting SSE stream for read-mail session: {}", sessionId);
+        SseEmitter emitter = new SseEmitter(300000L); // 5 min timeout
+        hotmailService.readMailStream(session.readMailRequest, emitter);
+        return emitter;
+    }
 }
+

@@ -24,7 +24,7 @@ public class StreamSessionStore {
      */
     public String createCheckLiveMailSession(String emailData) {
         String sessionId = UUID.randomUUID().toString();
-        sessions.put(sessionId, new SessionData("CHECK_LIVE_MAIL", emailData, null));
+        sessions.put(sessionId, new SessionData("CHECK_LIVE_MAIL", emailData, null, null));
         return sessionId;
     }
     
@@ -33,7 +33,7 @@ public class StreamSessionStore {
      */
     public String createGetOAuth2Session(String emailData) {
         String sessionId = UUID.randomUUID().toString();
-        sessions.put(sessionId, new SessionData("GET_OAUTH2", emailData, null));
+        sessions.put(sessionId, new SessionData("GET_OAUTH2", emailData, null, null));
         return sessionId;
     }
     
@@ -42,7 +42,7 @@ public class StreamSessionStore {
      */
     public String createGetCodeSession(HotmailGetCodeRequestDTO request) {
         String sessionId = UUID.randomUUID().toString();
-        sessions.put(sessionId, new SessionData("GET_CODE", request.getEmailData(), request));
+        sessions.put(sessionId, new SessionData("GET_CODE", request.getEmailData(), request, null));
         return sessionId;
     }
     
@@ -51,7 +51,16 @@ public class StreamSessionStore {
      */
     public String createFacebookCheckLiveSession(String uidData) {
         String sessionId = UUID.randomUUID().toString();
-        sessions.put(sessionId, new SessionData("FACEBOOK_CHECK_LIVE", uidData, null));
+        sessions.put(sessionId, new SessionData("FACEBOOK_CHECK_LIVE", uidData, null, null));
+        return sessionId;
+    }
+    
+    /**
+     * Create a new session for read-mail
+     */
+    public String createReadMailSession(ReadMailRequestDTO request) {
+        String sessionId = UUID.randomUUID().toString();
+        sessions.put(sessionId, new SessionData("READ_MAIL", request.getEmailData(), null, request));
         return sessionId;
     }
     
@@ -76,12 +85,14 @@ public class StreamSessionStore {
         public final String type;
         public final String emailData;
         public final HotmailGetCodeRequestDTO getCodeRequest;
+        public final ReadMailRequestDTO readMailRequest;
         public final long createdAt;
         
-        public SessionData(String type, String emailData, HotmailGetCodeRequestDTO getCodeRequest) {
+        public SessionData(String type, String emailData, HotmailGetCodeRequestDTO getCodeRequest, ReadMailRequestDTO readMailRequest) {
             this.type = type;
             this.emailData = emailData;
             this.getCodeRequest = getCodeRequest;
+            this.readMailRequest = readMailRequest;
             this.createdAt = System.currentTimeMillis();
         }
         
@@ -90,3 +101,4 @@ public class StreamSessionStore {
         }
     }
 }
+

@@ -4,51 +4,41 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mailshop_dragonvu.dto.hotmail.*;
 import com.mailshop_dragonvu.service.HotmailService;
-import jakarta.annotation.PreDestroy;
 import jakarta.mail.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Implementation of HotmailService
- * Supports both Graph API and IMAP methods for reading emails
- * Uses multi-threading for parallel processing
+ * Implementation of HotmailService using WebClient for non-blocking HTTP requests
+ * Provides better performance and scalability compared to RestTemplate + ThreadPool
+ * Note: IMAP operations remain blocking as Jakarta Mail doesn't support reactive
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class HotmailServiceImpl implements HotmailService {
 
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
     private final ObjectMapper objectMapper;
-    
-    // Thread pool for parallel processing
-    private final ExecutorService executor = Executors.newFixedThreadPool(10);
 
-    public HotmailServiceImpl(RestTemplate restTemplate, ObjectMapper objectMapper) {
-        this.restTemplate = restTemplate;
-        this.objectMapper = objectMapper;
-    }
-    
-    @PreDestroy
-    public void shutdown() {
-        executor.shutdown();
-    }
+    // Concurrency limit for parallel requests
+    private static final int MAX_CONCURRENT_REQUESTS = 20;
 
     private static final String GRAPH_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
     private static final String IMAP_TOKEN_URL = "https://login.live.com/oauth20_token.srf";
@@ -64,129 +54,159 @@ public class HotmailServiceImpl implements HotmailService {
     private static final java.time.format.DateTimeFormatter DATE_FORMATTER = 
         java.time.format.DateTimeFormatter.ofPattern("HH:mm - dd/MM/yyyy");
 
-
-
+    // ==================== TOKEN REFRESH METHODS (WebClient) ====================
 
     /**
-     * Refresh token for Graph API
+     * Refresh token for Graph API using WebClient (non-blocking)
      */
-    private TokenResult refreshAccessTokenGraph(String refreshToken, String clientId) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-            body.add("client_id", clientId);
-            body.add("refresh_token", refreshToken);
-            body.add("grant_type", "refresh_token");
-            body.add("scope", "https://graph.microsoft.com/.default offline_access");
-
-            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-            ResponseEntity<String> response = restTemplate.exchange(
-                    GRAPH_TOKEN_URL, HttpMethod.POST, request, String.class);
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                JsonNode json = objectMapper.readTree(response.getBody());
-                String accessToken = json.path("access_token").asText();
-                String responseBody = response.getBody();
-                boolean isGraphToken = responseBody.contains("Mail.Read") || responseBody.contains("Mail.ReadWrite");
-
-                return new TokenResult(accessToken, isGraphToken);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to refresh Graph token: {}", e.getMessage());
-        }
-        return null;
+    private Mono<TokenResult> refreshAccessTokenGraphReactive(String refreshToken, String clientId) {
+        return webClient.post()
+                .uri(GRAPH_TOKEN_URL)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData("client_id", clientId)
+                        .with("refresh_token", refreshToken)
+                        .with("grant_type", "refresh_token")
+                        .with("scope", "https://graph.microsoft.com/.default offline_access"))
+                .exchangeToMono(response -> {
+                    if (response.statusCode().is2xxSuccessful()) {
+                        return response.bodyToMono(String.class)
+                                .map(body -> {
+                                    try {
+                                        JsonNode json = objectMapper.readTree(body);
+                                        String accessToken = json.path("access_token").asText();
+                                        boolean isGraphToken = body.contains("Mail.Read") || body.contains("Mail.ReadWrite");
+                                        return new TokenResult(accessToken, isGraphToken);
+                                    } catch (Exception e) {
+                                        log.warn("Failed to parse Graph token response: {}", e.getMessage());
+                                        return null;
+                                    }
+                                });
+                    } else {
+                        return response.bodyToMono(String.class)
+                                .doOnNext(body -> log.debug("Graph token refresh failed: {} - {}", response.statusCode(), body))
+                                .then(Mono.empty());
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.warn("Failed to refresh Graph token: {}", e.getMessage());
+                    return Mono.empty();
+                });
     }
 
     /**
-     * Refresh token for IMAP
+     * Refresh token for IMAP using WebClient (non-blocking)
      */
-    private TokenResult refreshAccessTokenImap(String refreshToken, String clientId) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+    private Mono<TokenResult> refreshAccessTokenImapReactive(String refreshToken, String clientId) {
+        return webClient.post()
+                .uri(IMAP_TOKEN_URL)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData("client_id", clientId)
+                        .with("refresh_token", refreshToken)
+                        .with("grant_type", "refresh_token"))
+                .exchangeToMono(response -> {
+                    if (response.statusCode().is2xxSuccessful()) {
+                        return response.bodyToMono(String.class)
+                                .map(body -> {
+                                    try {
+                                        JsonNode json = objectMapper.readTree(body);
+                                        String accessToken = json.path("access_token").asText();
+                                        return new TokenResult(accessToken, false);
+                                    } catch (Exception e) {
+                                        log.warn("Failed to parse IMAP token response: {}", e.getMessage());
+                                        return null;
+                                    }
+                                });
+                    } else {
+                        return response.bodyToMono(String.class)
+                                .doOnNext(body -> log.debug("IMAP token refresh failed: {} - {}", response.statusCode(), body))
+                                .then(Mono.empty());
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.warn("Failed to refresh IMAP token: {}", e.getMessage());
+                    return Mono.empty();
+                });
+    }
 
-            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-            body.add("client_id", clientId);
-            body.add("refresh_token", refreshToken);
-            body.add("grant_type", "refresh_token");
+    // ==================== MAIL READ METHODS ====================
 
-            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-            ResponseEntity<String> response = restTemplate.exchange(
-                    IMAP_TOKEN_URL, HttpMethod.POST, request, String.class);
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                JsonNode json = objectMapper.readTree(response.getBody());
-                String accessToken = json.path("access_token").asText();
-                return new TokenResult(accessToken, false);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to refresh IMAP token: {}", e.getMessage());
-        }
-        return null;
+    /**
+     * Read emails using Microsoft Graph API (non-blocking with WebClient)
+     */
+    private Mono<HotmailGetCodeResponseDTO> readMailByGraphReactive(String accessToken, String emailAddr, String password, List<String> emailTypes) {
+        return webClient.get()
+                .uri(GRAPH_MESSAGES_URL + "?$top=50&$orderby=receivedDateTime desc")
+                .headers(h -> h.setBearerAuth(accessToken))
+                .exchangeToMono(response -> {
+                    if (response.statusCode().is2xxSuccessful()) {
+                        return response.bodyToMono(String.class)
+                                .map(body -> parseGraphMessages(body, emailAddr, password, emailTypes));
+                    } else {
+                        return response.bodyToMono(String.class)
+                                .doOnNext(body -> log.debug("Graph messages read failed: {} - {}", response.statusCode(), body))
+                                .thenReturn(createNoCodeResult(emailAddr, password));
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Error reading mail by Graph API: {}", e.getMessage());
+                    return Mono.just(createNoCodeResult(emailAddr, password));
+                });
     }
 
     /**
-     * Read emails using Microsoft Graph API - new format returning single result
+     * Parse Graph API messages response
      */
-    private HotmailGetCodeResponseDTO readMailByGraphNew(String accessToken, String emailAddr, String password, List<String> emailTypes) {
+    private HotmailGetCodeResponseDTO parseGraphMessages(String responseBody, String emailAddr, String password, List<String> emailTypes) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(accessToken);
+            JsonNode json = objectMapper.readTree(responseBody);
+            JsonNode messages = json.path("value");
 
-            HttpEntity<Void> request = new HttpEntity<>(headers);
-            ResponseEntity<String> response = restTemplate.exchange(
-                    GRAPH_MESSAGES_URL + "?$top=50&$orderby=receivedDateTime desc",
-                    HttpMethod.GET, request, String.class);
+            for (JsonNode msg : messages) {
+                String fromAddr = msg.path("from").path("emailAddress").path("address").asText();
+                String subject = msg.path("subject").asText();
+                String receivedDateTime = msg.path("receivedDateTime").asText();
 
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                JsonNode json = objectMapper.readTree(response.getBody());
-                JsonNode messages = json.path("value");
+                // Filter by email types
+                if (!matchesEmailTypes(fromAddr, subject, emailTypes)) {
+                    continue;
+                }
 
-                for (JsonNode msg : messages) {
-                    String fromAddr = msg.path("from").path("emailAddress").path("address").asText();
-                    String subject = msg.path("subject").asText();
-                    String receivedDateTime = msg.path("receivedDateTime").asText();
-
-                    // Filter by email types
-                    if (!matchesEmailTypes(fromAddr, subject, emailTypes)) {
-                        continue;
-                    }
-
-                    // Extract code from subject
-                    String code = extractCode(subject);
-                    if (code != null && !code.isEmpty()) {
-                        LocalDateTime dateTime = parseDateTime(receivedDateTime);
-                        String formattedDate = dateTime != null ? dateTime.format(DATE_FORMATTER) : "";
-                        
-                        return HotmailGetCodeResponseDTO.builder()
-                                .email(emailAddr)
-                                .password(password)
-                                .status(true)
-                                .code(code)
-                                .content(subject)
-                                .date(formattedDate)
-                                .build();
-                    }
+                // Extract code from subject
+                String code = extractCode(subject);
+                if (code != null && !code.isEmpty()) {
+                    LocalDateTime dateTime = parseDateTime(receivedDateTime);
+                    String formattedDate = dateTime != null ? dateTime.format(DATE_FORMATTER) : "";
+                    
+                    return HotmailGetCodeResponseDTO.builder()
+                            .email(emailAddr)
+                            .password(password)
+                            .status(true)
+                            .code(code)
+                            .content(subject)
+                            .date(formattedDate)
+                            .build();
                 }
             }
         } catch (Exception e) {
-            log.error("Error reading mail by Graph API: {}", e.getMessage(), e);
+            log.error("Error parsing Graph messages: {}", e.getMessage());
         }
 
-        return HotmailGetCodeResponseDTO.builder()
-                .email(emailAddr)
-                .password(password)
-                .status(false)
-                .content("No verification code found")
-                .build();
+        return createNoCodeResult(emailAddr, password);
     }
 
     /**
-     * Read emails using IMAP with OAuth2 - new format returning single result
+     * Read emails using IMAP with OAuth2 (blocking - wrapped in Mono)
+     * IMAP operations are inherently blocking, so we run on boundedElastic scheduler
      */
-    private HotmailGetCodeResponseDTO readMailByImapNew(String emailAddr, String password, String accessToken, List<String> emailTypes) {
+    private Mono<HotmailGetCodeResponseDTO> readMailByImapReactive(String emailAddr, String password, String accessToken, List<String> emailTypes) {
+        return Mono.fromCallable(() -> readMailByImapBlocking(emailAddr, password, accessToken, emailTypes))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * Blocking IMAP read operation
+     */
+    private HotmailGetCodeResponseDTO readMailByImapBlocking(String emailAddr, String password, String accessToken, List<String> emailTypes) {
         Store store = null;
         Folder inbox = null;
 
@@ -239,7 +259,7 @@ public class HotmailServiceImpl implements HotmailService {
             }
 
         } catch (Exception e) {
-            log.error("Error reading mail by IMAP: {}", e.getMessage(), e);
+            log.error("Error reading mail by IMAP: {}", e.getMessage());
         } finally {
             try {
                 if (inbox != null && inbox.isOpen()) inbox.close(false);
@@ -247,6 +267,13 @@ public class HotmailServiceImpl implements HotmailService {
             } catch (Exception ignored) {}
         }
 
+        return createNoCodeResult(emailAddr, password);
+    }
+
+    /**
+     * Create a no-code-found result
+     */
+    private HotmailGetCodeResponseDTO createNoCodeResult(String emailAddr, String password) {
         return HotmailGetCodeResponseDTO.builder()
                 .email(emailAddr)
                 .password(password)
@@ -254,6 +281,8 @@ public class HotmailServiceImpl implements HotmailService {
                 .content("No verification code found")
                 .build();
     }
+
+    // ==================== HELPER METHODS ====================
 
     /**
      * Check if email matches any of the specified type filters
@@ -332,39 +361,41 @@ public class HotmailServiceImpl implements HotmailService {
         }
     }
 
-    // ==================== SSE STREAMING METHODS ====================
+    // ==================== SSE STREAMING METHODS (Reactive) ====================
 
     /**
-     * Get verification code with SSE streaming (real-time, multi-threaded)
+     * Get verification code with SSE streaming using reactive Flux
      */
     @Override
     public void getCodeStream(HotmailGetCodeRequestDTO request, SseEmitter emitter) {
         if (request.getEmailData() == null || request.getEmailData().isEmpty()) {
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {}
+            completeEmitter(emitter);
             return;
         }
-        String[] emailLines = request.getEmailData().trim().split("\\n");
+
+        List<String> emailLines = Arrays.stream(request.getEmailData().trim().split("\\n"))
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .toList();
+
+        if (emailLines.isEmpty()) {
+            completeEmitter(emitter);
+            return;
+        }
+
         AtomicInteger completed = new AtomicInteger(0);
-        int total = emailLines.length;
+        int total = emailLines.size();
 
         // Setup error/timeout handlers
         emitter.onError(e -> log.warn("SSE error: {}", e.getMessage()));
         emitter.onTimeout(() -> log.warn("SSE timeout"));
 
-        for (String emailLine : emailLines) {
-            String line = emailLine.trim();
-            if (line.isEmpty()) {
-                if (completed.incrementAndGet() == total) {
-                    try { emitter.complete(); } catch (Exception ignored) {}
-                }
-                continue;
-            }
-
-            executor.submit(() -> {
-                try {
-                    HotmailGetCodeResponseDTO result = processGetCodeSingleEmailLine(line, request);
+        // Process all emails using reactive streams with concurrency control
+        Flux.fromIterable(emailLines)
+                .flatMap(line -> processGetCodeSingleEmailReactive(line, request)
+                                .subscribeOn(Schedulers.boundedElastic()),
+                        MAX_CONCURRENT_REQUESTS)
+                .doOnNext(result -> {
                     // Set CheckStatus based on result
                     if (result.isStatus() && result.getCode() != null && !result.getCode().isEmpty()) {
                         result.setCheckStatus(CheckStatus.SUCCESS);
@@ -373,52 +404,44 @@ public class HotmailServiceImpl implements HotmailService {
                     } else {
                         result.setCheckStatus(CheckStatus.FAILED);
                     }
-                    
-                    emitter.send(SseEmitter.event()
-                            .name("result")
-                            .data(result));
-                } catch (IOException e) {
-                    log.error("Error sending SSE for get-code: {}", e.getMessage());
-                } catch (Exception e) {
-                    log.error("Error processing email for get-code stream: {}", e.getMessage());
+
                     try {
-                        HotmailGetCodeResponseDTO errorResult = HotmailGetCodeResponseDTO.builder()
-                                .email(line.split("\\|")[0])
-                                .status(false)
-                                .checkStatus(CheckStatus.UNKNOWN)
-                                .content("Error: " + e.getMessage())
-                                .build();
-                        emitter.send(SseEmitter.event().name("result").data(errorResult));
-                    } catch (IOException ignored) {}
-                } finally {
-                    if (completed.incrementAndGet() == total) {
-                        try {
-                            emitter.send(SseEmitter.event().name("done").data("complete"));
-                            emitter.complete();
-                        } catch (Exception ignored) {}
+                        emitter.send(SseEmitter.event()
+                                .name("result")
+                                .data(result));
+                    } catch (IOException e) {
+                        log.error("Error sending SSE for get-code: {}", e.getMessage());
                     }
-                }
-            });
-        }
+
+                    if (completed.incrementAndGet() == total) {
+                        sendCompleteEvent(emitter);
+                    }
+                })
+                .doOnError(error -> {
+                    log.error("Stream error: {}", error.getMessage());
+                    completeEmitter(emitter);
+                })
+                .doOnComplete(() -> log.info("Get-code completed for {} emails", total))
+                .subscribe();
     }
 
     /**
-     * Process a single email line and get verification code
+     * Process a single email line and get verification code (reactive)
      */
-    private HotmailGetCodeResponseDTO processGetCodeSingleEmailLine(String emailLine, HotmailGetCodeRequestDTO request) {
+    private Mono<HotmailGetCodeResponseDTO> processGetCodeSingleEmailReactive(String emailLine, HotmailGetCodeRequestDTO request) {
         try {
             // Parse email data: email|password|refresh_token|client_id
             String[] parts = emailLine.split("\\|");
             if (parts.length < 3) {
                 log.error("Invalid email data format for line: {}", emailLine);
-                return HotmailGetCodeResponseDTO.builder()
+                return Mono.just(HotmailGetCodeResponseDTO.builder()
                         .email(parts.length > 0 ? parts[0] : emailLine)
                         .password(parts.length > 1 ? parts[1] : "")
                         .refreshToken("")
                         .clientId("")
                         .status(false)
                         .content("Invalid format: requires email|password|refresh_token|client_id")
-                        .build();
+                        .build());
             }
 
             String emailAddr = parts[0];
@@ -426,94 +449,108 @@ public class HotmailServiceImpl implements HotmailService {
             String refreshToken = parts.length > 2 ? parts[2] : "";
             String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3] : DEFAULT_CLIENT_ID;
 
-            // Try to get code using Graph API or IMAP
             List<String> emailTypes = request.getEmailTypes();
             if (emailTypes == null || emailTypes.isEmpty()) {
                 emailTypes = List.of("Auto");
             }
+            final List<String> finalEmailTypes = emailTypes;
 
-            // Try Graph API first (OAuth2)
+            // Try Graph API first
             if ("Oauth2".equalsIgnoreCase(request.getGetType()) || "Graph API".equalsIgnoreCase(request.getGetType())) {
-                TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
-                if (graphToken != null && graphToken.isGraphToken) {
-                    log.info("Reading mail using Graph API for: {}", emailAddr);
-                    HotmailGetCodeResponseDTO codeResult = readMailByGraphNew(graphToken.accessToken, emailAddr, password, emailTypes);
-                    if (codeResult != null) {
-                        codeResult.setRefreshToken(refreshToken);
-                        codeResult.setClientId(clientId);
-                        return codeResult;
-                    }
-                }
-
-                // Fallback to IMAP with OAuth
-                TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
-                if (imapToken != null) {
-                    log.info("Reading mail using IMAP OAuth for: {}", emailAddr);
-                    HotmailGetCodeResponseDTO codeResult = readMailByImapNew(emailAddr, password, imapToken.accessToken, emailTypes);
-                    if (codeResult != null) {
-                        codeResult.setRefreshToken(refreshToken);
-                        codeResult.setClientId(clientId);
-                        return codeResult;
-                    }
-                }
+                return refreshAccessTokenGraphReactive(refreshToken, clientId)
+                        .flatMap(graphToken -> {
+                            if (graphToken != null && graphToken.isGraphToken) {
+                                log.info("Reading mail using Graph API for: {}", emailAddr);
+                                return readMailByGraphReactive(graphToken.accessToken, emailAddr, password, finalEmailTypes)
+                                        .map(result -> {
+                                            result.setRefreshToken(refreshToken);
+                                            result.setClientId(clientId);
+                                            return result;
+                                        });
+                            }
+                            return Mono.empty();
+                        })
+                        .switchIfEmpty(
+                            // Fallback to IMAP with OAuth
+                            refreshAccessTokenImapReactive(refreshToken, clientId)
+                                    .flatMap(imapToken -> {
+                                        if (imapToken != null) {
+                                            log.info("Reading mail using IMAP OAuth for: {}", emailAddr);
+                                            return readMailByImapReactive(emailAddr, password, imapToken.accessToken, finalEmailTypes)
+                                                    .map(result -> {
+                                                        result.setRefreshToken(refreshToken);
+                                                        result.setClientId(clientId);
+                                                        return result;
+                                                    });
+                                        }
+                                        return Mono.empty();
+                                    })
+                        )
+                        .switchIfEmpty(Mono.just(HotmailGetCodeResponseDTO.builder()
+                                .email(emailAddr)
+                                .password(password)
+                                .refreshToken(refreshToken)
+                                .clientId(clientId)
+                                .status(false)
+                                .content("Could not get access token")
+                                .build()));
             }
 
-            // Could not get access token or no code found
-            log.warn("Could not get access token or code for: {}", emailAddr);
-            return HotmailGetCodeResponseDTO.builder()
+            // Default response if getType not matched
+            return Mono.just(HotmailGetCodeResponseDTO.builder()
                     .email(emailAddr)
                     .password(password)
                     .refreshToken(refreshToken)
                     .clientId(clientId)
                     .status(false)
-                    .content("Could not get access token")
-                    .build();
+                    .content("Unsupported get type")
+                    .build());
 
         } catch (Exception e) {
             log.error("Error processing email line: {}", e.getMessage(), e);
             String[] errorParts = emailLine.split("\\|");
-            return HotmailGetCodeResponseDTO.builder()
+            return Mono.just(HotmailGetCodeResponseDTO.builder()
                     .email(errorParts[0])
                     .password(errorParts.length > 1 ? errorParts[1] : "")
                     .refreshToken(errorParts.length > 2 ? errorParts[2] : "")
                     .clientId(errorParts.length > 3 ? errorParts[3] : "")
                     .status(false)
                     .content("Error: " + e.getMessage())
-                    .build();
+                    .build());
         }
     }
 
-
-
     /**
-     * Check live mail with SSE streaming (real-time, multi-threaded)
+     * Check live mail with SSE streaming using reactive Flux
      */
     @Override
     public void checkLiveMailStream(String emailData, SseEmitter emitter) {
         if (emailData == null || emailData.isEmpty()) {
-            try { emitter.complete(); } catch (Exception ignored) {}
+            completeEmitter(emitter);
             return;
         }
 
-        String[] emailLines = emailData.trim().split("\\n");
+        List<String> emailLines = Arrays.stream(emailData.trim().split("\\n"))
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .toList();
+
+        if (emailLines.isEmpty()) {
+            completeEmitter(emitter);
+            return;
+        }
+
         AtomicInteger completed = new AtomicInteger(0);
-        int total = emailLines.length;
+        int total = emailLines.size();
 
         emitter.onError(e -> log.warn("SSE error: {}", e.getMessage()));
         emitter.onTimeout(() -> log.warn("SSE timeout"));
 
-        for (String emailLine : emailLines) {
-            String line = emailLine.trim();
-            if (line.isEmpty()) {
-                if (completed.incrementAndGet() == total) {
-                    try { emitter.complete(); } catch (Exception ignored) {}
-                }
-                continue;
-            }
-
-            executor.submit(() -> {
-                try {
-                    CheckLiveMailResponseDTO result = checkLiveSingleMail(line);
+        Flux.fromIterable(emailLines)
+                .flatMap(line -> checkLiveSingleMailReactive(line)
+                                .subscribeOn(Schedulers.boundedElastic()),
+                        MAX_CONCURRENT_REQUESTS)
+                .doOnNext(result -> {
                     // Set CheckStatus based on isLive and error
                     if (result.isLive()) {
                         result.setStatus(CheckStatus.SUCCESS);
@@ -522,50 +559,42 @@ public class HotmailServiceImpl implements HotmailService {
                     } else {
                         result.setStatus(CheckStatus.FAILED);
                     }
-                    
-                    emitter.send(SseEmitter.event()
-                            .name("result")
-                            .data(result));
-                } catch (IOException e) {
-                    log.error("Error sending SSE for check-live-mail: {}", e.getMessage());
-                } catch (Exception e) {
-                    log.error("Error processing email for check-live-mail stream: {}", e.getMessage());
+
                     try {
-                        CheckLiveMailResponseDTO errorResult = CheckLiveMailResponseDTO.builder()
-                                .email(line.split("\\|")[0])
-                                .isLive(false)
-                                .status(CheckStatus.UNKNOWN)
-                                .error("Error: " + e.getMessage())
-                                .build();
-                        emitter.send(SseEmitter.event().name("result").data(errorResult));
-                    } catch (IOException ignored) {}
-                } finally {
-                    if (completed.incrementAndGet() == total) {
-                        try {
-                            emitter.send(SseEmitter.event().name("done").data("complete"));
-                            emitter.complete();
-                        } catch (Exception ignored) {}
+                        emitter.send(SseEmitter.event()
+                                .name("result")
+                                .data(result));
+                    } catch (IOException e) {
+                        log.error("Error sending SSE for check-live-mail: {}", e.getMessage());
                     }
-                }
-            });
-        }
+
+                    if (completed.incrementAndGet() == total) {
+                        sendCompleteEvent(emitter);
+                    }
+                })
+                .doOnError(error -> {
+                    log.error("Stream error: {}", error.getMessage());
+                    completeEmitter(emitter);
+                })
+                .doOnComplete(() -> log.info("Check-live-mail completed for {} emails", total))
+                .subscribe();
     }
 
     /**
-     * Check a single email line for live status
+     * Check a single email line for live status (reactive)
      */
-    private CheckLiveMailResponseDTO checkLiveSingleMail(String emailLine) {
+    private Mono<CheckLiveMailResponseDTO> checkLiveSingleMailReactive(String emailLine) {
         try {
             String[] parts = emailLine.split("\\|");
             if (parts.length < 3) {
-                return CheckLiveMailResponseDTO.builder()
+                return Mono.just(CheckLiveMailResponseDTO.builder()
                         .email(parts.length > 0 ? parts[0] : emailLine)
                         .password(parts.length > 1 ? parts[1] : "")
                         .refreshToken("")
                         .clientId("")
                         .isLive(false)
                         .error("Invalid format: requires email|password|refresh_token|client_id")
-                        .build();
+                        .build());
             }
 
             String email = parts[0].trim();
@@ -574,78 +603,77 @@ public class HotmailServiceImpl implements HotmailService {
             String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3].trim() : DEFAULT_CLIENT_ID;
 
             // Try to refresh token - if successful, email is live
-            TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
-            if (graphToken != null && graphToken.accessToken != null && !graphToken.accessToken.isEmpty()) {
-                return CheckLiveMailResponseDTO.builder()
-                        .email(email)
-                        .password(password)
-                        .refreshToken(refreshToken)
-                        .clientId(clientId)
-                        .isLive(true)
-                        .build();
-            }
-
-            // Try IMAP token as fallback
-            TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
-            if (imapToken != null && imapToken.accessToken != null && !imapToken.accessToken.isEmpty()) {
-                return CheckLiveMailResponseDTO.builder()
-                        .email(email)
-                        .password(password)
-                        .refreshToken(refreshToken)
-                        .clientId(clientId)
-                        .isLive(true)
-                        .build();
-            }
-
-            // All token refresh attempts failed
-            return CheckLiveMailResponseDTO.builder()
-                    .email(email)
-                    .password(password)
-                    .refreshToken(refreshToken)
-                    .clientId(clientId)
-                    .isLive(false)
-                    .error("Token refresh failed")
-                    .build();
+            return refreshAccessTokenGraphReactive(refreshToken, clientId)
+                    .filter(token -> token != null && token.accessToken != null && !token.accessToken.isEmpty())
+                    .map(token -> CheckLiveMailResponseDTO.builder()
+                            .email(email)
+                            .password(password)
+                            .refreshToken(refreshToken)
+                            .clientId(clientId)
+                            .isLive(true)
+                            .build())
+                    .switchIfEmpty(
+                        // Try IMAP token as fallback
+                        refreshAccessTokenImapReactive(refreshToken, clientId)
+                                .filter(token -> token != null && token.accessToken != null && !token.accessToken.isEmpty())
+                                .map(token -> CheckLiveMailResponseDTO.builder()
+                                        .email(email)
+                                        .password(password)
+                                        .refreshToken(refreshToken)
+                                        .clientId(clientId)
+                                        .isLive(true)
+                                        .build())
+                    )
+                    .switchIfEmpty(Mono.just(CheckLiveMailResponseDTO.builder()
+                            .email(email)
+                            .password(password)
+                            .refreshToken(refreshToken)
+                            .clientId(clientId)
+                            .isLive(false)
+                            .error("Token refresh failed")
+                            .build()));
 
         } catch (Exception e) {
             log.error("Error checking mail live status: {}", e.getMessage());
-            return CheckLiveMailResponseDTO.builder()
+            return Mono.just(CheckLiveMailResponseDTO.builder()
                     .email(emailLine.split("\\|")[0])
                     .isLive(false)
                     .error("Error: " + e.getMessage())
-                    .build();
+                    .build());
         }
     }
 
     /**
-     * Get OAuth2 token with SSE streaming (real-time, multi-threaded)
+     * Get OAuth2 token with SSE streaming using reactive Flux
      */
     @Override
     public void getOAuth2Stream(String emailData, SseEmitter emitter) {
         if (emailData == null || emailData.isEmpty()) {
-            try { emitter.complete(); } catch (Exception ignored) {}
+            completeEmitter(emitter);
             return;
         }
 
-        String[] emailLines = emailData.trim().split("\\n");
+        List<String> emailLines = Arrays.stream(emailData.trim().split("\\n"))
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .toList();
+
+        if (emailLines.isEmpty()) {
+            completeEmitter(emitter);
+            return;
+        }
+
         AtomicInteger completed = new AtomicInteger(0);
-        int total = emailLines.length;
+        int total = emailLines.size();
 
         emitter.onError(e -> log.warn("SSE error: {}", e.getMessage()));
         emitter.onTimeout(() -> log.warn("SSE timeout"));
 
-        for (String emailLine : emailLines) {
-            String line = emailLine.trim();
-            if (line.isEmpty()) {
-                if (completed.incrementAndGet() == total) {
-                    try { emitter.complete(); } catch (Exception ignored) {}
-                }
-                continue;
-            }
-
-            executor.submit(() -> {
-                try {
-                    GetOAuth2ResponseDTO result = getOAuth2ForSingleMail(line);
+        Flux.fromIterable(emailLines)
+                .flatMap(line -> getOAuth2ForSingleMailReactive(line)
+                                .subscribeOn(Schedulers.boundedElastic()),
+                        MAX_CONCURRENT_REQUESTS)
+                .doOnNext(result -> {
                     // Set CheckStatus based on success and error
                     if (result.isSuccess() && result.getAccessToken() != null) {
                         result.setStatus(CheckStatus.SUCCESS);
@@ -654,50 +682,42 @@ public class HotmailServiceImpl implements HotmailService {
                     } else {
                         result.setStatus(CheckStatus.FAILED);
                     }
-                    
-                    emitter.send(SseEmitter.event()
-                            .name("result")
-                            .data(result));
-                } catch (IOException e) {
-                    log.error("Error sending SSE for get-oauth2: {}", e.getMessage());
-                } catch (Exception e) {
-                    log.error("Error processing email for get-oauth2 stream: {}", e.getMessage());
+
                     try {
-                        GetOAuth2ResponseDTO errorResult = GetOAuth2ResponseDTO.builder()
-                                .email(line.split("\\|")[0])
-                                .success(false)
-                                .status(CheckStatus.UNKNOWN)
-                                .error("Error: " + e.getMessage())
-                                .build();
-                        emitter.send(SseEmitter.event().name("result").data(errorResult));
-                    } catch (IOException ignored) {}
-                } finally {
-                    if (completed.incrementAndGet() == total) {
-                        try {
-                            emitter.send(SseEmitter.event().name("done").data("complete"));
-                            emitter.complete();
-                        } catch (Exception ignored) {}
+                        emitter.send(SseEmitter.event()
+                                .name("result")
+                                .data(result));
+                    } catch (IOException e) {
+                        log.error("Error sending SSE for get-oauth2: {}", e.getMessage());
                     }
-                }
-            });
-        }
+
+                    if (completed.incrementAndGet() == total) {
+                        sendCompleteEvent(emitter);
+                    }
+                })
+                .doOnError(error -> {
+                    log.error("Stream error: {}", error.getMessage());
+                    completeEmitter(emitter);
+                })
+                .doOnComplete(() -> log.info("Get-oauth2 completed for {} emails", total))
+                .subscribe();
     }
 
     /**
-     * Get OAuth2 token for a single email line
+     * Get OAuth2 token for a single email line (reactive)
      */
-    private GetOAuth2ResponseDTO getOAuth2ForSingleMail(String emailLine) {
+    private Mono<GetOAuth2ResponseDTO> getOAuth2ForSingleMailReactive(String emailLine) {
         try {
             String[] parts = emailLine.split("\\|");
             if (parts.length < 3) {
-                return GetOAuth2ResponseDTO.builder()
+                return Mono.just(GetOAuth2ResponseDTO.builder()
                         .email(parts.length > 0 ? parts[0] : emailLine)
                         .password(parts.length > 1 ? parts[1] : "")
                         .refreshToken("")
                         .clientId("")
                         .success(false)
                         .error("Invalid format: requires email|password|refresh_token|client_id")
-                        .build();
+                        .build());
             }
 
             String email = parts[0].trim();
@@ -706,50 +726,373 @@ public class HotmailServiceImpl implements HotmailService {
             String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3].trim() : DEFAULT_CLIENT_ID;
 
             // Try Graph API token first
-            TokenResult graphToken = refreshAccessTokenGraph(refreshToken, clientId);
-            if (graphToken != null && graphToken.accessToken != null && !graphToken.accessToken.isEmpty()) {
-                return GetOAuth2ResponseDTO.builder()
-                        .email(email)
-                        .password(password)
-                        .refreshToken(refreshToken)
-                        .clientId(clientId)
-                        .accessToken(graphToken.accessToken)
-                        .success(true)
-                        .build();
-            }
-
-            // Try IMAP token as fallback
-            TokenResult imapToken = refreshAccessTokenImap(refreshToken, clientId);
-            if (imapToken != null && imapToken.accessToken != null && !imapToken.accessToken.isEmpty()) {
-                return GetOAuth2ResponseDTO.builder()
-                        .email(email)
-                        .password(password)
-                        .refreshToken(refreshToken)
-                        .clientId(clientId)
-                        .accessToken(imapToken.accessToken)
-                        .success(true)
-                        .build();
-            }
-
-            // All token refresh attempts failed
-            return GetOAuth2ResponseDTO.builder()
-                    .email(email)
-                    .password(password)
-                    .refreshToken(refreshToken)
-                    .clientId(clientId)
-                    .success(false)
-                    .error("Could not get access token")
-                    .build();
+            return refreshAccessTokenGraphReactive(refreshToken, clientId)
+                    .filter(token -> token != null && token.accessToken != null && !token.accessToken.isEmpty())
+                    .map(token -> GetOAuth2ResponseDTO.builder()
+                            .email(email)
+                            .password(password)
+                            .refreshToken(refreshToken)
+                            .clientId(clientId)
+                            .accessToken(token.accessToken)
+                            .success(true)
+                            .build())
+                    .switchIfEmpty(
+                        // Try IMAP token as fallback
+                        refreshAccessTokenImapReactive(refreshToken, clientId)
+                                .filter(token -> token != null && token.accessToken != null && !token.accessToken.isEmpty())
+                                .map(token -> GetOAuth2ResponseDTO.builder()
+                                        .email(email)
+                                        .password(password)
+                                        .refreshToken(refreshToken)
+                                        .clientId(clientId)
+                                        .accessToken(token.accessToken)
+                                        .success(true)
+                                        .build())
+                    )
+                    .switchIfEmpty(Mono.just(GetOAuth2ResponseDTO.builder()
+                            .email(email)
+                            .password(password)
+                            .refreshToken(refreshToken)
+                            .clientId(clientId)
+                            .success(false)
+                            .error("Could not get access token")
+                            .build()));
 
         } catch (Exception e) {
             log.error("Error getting OAuth2 token: {}", e.getMessage());
-            return GetOAuth2ResponseDTO.builder()
+            return Mono.just(GetOAuth2ResponseDTO.builder()
                     .email(emailLine.split("\\|")[0])
                     .success(false)
                     .error("Error: " + e.getMessage())
+                    .build());
+        }
+    }
+
+    // ==================== UTILITY METHODS ====================
+
+    /**
+     * Send completion event and complete emitter
+     */
+    private void sendCompleteEvent(SseEmitter emitter) {
+        try {
+            emitter.send(SseEmitter.event().name("done").data("complete"));
+            emitter.complete();
+        } catch (Exception e) {
+            log.debug("Error sending complete event: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Safely complete emitter
+     */
+    private void completeEmitter(SseEmitter emitter) {
+        try {
+            emitter.complete();
+        } catch (Exception ignored) {
+        }
+    }
+
+    // ==================== READ MAIL STREAM ====================
+
+    /**
+     * Read mailbox with SSE streaming using reactive Flux
+     */
+    @Override
+    public void readMailStream(ReadMailRequestDTO request, SseEmitter emitter) {
+        if (request.getEmailData() == null || request.getEmailData().isEmpty()) {
+            completeEmitter(emitter);
+            return;
+        }
+
+        List<String> emailLines = Arrays.stream(request.getEmailData().trim().split("\\n"))
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .toList();
+
+        if (emailLines.isEmpty()) {
+            completeEmitter(emitter);
+            return;
+        }
+
+        AtomicInteger completed = new AtomicInteger(0);
+        int total = emailLines.size();
+        int messageCount = request.getMessageCount() > 0 ? request.getMessageCount() : 20;
+
+        emitter.onError(e -> log.warn("SSE error: {}", e.getMessage()));
+        emitter.onTimeout(() -> log.warn("SSE timeout"));
+
+        Flux.fromIterable(emailLines)
+                .flatMap(line -> readMailForSingleEmailReactive(line, messageCount)
+                                .subscribeOn(Schedulers.boundedElastic()),
+                        MAX_CONCURRENT_REQUESTS)
+                .doOnNext(result -> {
+                    try {
+                        emitter.send(SseEmitter.event()
+                                .name("result")
+                                .data(result));
+                    } catch (IOException e) {
+                        log.error("Error sending SSE for read-mail: {}", e.getMessage());
+                    }
+
+                    if (completed.incrementAndGet() == total) {
+                        sendCompleteEvent(emitter);
+                    }
+                })
+                .doOnError(error -> {
+                    log.error("Stream error: {}", error.getMessage());
+                    completeEmitter(emitter);
+                })
+                .doOnComplete(() -> log.info("Read-mail completed for {} emails", total))
+                .subscribe();
+    }
+
+    /**
+     * Read mailbox for a single email (reactive)
+     */
+    private Mono<ReadMailResponseDTO> readMailForSingleEmailReactive(String emailLine, int messageCount) {
+        try {
+            String[] parts = emailLine.split("\\|");
+            if (parts.length < 3) {
+                return Mono.just(ReadMailResponseDTO.builder()
+                        .email(parts.length > 0 ? parts[0] : emailLine)
+                        .password(parts.length > 1 ? parts[1] : "")
+                        .success(false)
+                        .status(CheckStatus.FAILED)
+                        .error("Invalid format: requires email|password|refresh_token|client_id")
+                        .build());
+            }
+
+            String email = parts[0].trim();
+            String password = parts[1].trim();
+            String refreshToken = parts[2].trim();
+            String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3].trim() : DEFAULT_CLIENT_ID;
+
+            // Try Graph API first
+            return refreshAccessTokenGraphReactive(refreshToken, clientId)
+                    .filter(token -> token != null && token.isGraphToken)
+                    .flatMap(token -> readMailboxByGraphReactive(token.accessToken, email, password, messageCount))
+                    .switchIfEmpty(
+                        // Fallback to IMAP
+                        refreshAccessTokenImapReactive(refreshToken, clientId)
+                                .filter(token -> token != null && token.accessToken != null)
+                                .flatMap(token -> readMailboxByImapReactive(email, password, token.accessToken, messageCount))
+                    )
+                    .switchIfEmpty(Mono.just(ReadMailResponseDTO.builder()
+                            .email(email)
+                            .password(password)
+                            .success(false)
+                            .status(CheckStatus.FAILED)
+                            .error("Could not get access token")
+                            .build()));
+
+        } catch (Exception e) {
+            log.error("Error reading mailbox: {}", e.getMessage());
+            return Mono.just(ReadMailResponseDTO.builder()
+                    .email(emailLine.split("\\|")[0])
+                    .success(false)
+                    .status(CheckStatus.UNKNOWN)
+                    .error("Error: " + e.getMessage())
+                    .build());
+        }
+    }
+
+    /**
+     * Read mailbox using Graph API (non-blocking)
+     */
+    private Mono<ReadMailResponseDTO> readMailboxByGraphReactive(String accessToken, String email, String password, int messageCount) {
+        return webClient.get()
+                .uri(GRAPH_MESSAGES_URL + "?$top=" + messageCount + "&$orderby=receivedDateTime desc&$select=subject,from,bodyPreview,body,receivedDateTime,isRead,hasAttachments")
+                .headers(h -> h.setBearerAuth(accessToken))
+                .exchangeToMono(response -> {
+                    if (response.statusCode().is2xxSuccessful()) {
+                        return response.bodyToMono(String.class)
+                                .map(body -> parseMailboxGraphResponse(body, email, password));
+                    } else {
+                        return response.bodyToMono(String.class)
+                                .doOnNext(body -> log.debug("Graph mailbox read failed: {} - {}", response.statusCode(), body))
+                                .thenReturn(ReadMailResponseDTO.builder()
+                                        .email(email)
+                                        .password(password)
+                                        .success(false)
+                                        .status(CheckStatus.FAILED)
+                                        .error("Graph API error: " + response.statusCode())
+                                        .build());
+                    }
+                })
+                .onErrorResume(e -> {
+                    log.error("Error reading mailbox by Graph API: {}", e.getMessage());
+                    return Mono.just(ReadMailResponseDTO.builder()
+                            .email(email)
+                            .password(password)
+                            .success(false)
+                            .status(CheckStatus.UNKNOWN)
+                            .error("Error: " + e.getMessage())
+                            .build());
+                });
+    }
+
+    /**
+     * Parse Graph API mailbox response
+     */
+    private ReadMailResponseDTO parseMailboxGraphResponse(String responseBody, String email, String password) {
+        try {
+            JsonNode json = objectMapper.readTree(responseBody);
+            JsonNode messagesNode = json.path("value");
+            
+            List<ReadMailResponseDTO.EmailMessage> messages = new ArrayList<>();
+            
+            for (JsonNode msg : messagesNode) {
+                String subject = msg.path("subject").asText("");
+                String fromAddr = msg.path("from").path("emailAddress").path("address").asText("");
+                String fromName = msg.path("from").path("emailAddress").path("name").asText("");
+                String preview = msg.path("bodyPreview").asText("");
+                String htmlBody = msg.path("body").path("content").asText("");
+                String receivedDateTime = msg.path("receivedDateTime").asText("");
+                boolean isRead = msg.path("isRead").asBoolean(false);
+                boolean hasAttachments = msg.path("hasAttachments").asBoolean(false);
+                
+                LocalDateTime dateTime = parseDateTime(receivedDateTime);
+                String formattedDate = dateTime != null ? dateTime.format(DATE_FORMATTER) : "";
+                
+                // Format from as "Name <email>" or just email
+                String from = fromName.isEmpty() ? fromAddr : fromName + " <" + fromAddr + ">";
+                
+                messages.add(ReadMailResponseDTO.EmailMessage.builder()
+                        .subject(subject)
+                        .from(from)
+                        .preview(preview.length() > 200 ? preview.substring(0, 200) + "..." : preview)
+                        .htmlBody(htmlBody)
+                        .date(formattedDate)
+                        .isRead(isRead)
+                        .hasAttachments(hasAttachments)
+                        .build());
+            }
+            
+            return ReadMailResponseDTO.builder()
+                    .email(email)
+                    .password(password)
+                    .success(true)
+                    .status(CheckStatus.SUCCESS)
+                    .messages(messages)
+                    .totalMessages(messages.size())
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("Error parsing Graph mailbox response: {}", e.getMessage());
+            return ReadMailResponseDTO.builder()
+                    .email(email)
+                    .password(password)
+                    .success(false)
+                    .status(CheckStatus.UNKNOWN)
+                    .error("Parse error: " + e.getMessage())
                     .build();
         }
     }
+
+    /**
+     * Read mailbox using IMAP (blocking - wrapped in Mono)
+     */
+    private Mono<ReadMailResponseDTO> readMailboxByImapReactive(String email, String password, String accessToken, int messageCount) {
+        return Mono.fromCallable(() -> readMailboxByImapBlocking(email, password, accessToken, messageCount))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    /**
+     * Blocking IMAP mailbox read
+     */
+    private ReadMailResponseDTO readMailboxByImapBlocking(String email, String password, String accessToken, int messageCount) {
+        Store store = null;
+        Folder inbox = null;
+
+        try {
+            Properties props = new Properties();
+            props.put("mail.store.protocol", "imaps");
+            props.put("mail.imaps.host", IMAP_HOST);
+            props.put("mail.imaps.port", String.valueOf(IMAP_PORT));
+            props.put("mail.imaps.ssl.enable", "true");
+            props.put("mail.imaps.auth.mechanisms", "XOAUTH2");
+
+            Session session = Session.getInstance(props);
+            store = session.getStore("imaps");
+            store.connect(IMAP_HOST, email, accessToken);
+
+            inbox = store.getFolder("INBOX");
+            inbox.open(Folder.READ_ONLY);
+
+            int totalMessages = inbox.getMessageCount();
+            int start = Math.max(1, totalMessages - messageCount + 1);
+            Message[] messages = inbox.getMessages(start, totalMessages);
+            
+            List<ReadMailResponseDTO.EmailMessage> emailMessages = new ArrayList<>();
+            
+            // Read messages in reverse order (newest first)
+            for (int i = messages.length - 1; i >= 0; i--) {
+                Message msg = messages[i];
+                String subject = msg.getSubject() != null ? msg.getSubject() : "(No Subject)";
+                String from = getFromAddress(msg);
+                Date sentDate = msg.getSentDate();
+                boolean isRead = msg.isSet(Flags.Flag.SEEN);
+                
+                String formattedDate = "";
+                if (sentDate != null) {
+                    LocalDateTime dateTime = LocalDateTime.ofInstant(sentDate.toInstant(), ZoneId.systemDefault());
+                    formattedDate = dateTime.format(DATE_FORMATTER);
+                }
+                
+                // Get preview (first 200 chars of content)
+                String preview = "";
+                try {
+                    Object content = msg.getContent();
+                    if (content instanceof String) {
+                        preview = ((String) content).substring(0, Math.min(200, ((String) content).length()));
+                    } else if (content instanceof Multipart) {
+                        Multipart mp = (Multipart) content;
+                        if (mp.getCount() > 0) {
+                            BodyPart bp = mp.getBodyPart(0);
+                            if (bp.getContent() instanceof String) {
+                                String text = (String) bp.getContent();
+                                preview = text.substring(0, Math.min(200, text.length()));
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+                
+                emailMessages.add(ReadMailResponseDTO.EmailMessage.builder()
+                        .subject(subject)
+                        .from(from)
+                        .preview(preview.length() > 200 ? preview.substring(0, 200) + "..." : preview)
+                        .date(formattedDate)
+                        .isRead(isRead)
+                        .hasAttachments(false) // IMAP doesn't easily expose this
+                        .build());
+            }
+            
+            return ReadMailResponseDTO.builder()
+                    .email(email)
+                    .password(password)
+                    .success(true)
+                    .status(CheckStatus.SUCCESS)
+                    .messages(emailMessages)
+                    .totalMessages(totalMessages)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error reading mailbox by IMAP: {}", e.getMessage());
+            return ReadMailResponseDTO.builder()
+                    .email(email)
+                    .password(password)
+                    .success(false)
+                    .status(CheckStatus.UNKNOWN)
+                    .error("IMAP error: " + e.getMessage())
+                    .build();
+        } finally {
+            try {
+                if (inbox != null && inbox.isOpen()) inbox.close(false);
+                if (store != null && store.isConnected()) store.close();
+            } catch (Exception ignored) {}
+        }
+    }
+
     /**
      * Token result holder
      */
@@ -763,4 +1106,3 @@ public class HotmailServiceImpl implements HotmailService {
         }
     }
 }
-

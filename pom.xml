@@ -84,6 +84,12 @@
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
 
+        <!-- WebFlux for WebClient (non-blocking HTTP client) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
         <!-- MySQL Database Driver -->
         <dependency>
             <groupId>com.mysql</groupId>
@@ -168,6 +174,13 @@
             <groupId>org.eclipse.angus</groupId>
             <artifactId>angus-mail</artifactId>
             <version>2.0.2</version>
+        </dependency>
+
+        <!-- TOTP for 2FA Code Generation -->
+        <dependency>
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>1.7.1</version>
         </dependency>
 
         <!-- Test Dependencies -->

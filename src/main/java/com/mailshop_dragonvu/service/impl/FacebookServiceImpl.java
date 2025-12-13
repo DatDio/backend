@@ -3,226 +3,165 @@ package com.mailshop_dragonvu.service.impl;
 import com.mailshop_dragonvu.dto.facebook.FacebookCheckLiveResponseDTO;
 import com.mailshop_dragonvu.dto.hotmail.CheckStatus;
 import com.mailshop_dragonvu.service.FacebookService;
-import jakarta.annotation.PreDestroy;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Implementation of FacebookService
- * Uses multi-threading for parallel processing of Facebook UID checks
+ * Implementation of FacebookService using WebClient for non-blocking HTTP requests
+ * Provides better performance and scalability compared to RestTemplate + ThreadPool
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class FacebookServiceImpl implements FacebookService {
 
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
 
-    // Thread pool for parallel processing (10 threads)
-    private final ExecutorService executor = Executors.newFixedThreadPool(10);
-
-    private static final String FACEBOOK_GRAPH_PICTURE_URL = "https://graph.facebook.com/%s/picture?type=large";
-
-    public FacebookServiceImpl(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
-
-    @PreDestroy
-    public void shutdown() {
-        executor.shutdown();
-    }
+    // Concurrency limit for parallel requests (prevent overwhelming Facebook servers)
+    private static final int MAX_CONCURRENT_REQUESTS = 20;
 
     @Override
     public void checkLiveStream(String uidData, SseEmitter emitter) {
         if (uidData == null || uidData.isEmpty()) {
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {
-            }
+            completeEmitter(emitter);
             return;
         }
 
-        String[] uidLines = uidData.trim().split("\\n");
+        // Parse UIDs from input
+        List<String> uids = Arrays.stream(uidData.trim().split("\\n"))
+                .map(String::trim)
+                .filter(uid -> !uid.isEmpty())
+                .toList();
+
+        if (uids.isEmpty()) {
+            completeEmitter(emitter);
+            return;
+        }
+
         AtomicInteger completed = new AtomicInteger(0);
-        int total = uidLines.length;
+        int total = uids.size();
 
         // Setup error/timeout handlers
         emitter.onError(e -> log.warn("SSE error: {}", e.getMessage()));
         emitter.onTimeout(() -> log.warn("SSE timeout"));
 
-        for (String uidLine : uidLines) {
-            String uid = uidLine.trim();
-            if (uid.isEmpty()) {
-                if (completed.incrementAndGet() == total) {
+        // Process all UIDs using reactive streams with flatMap for concurrency control
+        Flux.fromIterable(uids)
+                .flatMap(uid -> checkSingleUidReactive(uid)
+                                .subscribeOn(Schedulers.boundedElastic()),
+                        MAX_CONCURRENT_REQUESTS) // Limit concurrent requests
+                .doOnNext(result -> {
                     try {
-                        emitter.complete();
-                    } catch (Exception ignored) {
+                        emitter.send(SseEmitter.event()
+                                .name("result")
+                                .data(result));
+                    } catch (IOException e) {
+                        log.error("Error sending SSE result: {}", e.getMessage());
                     }
-                }
-                continue;
-            }
 
-            executor.submit(() -> {
-                try {
-                    FacebookCheckLiveResponseDTO result = checkSingleUid(uid);
-                    emitter.send(SseEmitter.event()
-                            .name("result")
-                            .data(result));
-                } catch (IOException e) {
-                    log.error("Error sending SSE for facebook check-live: {}", e.getMessage());
-                } catch (Exception e) {
-                    log.error("Error processing UID for facebook check-live stream: {}", e.getMessage());
-                    try {
-                        FacebookCheckLiveResponseDTO errorResult = FacebookCheckLiveResponseDTO.builder()
-                                .uid(uid)
-                                .status(CheckStatus.UNKNOWN)
-                                .error("Error: " + e.getMessage())
-                                .build();
-                        emitter.send(SseEmitter.event().name("result").data(errorResult));
-                    } catch (IOException ignored) {
-                    }
-                } finally {
+                    // Check if all completed
                     if (completed.incrementAndGet() == total) {
-                        try {
-                            emitter.send(SseEmitter.event().name("done").data("complete"));
-                            emitter.complete();
-                        } catch (Exception ignored) {
-                        }
+                        sendCompleteEvent(emitter);
                     }
-                }
-            });
+                })
+                .doOnError(error -> {
+                    log.error("Stream error: {}", error.getMessage());
+                    completeEmitter(emitter);
+                })
+                .doOnComplete(() -> {
+                    log.info("Facebook check-live completed for {} UIDs", total);
+                })
+                .subscribe();
+    }
+
+    /**
+     * Check a single Facebook UID using WebClient (non-blocking)
+     * Uses exchangeToMono to read response body even on error status codes
+     */
+    private Mono<FacebookCheckLiveResponseDTO> checkSingleUidReactive(String uid) {
+        String url = String.format("https://graph.facebook.com/%s/picture?type=normal&redirect=false", uid);
+
+        return webClient.get()
+                .uri(url)
+                .exchangeToMono(response -> {
+                    // Always read the body, regardless of status code
+                    return response.bodyToMono(String.class)
+                            .defaultIfEmpty("")
+                            .map(body -> {
+                                if (response.statusCode().is2xxSuccessful()) {
+                                    // Success response - check if valid profile picture
+                                    if (body.contains("height") || body.contains("width")) {
+                                        return FacebookCheckLiveResponseDTO.builder()
+                                                .uid(uid)
+                                                .status(CheckStatus.SUCCESS)
+                                                .build();
+                                    } else {
+                                        return FacebookCheckLiveResponseDTO.builder()
+                                                .uid(uid)
+                                                .status(CheckStatus.FAILED)
+                                                .build();
+                                    }
+                                } else {
+                                    // Error response - parse error message from body
+                                    log.debug("Facebook error for UID {}: {} - body: {}", uid, response.statusCode(), body);
+                                    return createErrorResponse(uid, body);
+                                }
+                            });
+                })
+                .onErrorResume(Exception.class, e -> {
+                    log.debug("Error checking UID {}: {}", uid, e.getMessage());
+                    return Mono.just(createErrorResponse(uid, e.getMessage()));
+                });
+    }
+
+    /**
+     * Create error response based on error message
+     */
+    private FacebookCheckLiveResponseDTO createErrorResponse(String uid, String errorMsg) {
+        if (errorMsg != null && errorMsg.contains("Unsupported get request. Object with ID")) {
+            return FacebookCheckLiveResponseDTO.builder()
+                    .uid(uid)
+                    .status(CheckStatus.UNKNOWN)
+                    .error("Lỗi kiểm tra: " + errorMsg.substring(0, Math.min(50, errorMsg.length())))
+                    .build();
+        }
+
+        return FacebookCheckLiveResponseDTO.builder()
+                .uid(uid)
+                .status(CheckStatus.FAILED)
+                .build();
+    }
+
+    /**
+     * Send completion event and complete emitter
+     */
+    private void sendCompleteEvent(SseEmitter emitter) {
+        try {
+            emitter.send(SseEmitter.event().name("done").data("complete"));
+            emitter.complete();
+        } catch (Exception e) {
+            log.debug("Error sending complete event: {}", e.getMessage());
         }
     }
 
     /**
-     * Check a single Facebook UID for live status
-     * Uses the scontent CDN directly instead of Graph API to avoid token requirements
+     * Safely complete emitter
      */
-    private FacebookCheckLiveResponseDTO checkSingleUid(String uid) {
+    private void completeEmitter(SseEmitter emitter) {
         try {
-            // Use platform-lookaside which doesn't require access token
-            String url = String.format("https://www.facebook.com/photo.php?fbid=%s", uid);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            headers.set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
-            headers.set("Accept-Language", "en-US,en;q=0.5");
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
-
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    entity,
-                    String.class
-            );
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                String body = response.getBody();
-
-                // Check if the page contains user profile indicators
-                // If we find profile-related content, the UID exists
-                if (body.contains("profile") || body.contains("fb://profile")) {
-                    String avatarUrl = String.format("https://graph.facebook.com/%s/picture?type=large", uid);
-                    return FacebookCheckLiveResponseDTO.builder()
-                            .uid(uid)
-                            .status(CheckStatus.SUCCESS)
-                            .avatar(avatarUrl)
-                            .build();
-                }
-            }
-
-            // Fallback: Try checking through mobile basic Facebook
-            return checkViaAlternativeMethod(uid);
-
-        } catch (Exception e) {
-            String errorMsg = e.getMessage();
-            log.debug("Primary check failed for UID {}: {}, trying alternative", uid, errorMsg);
-
-            // Try alternative method
-            return checkViaAlternativeMethod(uid);
-        }
-    }
-
-    /**
-     * Alternative method to check UID using mbasic Facebook
-     */
-    private FacebookCheckLiveResponseDTO checkViaAlternativeMethod(String uid) {
-        try {
-            // Use mbasic Facebook which is more accessible
-            String url = String.format("https://mbasic.facebook.com/profile.php?id=%s", uid);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
-            headers.set("Accept", "text/html,application/xhtml+xml");
-            headers.set("Accept-Language", "vi-VN,vi;q=0.9,en;q=0.8");
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
-
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    entity,
-                    String.class
-            );
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                String body = response.getBody();
-
-                // Check for indicators that the profile exists
-                // Looking for profile-specific elements that wouldn't exist on error pages
-                boolean hasProfileIndicators =
-                        body.contains("cover") ||
-                                body.contains("timeline") ||
-                                body.contains("profile_photo") ||
-                                (body.contains("id=\"root\"") && !body.contains("error")) ||
-                                body.contains("Thêm bạn"); // "Add friend" in Vietnamese
-
-                boolean isErrorPage =
-                        body.contains("Trang bạn yêu cầu không thể hiển thị") ||
-                                body.contains("This content isn't available") ||
-                                body.contains("Nội dung này hiện không có") ||
-                                body.contains("Page Not Found") ||
-                                body.contains("Sorry, this content isn't available");
-
-                if (hasProfileIndicators && !isErrorPage) {
-                    String avatarUrl = String.format("https://graph.facebook.com/%s/picture?type=large", uid);
-                    return FacebookCheckLiveResponseDTO.builder()
-                            .uid(uid)
-                            .status(CheckStatus.SUCCESS)
-                            .avatar(avatarUrl)
-                            .build();
-                } else if (isErrorPage) {
-                    return FacebookCheckLiveResponseDTO.builder()
-                            .uid(uid)
-                            .status(CheckStatus.FAILED)
-                            .error("UID không tồn tại hoặc bị khóa")
-                            .build();
-                }
-            }
-
-            // Unable to determine - mark as unknown
-            return FacebookCheckLiveResponseDTO.builder()
-                    .uid(uid)
-                    .status(CheckStatus.UNKNOWN)
-                    .error("Không thể xác định trạng thái")
-                    .build();
-
-        } catch (Exception e) {
-            String errorMsg = e.getMessage();
-            log.warn("Alternative check failed for UID {}: {}", uid, errorMsg);
-
-            // Mark as unknown since we couldn't verify
-            return FacebookCheckLiveResponseDTO.builder()
-                    .uid(uid)
-                    .status(CheckStatus.UNKNOWN)
-                    .error("Lỗi kiểm tra: " + (errorMsg != null ? errorMsg.substring(0, Math.min(50, errorMsg.length())) : "Unknown"))
-                    .build();
+            emitter.complete();
+        } catch (Exception ignored) {
         }
     }
 }
