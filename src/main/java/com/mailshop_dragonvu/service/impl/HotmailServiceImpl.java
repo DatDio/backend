@@ -58,6 +58,7 @@ public class HotmailServiceImpl implements HotmailService {
 
     /**
      * Refresh token for Graph API using WebClient (non-blocking)
+     * Returns new access_token AND new refresh_token
      */
     private Mono<TokenResult> refreshAccessTokenGraphReactive(String refreshToken, String clientId) {
         return webClient.post()
@@ -74,8 +75,9 @@ public class HotmailServiceImpl implements HotmailService {
                                     try {
                                         JsonNode json = objectMapper.readTree(body);
                                         String accessToken = json.path("access_token").asText();
+                                        String newRefreshToken = json.path("refresh_token").asText();
                                         boolean isGraphToken = body.contains("Mail.Read") || body.contains("Mail.ReadWrite");
-                                        return new TokenResult(accessToken, isGraphToken);
+                                        return new TokenResult(accessToken, newRefreshToken, isGraphToken);
                                     } catch (Exception e) {
                                         log.warn("Failed to parse Graph token response: {}", e.getMessage());
                                         return null;
@@ -95,6 +97,7 @@ public class HotmailServiceImpl implements HotmailService {
 
     /**
      * Refresh token for IMAP using WebClient (non-blocking)
+     * Returns new access_token AND new refresh_token
      */
     private Mono<TokenResult> refreshAccessTokenImapReactive(String refreshToken, String clientId) {
         return webClient.post()
@@ -110,7 +113,8 @@ public class HotmailServiceImpl implements HotmailService {
                                     try {
                                         JsonNode json = objectMapper.readTree(body);
                                         String accessToken = json.path("access_token").asText();
-                                        return new TokenResult(accessToken, false);
+                                        String newRefreshToken = json.path("refresh_token").asText();
+                                        return new TokenResult(accessToken, newRefreshToken, false);
                                     } catch (Exception e) {
                                         log.warn("Failed to parse IMAP token response: {}", e.getMessage());
                                         return null;
@@ -392,7 +396,7 @@ public class HotmailServiceImpl implements HotmailService {
 
         // Process all emails using reactive streams with concurrency control
         Flux.fromIterable(emailLines)
-                .flatMap(line -> processGetCodeSingleEmailReactive(line, request)
+                .flatMapSequential(line -> processGetCodeSingleEmailReactive(line, request)
                                 .subscribeOn(Schedulers.boundedElastic()),
                         MAX_CONCURRENT_REQUESTS)
                 .doOnNext(result -> {
@@ -547,7 +551,7 @@ public class HotmailServiceImpl implements HotmailService {
         emitter.onTimeout(() -> log.warn("SSE timeout"));
 
         Flux.fromIterable(emailLines)
-                .flatMap(line -> checkLiveSingleMailReactive(line)
+                .flatMapSequential(line -> checkLiveSingleMailReactive(line)
                                 .subscribeOn(Schedulers.boundedElastic()),
                         MAX_CONCURRENT_REQUESTS)
                 .doOnNext(result -> {
@@ -670,7 +674,7 @@ public class HotmailServiceImpl implements HotmailService {
         emitter.onTimeout(() -> log.warn("SSE timeout"));
 
         Flux.fromIterable(emailLines)
-                .flatMap(line -> getOAuth2ForSingleMailReactive(line)
+                .flatMapSequential(line -> getOAuth2ForSingleMailReactive(line)
                                 .subscribeOn(Schedulers.boundedElastic()),
                         MAX_CONCURRENT_REQUESTS)
                 .doOnNext(result -> {
@@ -704,7 +708,8 @@ public class HotmailServiceImpl implements HotmailService {
     }
 
     /**
-     * Get OAuth2 token for a single email line (reactive)
+     * Renew refresh token for a single email line (reactive)
+     * Returns new refresh token along with access token
      */
     private Mono<GetOAuth2ResponseDTO> getOAuth2ForSingleMailReactive(String emailLine) {
         try {
@@ -725,41 +730,53 @@ public class HotmailServiceImpl implements HotmailService {
             String refreshToken = parts[2].trim();
             String clientId = parts.length > 3 && !parts[3].isEmpty() ? parts[3].trim() : DEFAULT_CLIENT_ID;
 
-            // Try Graph API token first
+            // Try Graph API token first - MUST have new refresh token to be success
             return refreshAccessTokenGraphReactive(refreshToken, clientId)
-                    .filter(token -> token != null && token.accessToken != null && !token.accessToken.isEmpty())
-                    .map(token -> GetOAuth2ResponseDTO.builder()
-                            .email(email)
-                            .password(password)
-                            .refreshToken(refreshToken)
-                            .clientId(clientId)
-                            .accessToken(token.accessToken)
-                            .success(true)
-                            .build())
+                    .filter(token -> token != null 
+                            && token.accessToken != null && !token.accessToken.isEmpty()
+                            && token.newRefreshToken != null && !token.newRefreshToken.isEmpty())
+                    .map(token -> {
+                        String fullData = email + "|" + password + "|" + token.newRefreshToken + "|" + clientId;
+                        return GetOAuth2ResponseDTO.builder()
+                                .email(email)
+                                .password(password)
+                                .refreshToken(token.newRefreshToken)
+                                .clientId(clientId)
+                                .accessToken(token.accessToken)
+                                .fullData(fullData)
+                                .success(true)
+                                .build();
+                    })
                     .switchIfEmpty(
-                        // Try IMAP token as fallback
+                        // Try IMAP token as fallback - MUST have new refresh token
                         refreshAccessTokenImapReactive(refreshToken, clientId)
-                                .filter(token -> token != null && token.accessToken != null && !token.accessToken.isEmpty())
-                                .map(token -> GetOAuth2ResponseDTO.builder()
-                                        .email(email)
-                                        .password(password)
-                                        .refreshToken(refreshToken)
-                                        .clientId(clientId)
-                                        .accessToken(token.accessToken)
-                                        .success(true)
-                                        .build())
+                                .filter(token -> token != null 
+                                        && token.accessToken != null && !token.accessToken.isEmpty()
+                                        && token.newRefreshToken != null && !token.newRefreshToken.isEmpty())
+                                .map(token -> {
+                                    String fullData = email + "|" + password + "|" + token.newRefreshToken + "|" + clientId;
+                                    return GetOAuth2ResponseDTO.builder()
+                                            .email(email)
+                                            .password(password)
+                                            .refreshToken(token.newRefreshToken)
+                                            .clientId(clientId)
+                                            .accessToken(token.accessToken)
+                                            .fullData(fullData)
+                                            .success(true)
+                                            .build();
+                                })
                     )
                     .switchIfEmpty(Mono.just(GetOAuth2ResponseDTO.builder()
                             .email(email)
                             .password(password)
-                            .refreshToken(refreshToken)
+                            .refreshToken(refreshToken)  // Return original token on failure for retry
                             .clientId(clientId)
                             .success(false)
-                            .error("Could not get access token")
+                            .error("Could not get new refresh token")
                             .build()));
 
         } catch (Exception e) {
-            log.error("Error getting OAuth2 token: {}", e.getMessage());
+            log.error("Error renewing refresh token: {}", e.getMessage());
             return Mono.just(GetOAuth2ResponseDTO.builder()
                     .email(emailLine.split("\\|")[0])
                     .success(false)
@@ -822,7 +839,7 @@ public class HotmailServiceImpl implements HotmailService {
         emitter.onTimeout(() -> log.warn("SSE timeout"));
 
         Flux.fromIterable(emailLines)
-                .flatMap(line -> readMailForSingleEmailReactive(line, messageCount)
+                .flatMapSequential(line -> readMailForSingleEmailReactive(line, messageCount)
                                 .subscribeOn(Schedulers.boundedElastic()),
                         MAX_CONCURRENT_REQUESTS)
                 .doOnNext(result -> {
@@ -1098,10 +1115,12 @@ public class HotmailServiceImpl implements HotmailService {
      */
     private static class TokenResult {
         final String accessToken;
+        final String newRefreshToken;
         final boolean isGraphToken;
 
-        TokenResult(String accessToken, boolean isGraphToken) {
+        TokenResult(String accessToken, String newRefreshToken, boolean isGraphToken) {
             this.accessToken = accessToken;
+            this.newRefreshToken = newRefreshToken;
             this.isGraphToken = isGraphToken;
         }
     }

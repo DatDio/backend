@@ -58,7 +58,7 @@ public class FacebookServiceImpl implements FacebookService {
 
         // Process all UIDs using reactive streams with flatMap for concurrency control
         Flux.fromIterable(uids)
-                .flatMap(uid -> checkSingleUidReactive(uid)
+                .flatMapSequential(uid -> checkSingleUidReactive(uid)
                                 .subscribeOn(Schedulers.boundedElastic()),
                         MAX_CONCURRENT_REQUESTS) // Limit concurrent requests
                 .doOnNext(result -> {

@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Response DTO for get OAuth2 token result
+ * Response DTO for renew refresh token result
  */
 @Data
 @Builder
@@ -15,10 +15,12 @@ import lombok.NoArgsConstructor;
 public class GetOAuth2ResponseDTO {
     private String email;
     private String password;
-    private String refreshToken;
+    private String refreshToken;      // New refresh token after renewal
     private String clientId;
     private String accessToken;
+    private String fullData;          // Complete data string: email|pass|newToken|clientId
     private boolean success;
     private CheckStatus status;
     private String error;
 }
+

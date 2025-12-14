@@ -153,18 +153,21 @@ public class RankServiceImpl implements RankService {
 
         // Get all active ranks to find current and next rank
         List<RankEntity> allRanks = rankRepository.findAllActiveOrderByMinDeposit(ActiveStatusEnum.ACTIVE);
-        
-        if (allRanks.isEmpty()) {
-            return UserRankInfoDTO.builder()
-                    .rankName("Không có")
-                    .bonusPercent(0)
-                    .currentDeposit(0L)
-                    .build();
-        }
 
         // Get period days from system settings
         Integer periodDays = systemSettingService.getIntValue(SETTING_RANK_PERIOD_DAYS, DEFAULT_PERIOD_DAYS);
         Long totalDeposit = getTotalDepositInPeriod(userId, periodDays);
+
+        if (allRanks.isEmpty()) {
+            return UserRankInfoDTO.builder()
+                    .rankName("Không có")
+                    .bonusPercent(0)
+                    .currentDeposit(totalDeposit)
+                    .periodDays(periodDays)
+                    .build();
+        }
+
+
 
         // Find current rank (highest minDeposit that is <= totalDeposit)
         RankEntity currentRank = null;
