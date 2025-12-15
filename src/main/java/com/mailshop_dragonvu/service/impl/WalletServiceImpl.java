@@ -435,6 +435,12 @@ public class WalletServiceImpl implements WalletService {
         transactionRepository.deleteById(transactionId);
     }
 
+    @Override
+    @Transactional
+    public void deleteByTransactionCode(Long orderCode) {
+        transactionRepository.deleteByTransactionCode(orderCode);
+    }
+
     /**
      * ANTI-CHEAT: Validate deposit amount
      */

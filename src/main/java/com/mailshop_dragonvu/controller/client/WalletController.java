@@ -101,10 +101,10 @@ public class WalletController {
         TransactionResponseDTO transaction = walletService.getTransactionByCode(transactionCode);
         return ResponseEntity.ok(ApiResponse.success(transaction));
     }
-    @DeleteMapping("/transactions/delete/{id}")
+    @DeleteMapping("/transactions/delete/{orderCode}")
     public ApiResponse<Void> deleteTransaction(@AuthenticationPrincipal UserPrincipal userPrincipal,
-            @PathVariable Long transactionID) {
-        walletService.deleteTransaction(transactionID);
-        return ApiResponse.success("Xóa giao dịch thành công");
+            @PathVariable Long orderCode) {
+        walletService.deleteByTransactionCode(orderCode);
+        return ApiResponse.success("Xóa giao dịch thành công!");
     }
 }

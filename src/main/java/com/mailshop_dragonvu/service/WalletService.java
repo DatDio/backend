@@ -61,6 +61,7 @@ public interface WalletService {
 
     void deleteTransaction(Long transactionId);
 
+    void deleteByTransactionCode(Long orderCode);
     /**
      * Deduct balance when user purchases items
      */

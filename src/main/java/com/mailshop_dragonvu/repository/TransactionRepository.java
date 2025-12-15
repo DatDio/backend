@@ -21,6 +21,7 @@ import java.util.Optional;
 @Repository
 public interface TransactionRepository extends JpaRepository<TransactionEntity, Long>, JpaSpecificationExecutor<TransactionEntity> {
 
+    void deleteByTransactionCode(Long transactionCode);
     /**
      * Find transactionEntity by code
      */
