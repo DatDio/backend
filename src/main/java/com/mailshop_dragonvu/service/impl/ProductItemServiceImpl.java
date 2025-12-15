@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -28,9 +29,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +48,8 @@ public class ProductItemServiceImpl implements ProductItemService {
     private final ProductItemRepository productItemRepository;
     private final ProductQuantityNotifier productQuantityNotifier;
     private final UserRepository userRepository;
+    private final JdbcTemplate jdbcTemplate;
+
     @Override
     public int batchCreateProductItems(ProductItemCreateDTO productItemCreateDTO) {
         ProductEntity product = productRepository.findById(productItemCreateDTO.getProductId())
@@ -54,7 +62,7 @@ public class ProductItemServiceImpl implements ProductItemService {
         String[] lines = productItemCreateDTO.getAccountData().split("\\r?\\n");
         
         // 1. Deduplicate input
-        java.util.Set<String> uniqueInputLines = new java.util.HashSet<>();
+        Set<String> uniqueInputLines = new HashSet<>();
         for (String line : lines) {
             String trimmed = line.trim();
             if (!trimmed.isEmpty()) {
@@ -70,44 +78,44 @@ public class ProductItemServiceImpl implements ProductItemService {
         List<ProductItemEntity> existingItems = productItemRepository.findByProductIdAndAccountDataIn(
                 productItemCreateDTO.getProductId(), uniqueInputLines);
         
-        java.util.Set<String> existingAccounts = existingItems.stream()
+        Set<String> existingAccounts = existingItems.stream()
                 .map(ProductItemEntity::getAccountData)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
 
-        // 3. Filter and create new items
-        List<ProductItemEntity> newItems = new ArrayList<>();
+        // 3. Filter new items (not in DB)
+        List<String> newAccountDataList = new ArrayList<>();
         for (String line : uniqueInputLines) {
-            if (existingAccounts.contains(line)) {
-                continue; // Skip duplicate
+            if (!existingAccounts.contains(line)) {
+                newAccountDataList.add(line);
             }
-
-            ProductItemEntity item = ProductItemEntity.builder()
-                    .product(product)
-                    .accountData(line)
-                    .sold(false)
-                    .build();
-
-            newItems.add(item);
         }
 
-        if (!newItems.isEmpty()) {
-            productItemRepository.saveAll(newItems);
+        // 4. Batch insert using JDBC (much faster than JPA saveAll with IDENTITY)
+        if (!newAccountDataList.isEmpty()) {
+            Long productId = product.getId();
+            Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+            
+            String sql = "INSERT INTO product_items (product_id, account_data, sold, created_at, updated_at) VALUES (?, ?, ?, ?, ?)";
+            
+            jdbcTemplate.batchUpdate(sql, newAccountDataList, 500, (ps, accountData) -> {
+                ps.setLong(1, productId);
+                ps.setString(2, accountData);
+                ps.setBoolean(3, false);
+                ps.setTimestamp(4, now);
+                ps.setTimestamp(5, now);
+            });
+            
+            log.info("Batch inserted {} product items for product {}", newAccountDataList.size(), productId);
             productQuantityNotifier.publishAfterCommit(productItemCreateDTO.getProductId());
         }
         
         // Calculate duplicates count
-        // Total unique input - inserted items = duplicates (either in input or DB)
-        // Wait, the user wants "duplicate count".
-        // If input has "A", "A" -> 1 duplicate in input.
-        // If DB has "B", input has "B" -> 1 duplicate in DB.
-        // Total duplicates = (Original non-empty lines) - (New items saved)
-        
         long nonEmptyInputCount = 0;
         for(String line : lines) {
             if(!line.trim().isEmpty()) nonEmptyInputCount++;
         }
         
-        return (int) (nonEmptyInputCount - newItems.size());
+        return (int) (nonEmptyInputCount - newAccountDataList.size());
     }
 
     @Override
@@ -137,7 +145,10 @@ public class ProductItemServiceImpl implements ProductItemService {
             if (req.getSold() != null) {
                 predicates.add(cb.equal(root.get("sold"), req.getSold()));
             }
-
+            if(StringUtils.hasText(req.getAccountData()) ){
+                predicates.add(cb.like(cb.lower(root.get("accountData")),
+                        "%" + req.getAccountData().trim().toLowerCase() + "%"));
+            }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
