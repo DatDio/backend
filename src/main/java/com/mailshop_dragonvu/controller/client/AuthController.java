@@ -2,6 +2,7 @@ package com.mailshop_dragonvu.controller.client;
 import com.mailshop_dragonvu.dto.auth.*;
 import com.mailshop_dragonvu.dto.ApiResponse;
 import com.mailshop_dragonvu.service.auth.AuthService;
+import com.mailshop_dragonvu.service.RecaptchaService;
 import com.mailshop_dragonvu.utils.Constants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,17 +20,20 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final RecaptchaService recaptchaService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Đăng ký người dùng mới")
     public ApiResponse<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+        recaptchaService.verify(request.getRecaptchaToken(), "register");
         return ApiResponse.success("Đăng ký thành công", authService.register(request));
     }
 
     @PostMapping("/login")
     @Operation(summary = "Đăng nhập người dùng")
     public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        recaptchaService.verify(request.getRecaptchaToken(), "login");
         return ApiResponse.success("Đăng nhập thành công", authService.login(request));
     }
     @PostMapping("/change-password")

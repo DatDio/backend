@@ -77,3 +77,8 @@ payos:
 management:
   endpoints.web.exposure.include: health,info,metrics,prometheus
   endpoint.health.show-details: always
+
+recaptcha:
+  secret-key: ${RECAPTCHA_SECRET_KEY:6LcXKiwsAAAAANJ6YOjKi9bEQ_oUKJFClUPdXBZe}
+  verify-url: https://www.google.com/recaptcha/api/siteverify
+  threshold: 0.3
