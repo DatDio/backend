@@ -175,12 +175,12 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     public void processPayOSCallback(Webhook webhook) {
-        //WebhookData data = payOSService.verifyWebhook(webhook);
+        WebhookData data = payOSService.verifyWebhook(webhook);
 
-        WebhookData data = new WebhookData();
-        data.setOrderCode(webhook.getData().getOrderCode());
-        data.setCode("00");
-        data.setAmount(webhook.getData().getAmount());
+//        WebhookData data = new WebhookData();
+//        data.setOrderCode(webhook.getData().getOrderCode());
+//        data.setCode("00");
+//        data.setAmount(webhook.getData().getAmount());
 
         Long orderCode = data.getOrderCode();
 

@@ -74,20 +74,25 @@ public class OrderCleanupScheduler {
             }
             productItemCount = productItemsToDelete.size();
 
-            // Delete ProductItems first (before OrderItems are deleted by cascade)
+            // IMPORTANT: Delete in correct order to avoid FK constraint violation
+            // 1. Delete Orders first (this will cascade delete OrderItems)
+            orderRepository.deleteAll(oldOrders);
+            orderRepository.flush();
+            log.info("Deleted {} orders (OrderItems deleted by cascade)", orderCount);
+
+            // 2. Now delete ProductItems (no longer referenced by OrderItems)
             if (!productItemsToDelete.isEmpty()) {
                 productItemRepository.deleteAll(productItemsToDelete);
+                productItemRepository.flush();
                 log.info("Deleted {} product items", productItemCount);
             }
 
-            // Delete Orders (OrderItems will be deleted by cascade)
-            orderRepository.deleteAll(oldOrders);
-
-            log.info("Successfully deleted {} orders and {} product items (older than {} days)",
+            log.info("Successfully cleaned up {} orders and {} product items (older than {} days)",
                     orderCount, productItemCount, cleanupDays);
 
         } catch (Exception e) {
             log.error("Error during order cleanup: {}", e.getMessage(), e);
+            throw e; // Re-throw to trigger rollback
         }
     }
 }
