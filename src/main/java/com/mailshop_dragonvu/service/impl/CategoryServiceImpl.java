@@ -88,6 +88,7 @@ public class CategoryServiceImpl implements CategoryService {
         // Delete old image if exists
         if (category.getImageUrl() != null) {
             fileUploadService.deleteFile(category.getImageUrl());
+            category.setImageUrl(null);
         }
 
         // Handle image upload

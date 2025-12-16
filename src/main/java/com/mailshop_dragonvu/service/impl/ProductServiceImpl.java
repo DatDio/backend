@@ -108,6 +108,7 @@ public class ProductServiceImpl implements ProductService {
         // Delete old image if exists
         if (product.getImageUrl() != null) {
             fileUploadService.deleteFile(product.getImageUrl());
+            product.setImageUrl(null);
         }
 
         // Handle image upload
