@@ -1,0 +1,53 @@
+name: Deploy Backend to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOCKER_COMPOSE_VERSION: "2.24.0"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/mailshop/backend
+            
+            # Pull latest code
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # Rebuild and restart backend container
+            cd /opt/mailshop
+            docker compose up -d --build backend
+            
+            # Wait for health check
+            echo "Waiting for backend to be healthy..."
+            sleep 30
+            
+            # Check health
+            if curl -f http://localhost:8080/api/actuator/health > /dev/null 2>&1; then
+              echo "✅ Backend deployed successfully!"
+            else
+              echo "❌ Backend health check failed"
+              docker compose logs --tail=50 backend
+              exit 1
+            fi
+
+      - name: Notify Success
+        if: success()
+        run: echo "🚀 Backend deployment completed successfully!"
+
+      - name: Notify Failure
+        if: failure()
+        run: echo "❌ Backend deployment failed!"

@@ -1,4 +1,4 @@
-# Multi-stage build for MailShop DragonVu Backend
+# Multi-stage build for MailShop DragonVu Backend (ARM64 compatible)
 FROM maven:3.9-eclipse-temurin-17 AS builder
 
 # Set working directory
@@ -14,11 +14,11 @@ COPY src ./src
 # Build application (skip tests for faster build)
 RUN mvn clean package -DskipTests
 
-# Runtime stage
-FROM eclipse-temurin:17-jre-alpine
+# Runtime stage - Using eclipse-temurin without alpine for ARM64 support
+FROM eclipse-temurin:17-jre
 
 # Install curl for healthcheck
-RUN apk add --no-cache curl
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
 WORKDIR /app
