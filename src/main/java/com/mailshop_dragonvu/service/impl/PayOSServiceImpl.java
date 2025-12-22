@@ -2,9 +2,8 @@ package com.mailshop_dragonvu.service.impl;
 
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
+import com.mailshop_dragonvu.service.PayOSProvider;
 import com.mailshop_dragonvu.service.PayOSService;
-import com.mailshop_dragonvu.utils.DepositCodeUtil;
-import com.mailshop_dragonvu.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,8 +19,8 @@ import vn.payos.model.webhooks.WebhookData;
 @RequiredArgsConstructor
 @Slf4j
 public class PayOSServiceImpl implements PayOSService {
-    @Value("${payos.checksum-key}")
-    private String secretKey;
+
+    private final PayOSProvider payOSProvider;
 
     @Value("${payos.return-url}")
     private String returnUrl;
@@ -29,12 +28,12 @@ public class PayOSServiceImpl implements PayOSService {
     @Value("${payos.cancel-url}")
     private String cancelUrl;
 
-    private final PayOS payOS;
-
     @Override
     public CreatePaymentLinkResponse createPaymentLink(CreatePaymentLinkRequest createPaymentLinkRequest) {
-
         try {
+            // Get PayOS instance with current configuration from database
+            PayOS payOS = payOSProvider.getPayOS();
+
             final String description = createPaymentLinkRequest.getDescription();
 
             long orderCode = System.currentTimeMillis() / 1000;
@@ -46,8 +45,11 @@ public class PayOSServiceImpl implements PayOSService {
                     .cancelUrl(cancelUrl)
                     .returnUrl(returnUrl)
                     .build();
+
             CreatePaymentLinkResponse data = payOS.paymentRequests().create(paymentRequest);
             return data;
+        } catch (BusinessException e) {
+            throw e; // Re-throw business exceptions (like PAYMENT_CONFIGURATION_ERROR)
         } catch (Exception e) {
             log.error("PayOS create link failed", e);
             throw new BusinessException(ErrorCode.PAYMENT_CREATION_FAILED);
@@ -57,11 +59,14 @@ public class PayOSServiceImpl implements PayOSService {
     @Override
     public WebhookData verifyWebhook(Webhook webhook) {
         try {
+            PayOS payOS = payOSProvider.getPayOS();
             WebhookData data = payOS.webhooks().verify(webhook);
             if (!"00".equals(data.getCode())) {
                 throw new BusinessException(ErrorCode.INVALID_WEBHOOK);
             }
             return data;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.INVALID_WEBHOOK);
         }
@@ -69,15 +74,12 @@ public class PayOSServiceImpl implements PayOSService {
 
     @Override
     public void conFirmWebhook() {
-        try{
+        try {
+            PayOS payOS = payOSProvider.getPayOS();
             String webhookUrl = "";
             ConfirmWebhookResponse result = payOS.webhooks().confirm(webhookUrl);
+        } catch (Exception e) {
+            log.error("Failed to confirm webhook", e);
         }
-        catch (Exception e){
-
-        }
-
     }
-
-
 }

@@ -27,9 +27,9 @@ public class ProductMapper {
                 .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
-
                 .status(product.getStatus().getKey())
                 .quantity(quantity)
+                .sortOrder(product.getSortOrder())
                 .build();
     }
 
@@ -44,6 +44,7 @@ public class ProductMapper {
                 .description(request.getDescription())
                 .price(request.getPrice())
                 .category(category)
+                .sortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0)
                 .build();
     }
 
@@ -67,5 +68,8 @@ public class ProductMapper {
 
         if (request.getStatus() != null)
             product.setStatus(ActiveStatusEnum.fromKey(request.getStatus()));
+
+        if (request.getSortOrder() != null)
+            product.setSortOrder(request.getSortOrder());
     }
 }

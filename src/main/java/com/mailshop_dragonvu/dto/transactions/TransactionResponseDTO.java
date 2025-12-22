@@ -20,6 +20,7 @@ public class TransactionResponseDTO {
     private Long id;
     private String transactionCode;
     private Long userId;
+    private String userEmail;
     private String type;
     private BigDecimal amount;
     private BigDecimal balanceBefore;

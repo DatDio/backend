@@ -20,4 +20,6 @@ public class CategoryUpdateDTO {
     private MultipartFile image;
 
     private Integer status;
+
+    private Integer sortOrder;
 }

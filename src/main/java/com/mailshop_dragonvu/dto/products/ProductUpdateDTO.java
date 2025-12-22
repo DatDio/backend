@@ -27,4 +27,6 @@ public class ProductUpdateDTO {
     private String country;
 
     private MultipartFile image;
+
+    private Integer sortOrder;
 }

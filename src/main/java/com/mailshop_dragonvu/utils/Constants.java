@@ -19,6 +19,7 @@ public class Constants {
         public static final String RANKS = CONTEXT_PATH + "ranks";
         public static final String SETTINGS = CONTEXT_PATH + "settings";
         public static final String TOOLS = CONTEXT_PATH + "tools";
+        public static final String TRANSACTIONS = CONTEXT_PATH + "transactions";
     }
 
 

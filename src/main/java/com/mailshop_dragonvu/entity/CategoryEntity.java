@@ -30,6 +30,10 @@ public class CategoryEntity extends BaseEntity {
     private ActiveStatusEnum status = ActiveStatusEnum.ACTIVE;
 
     @Builder.Default
+    @Column(name = "sort_order")
+    private Integer sortOrder = 0;
+
+    @Builder.Default
     @OneToMany(mappedBy = "category", fetch = FetchType.LAZY)
     private List<ProductEntity> products = new ArrayList<>();
 }

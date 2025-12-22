@@ -31,4 +31,6 @@ public class ProductResponseDTO {
 
     // Số lượng còn lại (đếm từ ProductItem)
     private Long quantity;
+
+    private Integer sortOrder;
 }

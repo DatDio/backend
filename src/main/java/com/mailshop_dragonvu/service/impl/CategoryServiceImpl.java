@@ -49,6 +49,7 @@ public class CategoryServiceImpl implements CategoryService {
         CategoryEntity category = CategoryEntity.builder()
                 .name(request.getName())
                 .description(request.getDescription())
+                .sortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0)
                 .status(ActiveStatusEnum.ACTIVE)
                 .build();
 
@@ -82,6 +83,10 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         category.setDescription(request.getDescription());
+
+        if (request.getSortOrder() != null) {
+            category.setSortOrder(request.getSortOrder());
+        }
 
         category.setStatus(ActiveStatusEnum.fromKey(request.getStatus()));
 

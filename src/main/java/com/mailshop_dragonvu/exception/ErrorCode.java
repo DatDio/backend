@@ -57,6 +57,7 @@ public enum ErrorCode {
     PAYMENT_CREATION_FAILED("7021", "Lỗi tạo thanh toán "),
     HMAC_GENERATION_FAILED("7022", "Lỗi tạo thanh toán "),
     INVALID_WEBHOOK("7023", "Lỗi xác thực thanh toán"),
+    PAYMENT_CONFIGURATION_ERROR("7024", "Chưa cấu hình thanh toán PayOS"),
 
     // Email Errors (8000-8999)
     EMAIL_SEND_FAILED("8000", "Gửi email thất bại"),

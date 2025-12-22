@@ -501,4 +501,105 @@ public class WalletServiceImpl implements WalletService {
     private Long generateOrderCode() {
         return System.currentTimeMillis();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TransactionResponseDTO> searchAllTransactions(TransactionFilterDTO filter) {
+        Sort sort = Utils.generatedSort(filter.getSort());
+        Pageable pageable = PageRequest.of(filter.getPage(), filter.getLimit(), sort);
+
+        Specification<TransactionEntity> spec = (Root<TransactionEntity> root, CriteriaQuery<?> query, CriteriaBuilder cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // Filter by transactionCode
+            if (Strings.isNotBlank(filter.getTransactionCode())) {
+                predicates.add(cb.equal(root.get("transactionCode"), Long.parseLong(filter.getTransactionCode())));
+            }
+
+            // Filter by status
+            if (filter.getStatus() != null) {
+                predicates.add(cb.equal(root.get("status"), TransactionStatusEnum.fromKey(filter.getStatus())));
+            }
+
+            // Filter by type
+            if (filter.getType() != null) {
+                predicates.add(cb.equal(root.get("type"), TransactionTypeEnum.fromKey(filter.getType())));
+            }
+
+            // Filter by email (search in user's email)
+            if (Strings.isNotBlank(filter.getEmail())) {
+                predicates.add(cb.like(cb.lower(root.get("user").get("email")), 
+                    "%" + filter.getEmail().toLowerCase() + "%"));
+            }
+
+            // Filter by userId
+            if (filter.getUserId() != null) {
+                predicates.add(cb.equal(root.get("user").get("id"), filter.getUserId()));
+            }
+
+            // Filter by amount range
+            if (filter.getMinAmount() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("amount"), filter.getMinAmount()));
+            }
+            if (filter.getMaxAmount() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("amount"), filter.getMaxAmount()));
+            }
+
+            // Filter by date range
+            if (filter.getDateFrom() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), filter.getDateFrom()));
+            }
+            if (filter.getDateTo() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), filter.getDateTo()));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<TransactionEntity> page = transactionRepository.findAll(spec, pageable);
+        return page.map(transactionMapper::toResponse);
+    }
+
+    @Override
+    @Transactional
+    public TransactionResponseDTO updateTransactionStatus(Long transactionId, Integer newStatus, String reason) {
+        TransactionEntity transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TRANSACTION_NOT_FOUND));
+
+        TransactionStatusEnum currentStatus = transaction.getStatus();
+        TransactionStatusEnum targetStatus = TransactionStatusEnum.fromKey(newStatus);
+
+        // Chỉ cho phép update từ PENDING
+        if (currentStatus != TransactionStatusEnum.PENDING) {
+            throw new BusinessException(ErrorCode.TRANSACTION_ALREADY_PROCESSED);
+        }
+
+        // Nếu chuyển sang SUCCESS và là giao dịch DEPOSIT -> cộng tiền vào wallet
+        if (targetStatus == TransactionStatusEnum.SUCCESS && transaction.getType() == TransactionTypeEnum.DEPOSIT) {
+            WalletEntity wallet = walletRepository.findByUserIdWithLock(transaction.getUser().getId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+
+            Long balanceBefore = wallet.getBalance();
+            wallet.addBalance(transaction.getAmount());
+            wallet.setTotalDeposited(wallet.getTotalDeposited() + transaction.getAmount());
+            walletRepository.save(wallet);
+
+            // Update transaction với balance before/after
+            transaction.setBalanceBefore(balanceBefore);
+            transaction.setBalanceAfter(wallet.getBalance());
+            transaction.markAsSuccess();
+
+            log.info("Admin approved deposit - userId: {}, amount: {}, balanceBefore: {}, balanceAfter: {}",
+                    transaction.getUser().getId(), transaction.getAmount(), balanceBefore, wallet.getBalance());
+        } else if (targetStatus == TransactionStatusEnum.FAILED) {
+            transaction.markAsFailed(reason != null ? reason : "Admin từ chối giao dịch");
+            log.info("Admin rejected transaction - transactionId: {}, reason: {}", transactionId, reason);
+        } else {
+            // SUCCESS cho các loại khác (không phải DEPOSIT) - chỉ update status
+            transaction.markAsSuccess();
+        }
+
+        transactionRepository.save(transaction);
+        return transactionMapper.toResponse(transaction);
+    }
 }

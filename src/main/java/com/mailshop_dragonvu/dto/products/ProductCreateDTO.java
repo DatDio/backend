@@ -26,4 +26,6 @@ public class ProductCreateDTO {
     private Long categoryId;
 
     private MultipartFile image;
+
+    private Integer sortOrder;
 }

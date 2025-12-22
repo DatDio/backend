@@ -21,6 +21,7 @@ public class TransactionMapper {
                 .id(transactionEntity.getId())
                 .transactionCode(mapTransactionCode(transactionEntity.getTransactionCode()))
                 .userId(transactionEntity.getUser() != null ? transactionEntity.getUser().getId() : null)
+                .userEmail(transactionEntity.getUser() != null ? transactionEntity.getUser().getEmail() : null)
                 .type(transactionEntity.getType() != null ? String.valueOf(transactionEntity.getType()) : null)
                 .amount(toBigDecimal(transactionEntity.getAmount()))
                 .balanceBefore(toBigDecimal(transactionEntity.getBalanceBefore()))

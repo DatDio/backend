@@ -40,5 +40,9 @@ public class ProductEntity extends BaseEntity {
     @Column(nullable = false, length = 20)
     @Builder.Default
     private ActiveStatusEnum status = ActiveStatusEnum.ACTIVE;
+
+    @Builder.Default
+    @Column(name = "sort_order")
+    private Integer sortOrder = 0;
 }
 

@@ -28,6 +28,11 @@ public class CategoryMapper {
 
         List<ProductResponseDTO> productResponses = entity.getProducts().stream()
                 .filter(p -> p.getStatus() == ActiveStatusEnum.ACTIVE)
+                .sorted((p1, p2) -> {
+                    Integer s1 = p1.getSortOrder() != null ? p1.getSortOrder() : 0;
+                    Integer s2 = p2.getSortOrder() != null ? p2.getSortOrder() : 0;
+                    return s1.compareTo(s2);
+                })
                 .map(p -> {
                     long quantity = productItemRepository.countAvailableItems(p.getId());
 
@@ -40,6 +45,7 @@ public class CategoryMapper {
                             .price(p.getPrice())
                             .imageUrl(p.getImageUrl())
                             .quantity(quantity)
+                            .sortOrder(p.getSortOrder())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -50,6 +56,7 @@ public class CategoryMapper {
                 .description(entity.getDescription())
                 .imageUrl(entity.getImageUrl())
                 .status(entity.getStatus().getKey())
+                .sortOrder(entity.getSortOrder())
                 .createdAt(entity.getCreatedAt())
                 .products(productResponses)
                 .build();
@@ -63,6 +70,7 @@ public class CategoryMapper {
         return CategoryEntity.builder()
                 .name(request.getName())
                 .description(request.getDescription())
+                .sortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0)
                 .build();
     }
 }

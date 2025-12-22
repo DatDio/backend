@@ -16,6 +16,7 @@ public class CategoryResponseDTO {
     private String description;
     private String imageUrl;
     private Integer status;
+    private Integer sortOrder;
     private LocalDateTime createdAt;
     private List<ProductResponseDTO> products;
 }

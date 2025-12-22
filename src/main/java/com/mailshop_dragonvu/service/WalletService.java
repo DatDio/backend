@@ -66,4 +66,15 @@ public interface WalletService {
      * Deduct balance when user purchases items
      */
     WalletResponse spend(Long userId, Long amount, String description);
+
+    /**
+     * Admin: Search all transactions with filter
+     */
+    Page<TransactionResponseDTO> searchAllTransactions(TransactionFilterDTO filter);
+
+    /**
+     * Admin: Update transaction status (PENDING -> SUCCESS/FAILED)
+     * If changing to SUCCESS for DEPOSIT type, auto add balance to user wallet
+     */
+    TransactionResponseDTO updateTransactionStatus(Long transactionId, Integer newStatus, String reason);
 }

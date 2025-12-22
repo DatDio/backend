@@ -7,6 +7,7 @@ import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
 import com.mailshop_dragonvu.dto.ApiResponse;
 import com.mailshop_dragonvu.security.UserPrincipal;
 import com.mailshop_dragonvu.service.UserService;
+import com.mailshop_dragonvu.service.WalletService;
 import com.mailshop_dragonvu.utils.Constants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -31,6 +32,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final WalletService walletService;
 
     @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
@@ -83,6 +85,17 @@ public class UserController {
             @RequestBody List<Long> roleIds) {
         userService.removeRolesFromUser(userId, roleIds);
         return ApiResponse.success("Roles removed successfully");
+    }
+
+    @PostMapping("/{userId}/adjust-balance")
+    @Operation(summary = "Adjust user balance (add or subtract)")
+    public ApiResponse<com.mailshop_dragonvu.dto.wallets.WalletResponse> adjustUserBalance(
+            @PathVariable Long userId,
+            @Valid @RequestBody com.mailshop_dragonvu.dto.wallets.AdjustBalanceDTO request) {
+        return ApiResponse.success(
+                request.getAmount() > 0 ? "Cộng tiền thành công" : "Trừ tiền thành công",
+                walletService.adjustBalance(userId, request.getAmount(), request.getReason())
+        );
     }
 
 }

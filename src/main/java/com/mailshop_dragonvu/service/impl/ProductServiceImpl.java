@@ -71,6 +71,7 @@ public class ProductServiceImpl implements ProductService {
                 .country(request.getCountry())
                 .price(request.getPrice())
                 .category(category)
+                .sortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0)
                 .status(ActiveStatusEnum.ACTIVE)
                 .build();
 
@@ -102,6 +103,10 @@ public class ProductServiceImpl implements ProductService {
         }
         product.setLiveTime(request.getLiveTime());
         product.setCountry(request.getCountry());
+
+        if (request.getSortOrder() != null) {
+            product.setSortOrder(request.getSortOrder());
+        }
 
         if (request.getStatus() != null)
             product.setStatus(ActiveStatusEnum.fromKey((request.getStatus())));
@@ -258,10 +263,9 @@ public class ProductServiceImpl implements ProductService {
                 .imageUrl(product.getImageUrl())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
-
                 .status(product.getStatus().getKey())
                 .quantity(quantity)
-
+                .sortOrder(product.getSortOrder())
                 .build();
     }
 }

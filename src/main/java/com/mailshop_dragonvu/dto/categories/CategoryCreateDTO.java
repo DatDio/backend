@@ -18,4 +18,6 @@ public class CategoryCreateDTO {
     private String description;
 
     private MultipartFile image;
+
+    private Integer sortOrder;
 }
