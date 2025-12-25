@@ -28,14 +28,12 @@ public class TransactionController {
     private final WalletService walletService;
 
     @GetMapping
-    @Operation(summary = "Search transactions", description = "Search and filter all transactions")
     public ApiResponse<Page<TransactionResponseDTO>> searchTransactions(TransactionFilterDTO filter) {
         log.info("Admin searching transactions with filter: {}", filter);
         return ApiResponse.success(walletService.searchAllTransactions(filter));
     }
 
     @PutMapping("/{id}/status")
-    @Operation(summary = "Update transaction status", description = "Change transaction status from PENDING to SUCCESS/FAILED")
     public ApiResponse<TransactionResponseDTO> updateTransactionStatus(
             @PathVariable Long id,
             @Valid @RequestBody TransactionUpdateStatusDTO request) {

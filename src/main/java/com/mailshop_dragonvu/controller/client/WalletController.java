@@ -28,9 +28,6 @@ import vn.payos.model.webhooks.Webhook;
 
 import java.util.List;
 
-/**
- * Wallet Controller - User wallet and deposit operations
- */
 @RestController
 @RequestMapping(Constants.API_PATH.WALLETS)
 @RequiredArgsConstructor
@@ -42,7 +39,6 @@ public class WalletController {
     private final WalletService walletService;
 
     @GetMapping("/me")
-    @Operation(summary = "Get my wallet", description = "Get current user's wallet information")
     public ApiResponse<WalletResponse> getMyWallet(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
@@ -51,7 +47,6 @@ public class WalletController {
     }
 
     @PostMapping("/payos/deposit")
-    @Operation(summary = "Create deposit", description = "Create deposit transaction and get PayOS QR code")
     public ApiResponse<CreatePaymentLinkResponse> createDeposit(
             @Valid @RequestBody CreatePaymentLinkRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -70,7 +65,6 @@ public class WalletController {
      * PayOS webhook callback
      */
     @PostMapping("/payos/webhook")
-    @Operation(summary = "PayOS webhook", description = "PayOS payment callback webhook")
     public ResponseEntity<String> payOSWebhook(@RequestBody Webhook webhook) {
 
         walletService.processPayOSCallback(webhook);
@@ -94,7 +88,6 @@ public class WalletController {
      * Get transaction by code
      */
     @GetMapping("/transactions/{transactionCode}")
-    @Operation(summary = "Get transaction", description = "Get transaction details by code")
     public ResponseEntity<ApiResponse<TransactionResponseDTO>> getTransaction(
             @PathVariable Long transactionCode) {
 

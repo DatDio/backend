@@ -36,13 +36,11 @@ public class UserController {
 
     @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create a new user")
     public ApiResponse<UserResponseDTO> createUser(@Valid @RequestBody UserCreateDTO request) {
         return ApiResponse.success("User created successfully", userService.createUser(request));
     }
 
     @PutMapping("update/{id}")
-    @Operation(summary = "Update user by ID")
     public ApiResponse<UserResponseDTO> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UserUpdateDTO request,
@@ -52,7 +50,6 @@ public class UserController {
 
 
     @GetMapping("/search")
-    @Operation(summary = "Get all users with pagination")
     public ApiResponse<Page<UserResponseDTO>> search( UserFilterDTO userFilterDTO) {
         return ApiResponse.success(userService.search(userFilterDTO));
     }
@@ -63,14 +60,12 @@ public class UserController {
         return ApiResponse.success(user);
     }
     @DeleteMapping("/delete/{id}")
-    @Operation(summary = "Delete user by ID")
     public ApiResponse<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ApiResponse.success("User deleted successfully");
     }
 
     @PostMapping("/{userId}/roles")
-    @Operation(summary = "Assign roles to user")
     public ApiResponse<Void> assignRolesToUser(
             @PathVariable Long userId,
             @RequestBody List<Long> roleIds) {
@@ -79,7 +74,6 @@ public class UserController {
     }
 
     @DeleteMapping("/{userId}/roles")
-    @Operation(summary = "Remove roles from user")
     public ApiResponse<Void> removeRolesFromUser(
             @PathVariable Long userId,
             @RequestBody List<Long> roleIds) {
@@ -88,7 +82,6 @@ public class UserController {
     }
 
     @PostMapping("/{userId}/adjust-balance")
-    @Operation(summary = "Adjust user balance (add or subtract)")
     public ApiResponse<com.mailshop_dragonvu.dto.wallets.WalletResponse> adjustUserBalance(
             @PathVariable Long userId,
             @Valid @RequestBody com.mailshop_dragonvu.dto.wallets.AdjustBalanceDTO request) {

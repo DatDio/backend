@@ -31,7 +31,6 @@ public class UserController {
         return ApiResponse.success(user);
     }
     @PutMapping("update/{id}")
-    @Operation(summary = "Update user by ID")
     public ApiResponse<UserResponseDTO> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UserUpdateDTO request,

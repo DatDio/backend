@@ -21,7 +21,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 @Slf4j
-@Tag(name = "Quản lý cài đặt hệ thống", description = "CRUD cài đặt hệ thống (Admin)")
 @SecurityRequirement(name = "Bearer Authentication")
 public class SystemSettingController {
 

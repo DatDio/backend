@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping(Constants.API_PATH.ORDERS)
 @RequiredArgsConstructor
-@Tag(name = "Order Management", description = "Order management APIs")
 @SecurityRequirement(name = "Bearer Authentication")
 public class OrderController {
 
@@ -26,7 +25,6 @@ public class OrderController {
 
     @PostMapping("/buy")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create a new order")
     public ApiResponse<ClientOrderCreateResponseDTO> createOrder(
             @Valid @RequestBody OrderCreateDTO request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -35,7 +33,6 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get order by ID")
     public ApiResponse<OrderResponseDTO> getOrderById(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -43,7 +40,6 @@ public class OrderController {
     }
 
     @GetMapping("/my-orders")
-    @Operation(summary = "Get current user's orders")
     public ApiResponse<Page<OrderResponseDTO>> getMyOrders(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             OrderFilterDTO filterDTO) {

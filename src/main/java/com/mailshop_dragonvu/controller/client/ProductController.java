@@ -21,27 +21,23 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(Constants.API_PATH.PRODUCTS)
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Product Management (Client)", description = "Client product browsing APIs")
 @SecurityRequirement(name = "Bearer Authentication")
 public class ProductController {
     private final ProductService productService;
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get product by ID", description = "Get product details by ID")
     public ApiResponse<ProductResponseDTO> getProductById(@PathVariable Long id) {
         ProductResponseDTO response = productService.getProductById(id);
         return ApiResponse.success(response);
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search products", description = "Get all products with pagination")
     public ApiResponse<Page<ProductResponseDTO>> searchProducts(ProductFilterDTO productFilterDTO) {
         Page<ProductResponseDTO> response = productService.searchProducts(productFilterDTO);
         return ApiResponse.success(response);
     }
 
     @GetMapping("/get-all")
-    @Operation(summary = "Get all active products", description = "Get all active products without pagination")
     public ApiResponse<List<ProductResponseDTO>> getAllActiveProducts() {
         List<ProductResponseDTO> response = productService.getAllActiveProducts();
         return ApiResponse.success(response);

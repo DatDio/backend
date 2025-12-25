@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 @Slf4j
-@Tag(name = "Product Management (Admin)", description = "Admin product management APIs")
 @SecurityRequirement(name = "Bearer Authentication")
 public class ProductController {
 
@@ -32,14 +31,12 @@ public class ProductController {
 
     @PostMapping(value = "create", consumes = "multipart/form-data")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create product", description = "Create a new product (Admin only)")
     public ApiResponse<ProductResponseDTO> createProduct(@Valid @ModelAttribute ProductCreateDTO request) {
         ProductResponseDTO response = productService.createProduct(request);
         return ApiResponse.success("Product created successfully", response);
     }
 
     @PutMapping(value = "/{id}", consumes = "multipart/form-data")
-    @Operation(summary = "Update product", description = "Update product details (Admin only)")
     public ApiResponse<ProductResponseDTO> updateProduct(
             @PathVariable Long id,
             @Valid @ModelAttribute ProductUpdateDTO request) {
@@ -48,7 +45,6 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get product by ID", description = "Get product details by ID")
     public ApiResponse<ProductResponseDTO> getProductById(@PathVariable Long id) {
         ProductResponseDTO response = productService.getProductById(id);
         return ApiResponse.success(response);
@@ -56,7 +52,6 @@ public class ProductController {
 
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Soft delete product", description = "Soft delete (mark as deleted) a product")
     public ApiResponse<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ApiResponse.success("Product deleted successfully");
@@ -64,14 +59,12 @@ public class ProductController {
 
 
     @PatchMapping("/{id}/activate")
-    @Operation(summary = "Activate product", description = "Activate a product")
     public ApiResponse<Void> activateProduct(@PathVariable Long id) {
         productService.activateProduct(id);
         return ApiResponse.success("Product activated successfully");
     }
 
     @PatchMapping("/{id}/deactivate")
-    @Operation(summary = "Deactivate product", description = "Deactivate a product")
     public ApiResponse<Void> deactivateProduct(@PathVariable Long id) {
         productService.deactivateProduct(id);
         return ApiResponse.success("Product deactivated successfully");

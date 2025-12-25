@@ -35,7 +35,6 @@ public class ApiKeyController {
 
     @PostMapping("/generate")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Generate new API key", description = "Generate a new API key for the authenticated user. The plaintext key is shown only once.")
     public ResponseEntity<ApiResponse<ApiKeyGeneratedResponse>> generateApiKey(
             @Valid @RequestBody ApiKeyGenerateRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -46,7 +45,6 @@ public class ApiKeyController {
 
     @PostMapping("/revoke/{id}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Revoke API key", description = "Deactivate an existing API key")
     public ResponseEntity<ApiResponse<ApiKeyResponse>> revokeApiKey(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -57,7 +55,6 @@ public class ApiKeyController {
 
     @PostMapping("/activate/{id}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Activate API key", description = "Activate an inactive API key")
     public ResponseEntity<ApiResponse<ApiKeyResponse>> activateApiKey(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -68,7 +65,6 @@ public class ApiKeyController {
 
     @GetMapping("/list")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "List API keys", description = "Get all API keys for the authenticated user")
     public ResponseEntity<ApiResponse<List<ApiKeyResponse>>> listApiKeys(
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
@@ -78,7 +74,6 @@ public class ApiKeyController {
 
     @GetMapping("/usage-stats/{id}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Get API key usage statistics", description = "Get usage statistics for a specific API key (placeholder for future implementation)")
     public ResponseEntity<ApiResponse<ApiKeyResponse>> getUsageStats(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -89,7 +84,6 @@ public class ApiKeyController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Get API key by ID", description = "Get API key metadata by ID")
     public ResponseEntity<ApiResponse<ApiKeyResponse>> getApiKeyById(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -101,7 +95,6 @@ public class ApiKeyController {
     // DELETE ITEM
     @DeleteMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Delete API key", description = "Delete an API key")
     public ApiResponse<Void> delete(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
