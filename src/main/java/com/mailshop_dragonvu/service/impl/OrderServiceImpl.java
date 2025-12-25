@@ -53,6 +53,7 @@ public class OrderServiceImpl implements OrderService {
     private final EmailService emailService;
     private final WalletService walletService;
     private final ProductQuantityNotifier productQuantityNotifier;
+    private final WarehouseService warehouseService;
 
     @Override
     @Transactional
@@ -110,6 +111,9 @@ public class OrderServiceImpl implements OrderService {
 
          orderRepository.save(order);
          productQuantityNotifier.publishAfterCommit(request.getProductId());
+         
+         // Kiểm tra và chuyển kho nếu kho phụ dưới mức tối thiểu
+         warehouseService.checkAndTransferStock(request.getProductId());
 
         return ClientOrderCreateResponseDTO.builder()
                 .accountData(accountDataList)

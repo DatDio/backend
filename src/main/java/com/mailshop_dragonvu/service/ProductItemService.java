@@ -20,4 +20,23 @@ public interface ProductItemService {
 
     void deleteItem(Long id);
 
+    // ============ BULK OPERATIONS ============
+    
+    /**
+     * Xóa nhiều items theo danh sách account data
+     * @return số items đã xóa
+     */
+    int deleteByAccountData(Long productId, String accountDataList);
+    
+    /**
+     * Lấy danh sách items đã hết hạn (để export)
+     */
+    List<ProductItemResponseDTO> getExpiredItems(Long productId);
+    
+    /**
+     * Xóa tất cả items đã hết hạn
+     * @return số items đã xóa
+     */
+    int deleteExpiredItems(Long productId);
 }
+

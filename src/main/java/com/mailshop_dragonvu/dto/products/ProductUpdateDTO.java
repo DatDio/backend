@@ -29,4 +29,11 @@ public class ProductUpdateDTO {
     private MultipartFile image;
 
     private Integer sortOrder;
+
+    // Cấu hình kho phụ (Secondary Warehouse)
+    private Integer minSecondaryStock;
+    private Integer maxSecondaryStock;
+
+    // Thời gian hết hạn (giờ, 0 = không hết hạn)
+    private Integer expirationHours;
 }

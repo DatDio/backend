@@ -29,8 +29,18 @@ public class ProductResponseDTO {
 
     private Integer status;
 
-    // Số lượng còn lại (đếm từ ProductItem)
+    // Số lượng còn lại trong kho PHỤ (hiển thị cho khách hàng)
     private Long quantity;
 
+    // Số lượng còn lại trong kho CHÍNH (chỉ hiển thị cho admin)
+    private Long primaryQuantity;
+
+    // Cấu hình kho phụ
+    private Integer minSecondaryStock;
+    private Integer maxSecondaryStock;
+
     private Integer sortOrder;
+
+    // Thời gian hết hạn của mail (giờ, 0 = không hết hạn)
+    private Integer expirationHours;
 }

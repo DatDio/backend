@@ -11,6 +11,7 @@ public class ProductItemResponseDTO {
 
     private String accountData;   // mail|pass|recovery
     private Boolean sold;
+    private String warehouseType; // PRIMARY or SECONDARY
 
     private Long buyerId;         // null nếu chưa bán
     private String buyerName;

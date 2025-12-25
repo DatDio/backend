@@ -28,4 +28,11 @@ public class ProductCreateDTO {
     private MultipartFile image;
 
     private Integer sortOrder;
+
+    // Cấu hình kho phụ (Secondary Warehouse)
+    private Integer minSecondaryStock;  // Mặc định: 500
+    private Integer maxSecondaryStock;  // Mặc định: 1000
+
+    // Thời gian hết hạn (giờ, 0 = không hết hạn)
+    private Integer expirationHours;  // Mặc định: 0
 }

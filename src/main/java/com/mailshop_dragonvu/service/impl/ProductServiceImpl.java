@@ -72,6 +72,9 @@ public class ProductServiceImpl implements ProductService {
                 .price(request.getPrice())
                 .category(category)
                 .sortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0)
+                .minSecondaryStock(request.getMinSecondaryStock() != null ? request.getMinSecondaryStock() : 500)
+                .maxSecondaryStock(request.getMaxSecondaryStock() != null ? request.getMaxSecondaryStock() : 1000)
+                .expirationHours(request.getExpirationHours() != null ? request.getExpirationHours() : 0)
                 .status(ActiveStatusEnum.ACTIVE)
                 .build();
 
@@ -106,6 +109,19 @@ public class ProductServiceImpl implements ProductService {
 
         if (request.getSortOrder() != null) {
             product.setSortOrder(request.getSortOrder());
+        }
+
+        // Cập nhật cấu hình kho phụ
+        if (request.getMinSecondaryStock() != null) {
+            product.setMinSecondaryStock(request.getMinSecondaryStock());
+        }
+        if (request.getMaxSecondaryStock() != null) {
+            product.setMaxSecondaryStock(request.getMaxSecondaryStock());
+        }
+
+        // Cập nhật thời gian hết hạn
+        if (request.getExpirationHours() != null) {
+            product.setExpirationHours(request.getExpirationHours());
         }
 
         if (request.getStatus() != null)
@@ -249,9 +265,14 @@ public class ProductServiceImpl implements ProductService {
 
     /**
      * Convert product + tính số lượng còn lại từ ProductItem
+     * - quantity: Số lượng kho PHỤ (hiển thị cho khách hàng)
+     * - primaryQuantity: Số lượng kho CHÍNH (hiển thị cho admin)
      */
     private ProductResponseDTO toProductResponse(ProductEntity product) {
-        long quantity = productItemRepository.countAvailableItems(product.getId());
+        // Số lượng kho PHỤ - hiển thị cho khách hàng
+        long secondaryQuantity = productItemRepository.countSecondaryItems(product.getId());
+        // Số lượng kho CHÍNH - chỉ hiển thị cho admin
+        long primaryQuantity = productItemRepository.countPrimaryItems(product.getId());
 
         return ProductResponseDTO.builder()
                 .id(product.getId())
@@ -264,7 +285,11 @@ public class ProductServiceImpl implements ProductService {
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
                 .status(product.getStatus().getKey())
-                .quantity(quantity)
+                .quantity(secondaryQuantity)           // Kho phụ - hiển thị cho khách
+                .primaryQuantity(primaryQuantity)       // Kho chính - hiển thị cho admin
+                .minSecondaryStock(product.getMinSecondaryStock())
+                .maxSecondaryStock(product.getMaxSecondaryStock())
+                .expirationHours(product.getExpirationHours())
                 .sortOrder(product.getSortOrder())
                 .build();
     }

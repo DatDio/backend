@@ -14,6 +14,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/admin/" + Constants.API_PATH.PRODUCTITEMS)
 @PreAuthorize("hasRole('ADMIN')")
@@ -45,7 +48,7 @@ public class ProductItemController {
             @RequestParam("file") MultipartFile file
     ) {
         productItemService.importItems(productId, file);
-        return ResponseEntity.ok("Imported successfully");
+        return ResponseEntity.ok(ApiResponse.success("Import thành công"));
     }
 
     // DELETE ITEM
@@ -55,4 +58,44 @@ public class ProductItemController {
         return ApiResponse.success("Deleted");
     }
 
+    // ============ BULK OPERATIONS ============
+
+    /**
+     * Xóa nhiều items theo danh sách account data
+     * Input: productId, accountDataList (mỗi dòng một account)
+     */
+    @PostMapping("/bulk-delete/{productId}")
+    public ApiResponse<Map<String, Object>> bulkDelete(
+            @PathVariable Long productId,
+            @RequestBody Map<String, String> request
+    ) {
+        String accountDataList = request.get("accountDataList");
+        int deleted = productItemService.deleteByAccountData(productId, accountDataList);
+        return ApiResponse.success(Map.of(
+                "deleted", deleted,
+                "message", "Đã xóa " + deleted + " tài khoản"
+        ));
+    }
+
+    /**
+     * Lấy danh sách items đã hết hạn (để export)
+     */
+    @GetMapping("/expired/{productId}")
+    public ApiResponse<List<ProductItemResponseDTO>> getExpiredItems(@PathVariable Long productId) {
+        return ApiResponse.success(productItemService.getExpiredItems(productId));
+    }
+
+    /**
+     * Xóa tất cả items đã hết hạn
+     */
+    @DeleteMapping("/expired/{productId}")
+    public ApiResponse<Map<String, Object>> deleteExpiredItems(@PathVariable Long productId) {
+        int deleted = productItemService.deleteExpiredItems(productId);
+        return ApiResponse.success(Map.of(
+                "deleted", deleted,
+                "message", "Đã xóa " + deleted + " tài khoản hết hạn"
+        ));
+    }
+
 }
+

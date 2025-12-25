@@ -59,7 +59,8 @@ public class ProductQuantityNotifier {
 
     private void sendQuantity(Long productId) {
         try {
-            long quantity = productItemRepository.countAvailableItems(productId);
+            // Gửi số lượng kho PHỤ (hiển thị cho khách) qua WebSocket
+            long quantity = productItemRepository.countSecondaryItems(productId);
             ProductQuantityMessage payload = ProductQuantityMessage.builder()
                     .productId(productId)
                     .quantity(quantity)
