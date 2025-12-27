@@ -74,15 +74,14 @@ public interface ProductItemRepository extends JpaRepository<ProductItemEntity, 
 
     // ==================== EXPIRATION ====================
     
-    // Tìm items đã hết hạn (created_at + expirationHours < now) để đánh dấu expired
+    // Tìm items đã hết hạn (expires_at < now VÀ chưa bị đánh dấu) để đánh dấu expired
     @Query(value = """
-        SELECT pi.* FROM product_items pi
-        INNER JOIN products p ON pi.product_id = p.id
-        WHERE pi.product_id = :productId 
-          AND pi.sold = false 
-          AND pi.expired = false
-          AND p.expiration_hours > 0
-          AND pi.created_at < DATE_SUB(NOW(), INTERVAL p.expiration_hours HOUR)
+        SELECT * FROM product_items
+        WHERE product_id = :productId 
+          AND sold = false 
+          AND expired = false
+          AND expires_at IS NOT NULL
+          AND expires_at < NOW()
         FOR UPDATE SKIP LOCKED
     """, nativeQuery = true)
     List<ProductItemEntity> findExpiredItems(@Param("productId") Long productId);
@@ -118,24 +117,22 @@ public interface ProductItemRepository extends JpaRepository<ProductItemEntity, 
     
     // Lấy TẤT CẢ items đã hết hạn (không lock - dùng cho export/delete)
     @Query(value = """
-        SELECT pi.* FROM product_items pi
-        INNER JOIN products p ON pi.product_id = p.id
-        WHERE pi.product_id = :productId 
-          AND pi.sold = false 
-          AND (pi.expired = true 
-               OR (p.expiration_hours > 0 AND pi.created_at < DATE_SUB(NOW(), INTERVAL p.expiration_hours HOUR)))
+        SELECT * FROM product_items
+        WHERE product_id = :productId 
+          AND sold = false 
+          AND (expired = true 
+               OR (expires_at IS NOT NULL AND expires_at < NOW()))
     """, nativeQuery = true)
     List<ProductItemEntity> findAllExpiredItems(@Param("productId") Long productId);
     
     // Xóa tất cả items đã hết hạn
     @Modifying
     @Query(value = """
-        DELETE pi FROM product_items pi
-        INNER JOIN products p ON pi.product_id = p.id
-        WHERE pi.product_id = :productId 
-          AND pi.sold = false 
-          AND (pi.expired = true 
-               OR (p.expiration_hours > 0 AND pi.created_at < DATE_SUB(NOW(), INTERVAL p.expiration_hours HOUR)))
+        DELETE FROM product_items
+        WHERE product_id = :productId 
+          AND sold = false 
+          AND (expired = true 
+               OR (expires_at IS NOT NULL AND expires_at < NOW()))
     """, nativeQuery = true)
     int deleteAllExpiredItems(@Param("productId") Long productId);
 }

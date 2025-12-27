@@ -4,6 +4,7 @@ import com.mailshop_dragonvu.dto.productitems.ProductItemCreateDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemFilterDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemResponseDTO;
 import com.mailshop_dragonvu.entity.ProductItemEntity;
+import com.mailshop_dragonvu.enums.ExpirationType;
 import org.springframework.data.domain.Page;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,7 +17,7 @@ public interface ProductItemService {
 
     List<ProductItemEntity> getRandomUnsoldItems(Long productId, int quantity);
 
-    void importItems(Long productId, MultipartFile file);
+    int importItems(Long productId, MultipartFile file, ExpirationType expirationType);
 
     void deleteItem(Long id);
 

@@ -5,13 +5,10 @@ import com.mailshop_dragonvu.dto.ApiResponse;
 import com.mailshop_dragonvu.security.UserPrincipal;
 import com.mailshop_dragonvu.service.OrderService;
 import com.mailshop_dragonvu.utils.Constants;
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,10 +20,13 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    @PostMapping("/buy")
-    @ResponseStatus(HttpStatus.CREATED)
+    /**
+     * Mua mail - hỗ trợ cả header và query parameter apikey
+     * VD: GET /api/v1/orders/buy?productId=1&quantity=10&apikey=msk_xxx
+     */
+    @GetMapping("/buy")
     public ApiResponse<ClientOrderCreateResponseDTO> createOrder(
-            @Valid @RequestBody OrderCreateDTO request,
+            @Valid OrderCreateDTO request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         return ApiResponse.success("Mua hàng thành công",
                 orderService.createOrder(request, userPrincipal.getId()));

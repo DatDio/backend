@@ -4,6 +4,7 @@ import com.mailshop_dragonvu.dto.ApiResponse;
 import com.mailshop_dragonvu.dto.productitems.ProductItemCreateDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemFilterDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemResponseDTO;
+import com.mailshop_dragonvu.enums.ExpirationType;
 import com.mailshop_dragonvu.service.ProductItemService;
 import com.mailshop_dragonvu.utils.Constants;
 import lombok.RequiredArgsConstructor;
@@ -41,14 +42,15 @@ public class ProductItemController {
         return ApiResponse.success("Thêm thành công");
     }
 
-    // IMPORT TXT FILE
+    // IMPORT TXT FILE với ExpirationType
     @PostMapping("/import/{productId}")
-    public ResponseEntity<?> importItems(
+    public ApiResponse<String> importItems(
             @PathVariable Long productId,
-            @RequestParam("file") MultipartFile file
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "expirationType", defaultValue = "NONE") ExpirationType expirationType
     ) {
-        productItemService.importItems(productId, file);
-        return ResponseEntity.ok(ApiResponse.success("Import thành công"));
+        int count = productItemService.importItems(productId, file, expirationType);
+        return ApiResponse.success("Import thành công " + count + " tài khoản");
     }
 
     // DELETE ITEM

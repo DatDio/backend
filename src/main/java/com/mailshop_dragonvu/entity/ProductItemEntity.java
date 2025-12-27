@@ -1,5 +1,6 @@
 package com.mailshop_dragonvu.entity;
 
+import com.mailshop_dragonvu.enums.ExpirationType;
 import com.mailshop_dragonvu.enums.WarehouseType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -43,7 +44,17 @@ public class ProductItemEntity extends BaseEntity {
     @Column(name = "sold_at")
     private LocalDateTime soldAt;
 
-    // Trạng thái hết hạn (mail quá thời gian sống)
+    // Loại thời gian hết hạn (3h, 6h, 1 tháng, 6 tháng, không hạn)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "expiration_type", length = 20)
+    @Builder.Default
+    private ExpirationType expirationType = ExpirationType.NONE;
+
+    // Thời điểm hết hạn (tính từ createdAt + expirationType.hours)
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
+    // Trạng thái đã bị đánh dấu hết hạn
     @Column(nullable = false)
     @Builder.Default
     private Boolean expired = false;
@@ -63,17 +74,12 @@ public class ProductItemEntity extends BaseEntity {
     }
 
     /**
-     * Kiểm tra xem item có hết hạn không
-     * @param expirationHours Số giờ hết hạn (0 = không hết hạn)
+     * Kiểm tra xem item có hết hạn không (dựa trên expiresAt)
      */
-    public boolean isExpired(int expirationHours) {
-        if (expirationHours <= 0) {
+    public boolean isExpired() {
+        if (this.expiresAt == null) {
             return false; // Không có thời gian hết hạn
         }
-        if (this.getCreatedAt() == null) {
-            return false;
-        }
-        LocalDateTime expiryTime = this.getCreatedAt().plusHours(expirationHours);
-        return LocalDateTime.now().isAfter(expiryTime);
+        return LocalDateTime.now().isAfter(this.expiresAt);
     }
 }

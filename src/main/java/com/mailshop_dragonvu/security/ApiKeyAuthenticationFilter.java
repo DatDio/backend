@@ -23,6 +23,7 @@ import java.io.IOException;
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String API_KEY_HEADER = "X-API-KEY";
+    private static final String API_KEY_PARAM = "apikey"; // Query parameter name
 
     private final ApiKeyService apiKeyService;
     private final CustomUserDetailsService userDetailsService;
@@ -64,8 +65,23 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * Extract API key from request - hỗ trợ cả header và query parameter
+     * Ưu tiên: Header > Query parameter
+     * 
+     * Header format: X-API-KEY: msk_xxxx
+     * URL format: ?apikey=msk_xxxx
+     */
     private String extractApiKeyFromRequest(HttpServletRequest request) {
+        // 1. Check header first (priority)
         String apiKey = request.getHeader(API_KEY_HEADER);
+        if (StringUtils.hasText(apiKey)) {
+            return apiKey.trim();
+        }
+        
+        // 2. Fallback to query parameter
+        apiKey = request.getParameter(API_KEY_PARAM);
         return StringUtils.hasText(apiKey) ? apiKey.trim() : null;
     }
 }
+

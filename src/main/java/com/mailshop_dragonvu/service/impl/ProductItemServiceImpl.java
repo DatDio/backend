@@ -5,6 +5,7 @@ import com.mailshop_dragonvu.dto.productitems.ProductItemFilterDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemResponseDTO;
 import com.mailshop_dragonvu.entity.ProductEntity;
 import com.mailshop_dragonvu.entity.ProductItemEntity;
+import com.mailshop_dragonvu.enums.ExpirationType;
 import com.mailshop_dragonvu.enums.WarehouseType;
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
@@ -98,20 +99,43 @@ public class ProductItemServiceImpl implements ProductItemService {
             Long productId = product.getId();
             Timestamp now = Timestamp.valueOf(LocalDateTime.now());
             
-            // Thêm warehouse_type = 'PRIMARY' khi insert
-            String sql = "INSERT INTO product_items (product_id, account_data, sold, warehouse_type, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)";
+            // Xác định ExpirationType - ưu tiên expirationType enum, fallback expirationHours
+            ExpirationType expirationType;
+            if (productItemCreateDTO.getExpirationType() != null && !productItemCreateDTO.getExpirationType().isEmpty()) {
+                try {
+                    expirationType = ExpirationType.valueOf(productItemCreateDTO.getExpirationType());
+                } catch (IllegalArgumentException e) {
+                    expirationType = ExpirationType.NONE;
+                }
+            } else {
+                Integer expirationHours = productItemCreateDTO.getExpirationHours();
+                expirationType = ExpirationType.fromHours(expirationHours);
+            }
+            
+            Timestamp expiresAt = null;
+            if (expirationType != ExpirationType.NONE) {
+                expiresAt = Timestamp.valueOf(LocalDateTime.now().plusHours(expirationType.getHours()));
+            }
+            final Timestamp finalExpiresAt = expiresAt;
+            final String expirationTypeName = expirationType.name();
+            
+            // Thêm warehouse_type = 'PRIMARY', expiration_type và expires_at khi insert
+            String sql = "INSERT INTO product_items (product_id, account_data, sold, expired, warehouse_type, expiration_type, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             
             jdbcTemplate.batchUpdate(sql, newAccountDataList, 500, (ps, accountData) -> {
                 ps.setLong(1, productId);
                 ps.setString(2, accountData);
                 ps.setBoolean(3, false);
-                ps.setString(4, WarehouseType.PRIMARY.name()); // Tất cả vào kho PRIMARY
-                ps.setTimestamp(5, now);
-                ps.setTimestamp(6, now);
+                ps.setBoolean(4, false);
+                ps.setString(5, WarehouseType.PRIMARY.name()); // Tất cả vào kho PRIMARY
+                ps.setString(6, expirationTypeName); // Loại thời gian hết hạn
+                ps.setTimestamp(7, finalExpiresAt); // expiresAt per item
+                ps.setTimestamp(8, now);
+                ps.setTimestamp(9, now);
             });
             
-            log.info("Batch inserted {} product items into PRIMARY warehouse for product {}", 
-                    newAccountDataList.size(), productId);
+            log.info("Batch inserted {} product items into PRIMARY warehouse for product {} (expirationType: {}, expiresAt: {})", 
+                    newAccountDataList.size(), productId, expirationType, expiresAt);
             
             productQuantityNotifier.publishAfterCommit(productItemCreateDTO.getProductId());
             
@@ -155,10 +179,23 @@ public class ProductItemServiceImpl implements ProductItemService {
             if (req.getSold() != null) {
                 predicates.add(cb.equal(root.get("sold"), req.getSold()));
             }
+            
+            // 3. Filter theo accountData
             if(StringUtils.hasText(req.getAccountData()) ){
                 predicates.add(cb.like(cb.lower(root.get("accountData")),
                         "%" + req.getAccountData().trim().toLowerCase() + "%"));
             }
+            
+            // 4. Filter theo loại thời gian hết hạn (expirationType)
+            if (StringUtils.hasText(req.getExpirationType())) {
+                try {
+                    ExpirationType type = ExpirationType.valueOf(req.getExpirationType());
+                    predicates.add(cb.equal(root.get("expirationType"), type));
+                } catch (IllegalArgumentException ignored) {
+                    // Invalid type, ignore
+                }
+            }
+            
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
@@ -170,15 +207,11 @@ public class ProductItemServiceImpl implements ProductItemService {
      */
     @Override
     public List<ProductItemEntity> getRandomUnsoldItems(Long productId, int quantity) {
-        ProductEntity product = productRepository.findById(productId)
+        productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
         
-        int expirationHours = product.getExpirationHours() != null ? product.getExpirationHours() : 0;
-        
-        // 1. Đánh dấu các items đã hết hạn trước khi lấy
-        if (expirationHours > 0) {
-            markExpiredItems(productId);
-        }
+        // 1. Đánh dấu các items đã hết hạn trước khi lấy (dựa trên expiresAt của từng item)
+        markExpiredItems(productId);
         
         // 2. Lấy từ kho SECONDARY (đã loại bỏ expired items trong query)
         List<ProductItemEntity> items =
@@ -189,9 +222,7 @@ public class ProductItemServiceImpl implements ProductItemService {
             warehouseService.checkAndTransferStock(productId);
             
             // Đánh dấu expired lần nữa cho items mới chuyển sang
-            if (expirationHours > 0) {
-                markExpiredItems(productId);
-            }
+            markExpiredItems(productId);
             
             items = productItemRepository.findRandomUnsoldSecondaryItems(productId, quantity);
             
@@ -201,34 +232,30 @@ public class ProductItemServiceImpl implements ProductItemService {
         }
         
         // 3. Double-check: lọc ra các items còn hạn (phòng trường hợp race condition)
-        if (expirationHours > 0) {
-            List<ProductItemEntity> validItems = new ArrayList<>();
-            List<Long> expiredIds = new ArrayList<>();
-            
-            for (ProductItemEntity item : items) {
-                if (item.isExpired(expirationHours)) {
-                    expiredIds.add(item.getId());
-                } else {
-                    validItems.add(item);
-                }
+        List<ProductItemEntity> validItems = new ArrayList<>();
+        List<Long> expiredIds = new ArrayList<>();
+        
+        for (ProductItemEntity item : items) {
+            if (item.isExpired()) { // Dùng isExpired() không tham số - check dựa trên expiresAt
+                expiredIds.add(item.getId());
+            } else {
+                validItems.add(item);
             }
-            
-            // Đánh dấu expired cho các items bị lọc ra
-            if (!expiredIds.isEmpty()) {
-                productItemRepository.markAsExpired(expiredIds);
-                log.info("Product {}: Marked {} items as expired during fetch", productId, expiredIds.size());
-            }
-            
-            // Nếu không đủ items sau khi lọc, throw exception
-            if (validItems.size() < quantity) {
-                throw new BusinessException(ErrorCode.NOT_ENOUGH_STOCK, 
-                    "Không đủ mail còn hạn. Vui lòng thử lại với số lượng ít hơn.");
-            }
-            
-            return validItems;
         }
-
-        return items;
+        
+        // Đánh dấu expired cho các items bị lọc ra
+        if (!expiredIds.isEmpty()) {
+            productItemRepository.markAsExpired(expiredIds);
+            log.info("Product {}: Marked {} items as expired during fetch", productId, expiredIds.size());
+        }
+        
+        // Nếu không đủ items sau khi lọc, throw exception
+        if (validItems.size() < quantity) {
+            throw new BusinessException(ErrorCode.NOT_ENOUGH_STOCK, 
+                "Không đủ mail còn hạn. Vui lòng thử lại với số lượng ít hơn.");
+        }
+        
+        return validItems;
     }
     
     /**
@@ -272,43 +299,78 @@ public class ProductItemServiceImpl implements ProductItemService {
     }
 
     @Override
-    public void importItems(Long productId, MultipartFile file) {
+    public int importItems(Long productId, MultipartFile file, ExpirationType expirationType) {
         ProductEntity product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        List<String> accountDataList = new ArrayList<>();
 
         try (BufferedReader br = new BufferedReader(
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
 
             String line;
-            List<ProductItemEntity> items = new ArrayList<>();
-
             while ((line = br.readLine()) != null) {
                 String trimmed = line.trim();
-                if (trimmed.isEmpty()) continue;
-
-                // Tất cả items import vào kho PRIMARY
-                ProductItemEntity item = ProductItemEntity.builder()
-                        .product(product)
-                        .accountData(trimmed)
-                        .sold(false)
-                        .warehouseType(WarehouseType.PRIMARY) // Import vào kho PRIMARY
-                        .build();
-
-                items.add(item);
-            }
-
-
-            if (!items.isEmpty()) {
-                productItemRepository.saveAll(items);
-                productQuantityNotifier.publishAfterCommit(productId);
-                
-                // Trigger warehouse check - chuyển sang SECONDARY nếu cần
-                warehouseService.checkAndTransferStock(productId);
+                if (!trimmed.isEmpty()) {
+                    accountDataList.add(trimmed);
+                }
             }
 
         } catch (IOException e) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Lỗi đọc file");
         }
+
+        if (accountDataList.isEmpty()) {
+            return 0;
+        }
+
+        // Lọc trùng với database (dùng cùng logic với batchCreateProductItems)
+        Set<String> uniqueInputLines = new HashSet<>(accountDataList);
+        List<ProductItemEntity> existingItems = productItemRepository.findByProductIdAndAccountDataIn(
+                productId, uniqueInputLines);
+        Set<String> existingAccounts = existingItems.stream()
+                .map(ProductItemEntity::getAccountData)
+                .collect(Collectors.toSet());
+        
+        List<String> newAccountDataList = accountDataList.stream()
+            .filter(acc -> !existingAccounts.contains(acc))
+            .distinct()
+            .collect(Collectors.toList());
+
+        if (newAccountDataList.isEmpty()) {
+            return 0;
+        }
+
+        // JDBC Batch Insert với ExpirationType
+        Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+        Timestamp expiresAt = null;
+        if (expirationType != ExpirationType.NONE) {
+            expiresAt = Timestamp.valueOf(LocalDateTime.now().plusHours(expirationType.getHours()));
+        }
+        final Timestamp finalExpiresAt = expiresAt;
+        final String expirationTypeName = expirationType.name();
+
+        String sql = "INSERT INTO product_items (product_id, account_data, sold, expired, warehouse_type, expiration_type, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        jdbcTemplate.batchUpdate(sql, newAccountDataList, 500, (ps, accountData) -> {
+            ps.setLong(1, productId);
+            ps.setString(2, accountData);
+            ps.setBoolean(3, false);
+            ps.setBoolean(4, false);
+            ps.setString(5, WarehouseType.PRIMARY.name());
+            ps.setString(6, expirationTypeName);
+            ps.setTimestamp(7, finalExpiresAt);
+            ps.setTimestamp(8, now);
+            ps.setTimestamp(9, now);
+        });
+
+        log.info("Imported {} items for product {} with expirationType {}", 
+                newAccountDataList.size(), productId, expirationType);
+
+        productQuantityNotifier.publishAfterCommit(productId);
+        warehouseService.checkAndTransferStock(productId);
+
+        return newAccountDataList.size();
     }
 
     // Convert ENTITY → DTO
@@ -321,6 +383,9 @@ public class ProductItemServiceImpl implements ProductItemService {
                     .orElse(null);
         }
         
+        // Get expiration type info
+        ExpirationType expType = e.getExpirationType() != null ? e.getExpirationType() : ExpirationType.NONE;
+        
         return ProductItemResponseDTO.builder()
                 .id(e.getId())
                 .productId(e.getProduct().getId())
@@ -330,6 +395,13 @@ public class ProductItemServiceImpl implements ProductItemService {
                 .buyerId(e.getBuyerId())
                 .buyerName(buyerEmail)
                 .soldAt(e.getSoldAt() != null ? e.getSoldAt().toString() : null)
+                // Expiration info (per item)
+                .createdAt(e.getCreatedAt() != null ? e.getCreatedAt().toString() : null)
+                .expirationType(expType.name())
+                .expirationLabel(expType.getLabel())
+                .expiresAt(e.getExpiresAt() != null ? e.getExpiresAt().toString() : null)
+                .expired(e.getExpired())
+                .expiredAt(e.getExpiredAt() != null ? e.getExpiredAt().toString() : null)
                 .build();
     }
 
