@@ -15,12 +15,14 @@ import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.service.ProductItemService;
 import com.mailshop_dragonvu.service.ProductQuantityNotifier;
 import com.mailshop_dragonvu.service.WarehouseService;
+import com.mailshop_dragonvu.utils.Utils;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -36,7 +38,9 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -59,38 +63,42 @@ public class ProductItemServiceImpl implements ProductItemService {
         ProductEntity product = productRepository.findById(productItemCreateDTO.getProductId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
-        if(!StringUtils.hasText(productItemCreateDTO.getAccountData())){
+        if (!StringUtils.hasText(productItemCreateDTO.getAccountData())) {
             throw new BusinessException("Nội dung rỗng!");
         }
 
         String[] lines = productItemCreateDTO.getAccountData().split("\\r?\\n");
-        
-        // 1. Deduplicate input
-        Set<String> uniqueInputLines = new HashSet<>();
+
+        // 1. Deduplicate input by email (phần trước dấu |)
+        Map<String, String> emailToAccountData = new LinkedHashMap<>(); // giữ nguyên thứ tự
         for (String line : lines) {
             String trimmed = line.trim();
             if (!trimmed.isEmpty()) {
-                uniqueInputLines.add(trimmed);
+                String email = extractEmail(trimmed);
+                // Nếu email chưa có trong map thì thêm vào (giữ dòng đầu tiên)
+                if (!emailToAccountData.containsKey(email)) {
+                    emailToAccountData.put(email, trimmed);
+                }
             }
         }
 
-        if (uniqueInputLines.isEmpty()) {
-             return 0;
+        if (emailToAccountData.isEmpty()) {
+            return 0;
         }
 
-        // 2. Find existing items in DB
-        List<ProductItemEntity> existingItems = productItemRepository.findByProductIdAndAccountDataIn(
-                productItemCreateDTO.getProductId(), uniqueInputLines);
+        // 2. Lấy tất cả email đã có trong DB cho product này
+        List<ProductItemEntity> existingItems = productItemRepository.findByProductIdAndSoldFalse(
+                productItemCreateDTO.getProductId());
         
-        Set<String> existingAccounts = existingItems.stream()
-                .map(ProductItemEntity::getAccountData)
+        Set<String> existingEmails = existingItems.stream()
+                .map(item -> extractEmail(item.getAccountData()))
                 .collect(Collectors.toSet());
 
-        // 3. Filter new items (not in DB)
+        // 3. Filter new items (email chưa có trong DB)
         List<String> newAccountDataList = new ArrayList<>();
-        for (String line : uniqueInputLines) {
-            if (!existingAccounts.contains(line)) {
-                newAccountDataList.add(line);
+        for (Map.Entry<String, String> entry : emailToAccountData.entrySet()) {
+            if (!existingEmails.contains(entry.getKey())) {
+                newAccountDataList.add(entry.getValue());
             }
         }
 
@@ -98,7 +106,7 @@ public class ProductItemServiceImpl implements ProductItemService {
         if (!newAccountDataList.isEmpty()) {
             Long productId = product.getId();
             Timestamp now = Timestamp.valueOf(LocalDateTime.now());
-            
+
             // Xác định ExpirationType - ưu tiên expirationType enum, fallback expirationHours
             ExpirationType expirationType;
             if (productItemCreateDTO.getExpirationType() != null && !productItemCreateDTO.getExpirationType().isEmpty()) {
@@ -111,17 +119,17 @@ public class ProductItemServiceImpl implements ProductItemService {
                 Integer expirationHours = productItemCreateDTO.getExpirationHours();
                 expirationType = ExpirationType.fromHours(expirationHours);
             }
-            
+
             Timestamp expiresAt = null;
             if (expirationType != ExpirationType.NONE) {
                 expiresAt = Timestamp.valueOf(LocalDateTime.now().plusHours(expirationType.getHours()));
             }
             final Timestamp finalExpiresAt = expiresAt;
             final String expirationTypeName = expirationType.name();
-            
+
             // Thêm warehouse_type = 'PRIMARY', expiration_type và expires_at khi insert
             String sql = "INSERT INTO product_items (product_id, account_data, sold, expired, warehouse_type, expiration_type, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            
+
             jdbcTemplate.batchUpdate(sql, newAccountDataList, 500, (ps, accountData) -> {
                 ps.setLong(1, productId);
                 ps.setString(2, accountData);
@@ -133,28 +141,29 @@ public class ProductItemServiceImpl implements ProductItemService {
                 ps.setTimestamp(8, now);
                 ps.setTimestamp(9, now);
             });
-            
-            log.info("Batch inserted {} product items into PRIMARY warehouse for product {} (expirationType: {}, expiresAt: {})", 
+
+            log.info("Batch inserted {} product items into PRIMARY warehouse for product {} (expirationType: {}, expiresAt: {})",
                     newAccountDataList.size(), productId, expirationType, expiresAt);
-            
+
             productQuantityNotifier.publishAfterCommit(productItemCreateDTO.getProductId());
-            
+
             // Trigger warehouse check - chuyển từ PRIMARY sang SECONDARY nếu cần
             warehouseService.checkAndTransferStock(productId);
         }
-        
+
         // Calculate duplicates count
         long nonEmptyInputCount = 0;
-        for(String line : lines) {
-            if(!line.trim().isEmpty()) nonEmptyInputCount++;
+        for (String line : lines) {
+            if (!line.trim().isEmpty()) nonEmptyInputCount++;
         }
-        
+
         return (int) (nonEmptyInputCount - newAccountDataList.size());
     }
 
     @Override
     public Page<ProductItemResponseDTO> searchProductItems(ProductItemFilterDTO productItemFilterDTO) {
-        Pageable pageable = PageRequest.of(productItemFilterDTO.getPage(), productItemFilterDTO.getLimit());
+        Sort sort = Utils.generatedSort(productItemFilterDTO.getSort());
+        Pageable pageable = PageRequest.of(productItemFilterDTO.getPage(), productItemFilterDTO.getLimit(), sort);
 
         Specification<ProductItemEntity> spec = getSearchSpecification(productItemFilterDTO);
 
@@ -179,13 +188,13 @@ public class ProductItemServiceImpl implements ProductItemService {
             if (req.getSold() != null) {
                 predicates.add(cb.equal(root.get("sold"), req.getSold()));
             }
-            
+
             // 3. Filter theo accountData
-            if(StringUtils.hasText(req.getAccountData()) ){
+            if (StringUtils.hasText(req.getAccountData())) {
                 predicates.add(cb.like(cb.lower(root.get("accountData")),
                         "%" + req.getAccountData().trim().toLowerCase() + "%"));
             }
-            
+
             // 4. Filter theo loại thời gian hết hạn (expirationType)
             if (StringUtils.hasText(req.getExpirationType())) {
                 try {
@@ -195,7 +204,7 @@ public class ProductItemServiceImpl implements ProductItemService {
                     // Invalid type, ignore
                 }
             }
-            
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
@@ -209,10 +218,10 @@ public class ProductItemServiceImpl implements ProductItemService {
     public List<ProductItemEntity> getRandomUnsoldItems(Long productId, int quantity) {
         productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
-        
+
         // 1. Đánh dấu các items đã hết hạn trước khi lấy (dựa trên expiresAt của từng item)
         markExpiredItems(productId);
-        
+
         // 2. Lấy từ kho SECONDARY (đã loại bỏ expired items trong query)
         List<ProductItemEntity> items =
                 productItemRepository.findRandomUnsoldSecondaryItems(productId, quantity);
@@ -220,21 +229,21 @@ public class ProductItemServiceImpl implements ProductItemService {
         if (items.size() < quantity) {
             // Có thể kho phụ không đủ, thử trigger chuyển kho rồi lấy lại
             warehouseService.checkAndTransferStock(productId);
-            
+
             // Đánh dấu expired lần nữa cho items mới chuyển sang
             markExpiredItems(productId);
-            
+
             items = productItemRepository.findRandomUnsoldSecondaryItems(productId, quantity);
-            
+
             if (items.size() < quantity) {
                 throw new BusinessException(ErrorCode.NOT_ENOUGH_STOCK);
             }
         }
-        
+
         // 3. Double-check: lọc ra các items còn hạn (phòng trường hợp race condition)
         List<ProductItemEntity> validItems = new ArrayList<>();
         List<Long> expiredIds = new ArrayList<>();
-        
+
         for (ProductItemEntity item : items) {
             if (item.isExpired()) { // Dùng isExpired() không tham số - check dựa trên expiresAt
                 expiredIds.add(item.getId());
@@ -242,22 +251,22 @@ public class ProductItemServiceImpl implements ProductItemService {
                 validItems.add(item);
             }
         }
-        
+
         // Đánh dấu expired cho các items bị lọc ra
         if (!expiredIds.isEmpty()) {
             productItemRepository.markAsExpired(expiredIds);
             log.info("Product {}: Marked {} items as expired during fetch", productId, expiredIds.size());
         }
-        
+
         // Nếu không đủ items sau khi lọc, throw exception
         if (validItems.size() < quantity) {
-            throw new BusinessException(ErrorCode.NOT_ENOUGH_STOCK, 
-                "Không đủ mail còn hạn. Vui lòng thử lại với số lượng ít hơn.");
+            throw new BusinessException(ErrorCode.NOT_ENOUGH_STOCK,
+                    "Không đủ mail còn hạn. Vui lòng thử lại với số lượng ít hơn.");
         }
-        
+
         return validItems;
     }
-    
+
     /**
      * Đánh dấu các items đã hết hạn trong database
      */
@@ -276,7 +285,7 @@ public class ProductItemServiceImpl implements ProductItemService {
     public void markSold(Long itemId, Long buyerId) {
         productItemRepository.markAsSold(itemId, buyerId);
     }
-    
+
     /**
      * Đánh dấu item đã bán và trigger kiểm tra kho
      * Gọi method này sau khi hoàn thành đơn hàng
@@ -324,18 +333,30 @@ public class ProductItemServiceImpl implements ProductItemService {
             return 0;
         }
 
-        // Lọc trùng với database (dùng cùng logic với batchCreateProductItems)
-        Set<String> uniqueInputLines = new HashSet<>(accountDataList);
-        List<ProductItemEntity> existingItems = productItemRepository.findByProductIdAndAccountDataIn(
-                productId, uniqueInputLines);
-        Set<String> existingAccounts = existingItems.stream()
-                .map(ProductItemEntity::getAccountData)
-                .collect(Collectors.toSet());
+        // 1. Deduplicate input by email (phần trước dấu |)
+        Map<String, String> emailToAccountData = new LinkedHashMap<>();
+        for (String line : accountDataList) {
+            String email = extractEmail(line);
+            // Nếu email chưa có trong map thì thêm vào (giữ dòng đầu tiên)
+            if (!emailToAccountData.containsKey(email)) {
+                emailToAccountData.put(email, line);
+            }
+        }
+
+        // 2. Lấy tất cả email đã có trong DB cho product này
+        List<ProductItemEntity> existingItems = productItemRepository.findByProductIdAndSoldFalse(productId);
         
-        List<String> newAccountDataList = accountDataList.stream()
-            .filter(acc -> !existingAccounts.contains(acc))
-            .distinct()
-            .collect(Collectors.toList());
+        Set<String> existingEmails = existingItems.stream()
+                .map(item -> extractEmail(item.getAccountData()))
+                .collect(Collectors.toSet());
+
+        // 3. Filter new items (email chưa có trong DB)
+        List<String> newAccountDataList = new ArrayList<>();
+        for (Map.Entry<String, String> entry : emailToAccountData.entrySet()) {
+            if (!existingEmails.contains(entry.getKey())) {
+                newAccountDataList.add(entry.getValue());
+            }
+        }
 
         if (newAccountDataList.isEmpty()) {
             return 0;
@@ -364,7 +385,7 @@ public class ProductItemServiceImpl implements ProductItemService {
             ps.setTimestamp(9, now);
         });
 
-        log.info("Imported {} items for product {} with expirationType {}", 
+        log.info("Imported {} items for product {} with expirationType {}",
                 newAccountDataList.size(), productId, expirationType);
 
         productQuantityNotifier.publishAfterCommit(productId);
@@ -382,10 +403,10 @@ public class ProductItemServiceImpl implements ProductItemService {
                     .map(user -> user.getEmail())
                     .orElse(null);
         }
-        
+
         // Get expiration type info
         ExpirationType expType = e.getExpirationType() != null ? e.getExpirationType() : ExpirationType.NONE;
-        
+
         return ProductItemResponseDTO.builder()
                 .id(e.getId())
                 .productId(e.getProduct().getId())
@@ -453,6 +474,22 @@ public class ProductItemServiceImpl implements ProductItemService {
             productQuantityNotifier.publishAfterCommit(productId);
         }
         return deleted;
+    }
+
+    /**
+     * Extract email from accountData string
+     * Format: email|password|... → returns email
+     * If no | separator, returns entire string
+     */
+    private String extractEmail(String accountData) {
+        if (accountData == null || accountData.isEmpty()) {
+            return "";
+        }
+        int separatorIndex = accountData.indexOf('|');
+        if (separatorIndex > 0) {
+            return accountData.substring(0, separatorIndex).trim().toLowerCase();
+        }
+        return accountData.trim().toLowerCase();
     }
 }
 

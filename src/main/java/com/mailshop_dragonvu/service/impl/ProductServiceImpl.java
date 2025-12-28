@@ -54,7 +54,7 @@ public class ProductServiceImpl implements ProductService {
     public List<ProductResponseDTO> getAllActiveProducts() {
         return productRepository.findAllByStatus(ActiveStatusEnum.ACTIVE)
                 .stream()
-                .map(this::toProductResponse)
+                .map(this::toProductResponseClient)
                 .toList();
     }
 
@@ -287,6 +287,29 @@ public class ProductServiceImpl implements ProductService {
                 .status(product.getStatus().getKey())
                 .quantity(secondaryQuantity)           // Kho phụ - hiển thị cho khách
                 .primaryQuantity(primaryQuantity)       // Kho chính - hiển thị cho admin
+                .minSecondaryStock(product.getMinSecondaryStock())
+                .maxSecondaryStock(product.getMaxSecondaryStock())
+                .expirationHours(product.getExpirationHours())
+                .sortOrder(product.getSortOrder())
+                .build();
+    }
+
+    private ProductResponseDTO toProductResponseClient(ProductEntity product) {
+        // Số lượng kho PHỤ - hiển thị cho khách hàng
+        long secondaryQuantity = productItemRepository.countSecondaryItems(product.getId());
+
+        return ProductResponseDTO.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .description(product.getDescription())
+                .price(product.getPrice())
+                .liveTime(product.getLiveTime())
+                .country(product.getCountry())
+                .imageUrl(product.getImageUrl())
+                .categoryId(product.getCategory().getId())
+                .categoryName(product.getCategory().getName())
+                .status(product.getStatus().getKey())
+                .quantity(secondaryQuantity)           // Kho phụ - hiển thị cho khách
                 .minSecondaryStock(product.getMinSecondaryStock())
                 .maxSecondaryStock(product.getMaxSecondaryStock())
                 .expirationHours(product.getExpirationHours())

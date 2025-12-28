@@ -34,7 +34,8 @@ public class CategoryMapper {
                     return s1.compareTo(s2);
                 })
                 .map(p -> {
-                    long quantity = productItemRepository.countAvailableItems(p.getId());
+                    // Chỉ hiển thị số lượng từ kho PHỤ (SECONDARY) cho khách hàng
+                    long quantity = productItemRepository.countSecondaryItems(p.getId());
 
                     return ProductResponseDTO.builder()
                             .id(p.getId())
