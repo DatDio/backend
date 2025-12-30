@@ -74,6 +74,12 @@ payos:
   return-url: ${PAYOS_RETURN_URL:http://localhost:4200/transactions}
   cancel-url: ${PAYOS_CANCEL_URL:http://localhost:4200/transactions}
 
+casso:
+  secure-token: ${CASSO_SECURE_TOKEN:}
+  bank-code: ${CASSO_BANK_CODE:}
+  bank-account: ${CASSO_BANK_ACCOUNT:}
+  account-name: ${CASSO_ACCOUNT_NAME:}
+
 management:
   endpoints.web.exposure.include: health,info,metrics,prometheus
   endpoint.health.show-details: always

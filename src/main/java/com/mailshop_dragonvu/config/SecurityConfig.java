@@ -98,6 +98,7 @@ public class SecurityConfig {
                                                                 "/api/v1/auth/**",
                                                                 "/api/v1/tools/**",
                                                                 "/api/v1/wallets/payos/webhook",
+                                                                "/api/v1/wallets/casso/webhook",
                                                                 "/api/v1/categories/search",
                                                                 "/api/v1/products/get-all",
                                                                 "/api/payment/*/notify",

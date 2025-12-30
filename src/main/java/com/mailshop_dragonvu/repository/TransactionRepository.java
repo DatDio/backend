@@ -89,4 +89,9 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
            "AND t.status = com.mailshop_dragonvu.enums.TransactionStatusEnum.SUCCESS " +
            "AND t.createdAt >= :since")
     Long getTotalDepositInPeriod(@Param("userId") Long userId, @Param("since") LocalDateTime since);
+
+    /**
+     * Check if transaction with payment reference exists (for deduplication)
+     */
+    boolean existsByPaymentReference(String paymentReference);
 }

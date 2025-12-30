@@ -1,5 +1,8 @@
 package com.mailshop_dragonvu.service.impl;
 
+import com.mailshop_dragonvu.dto.casso.CassoDepositResponse;
+import com.mailshop_dragonvu.dto.casso.CassoTransactionDTO;
+import com.mailshop_dragonvu.dto.casso.CassoWebhookDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionFilterDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
@@ -15,6 +18,9 @@ import com.mailshop_dragonvu.mapper.WalletMapper;
 import com.mailshop_dragonvu.repository.TransactionRepository;
 import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.repository.WalletRepository;
+import com.mailshop_dragonvu.service.CassoProvider;
+import com.mailshop_dragonvu.service.CassoService;
+import com.mailshop_dragonvu.service.DepositNotifier;
 import com.mailshop_dragonvu.service.PayOSService;
 import com.mailshop_dragonvu.service.RankService;
 import com.mailshop_dragonvu.service.WalletService;
@@ -44,7 +50,10 @@ import vn.payos.model.webhooks.WebhookData;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -55,7 +64,10 @@ public class WalletServiceImpl implements WalletService {
     private final TransactionRepository transactionRepository;
     private final UserRepository userRepository;
     private final PayOSService payOSService;
+    private final CassoService cassoService;
+    private final CassoProvider cassoProvider;
     private final RankService rankService;
+    private final DepositNotifier depositNotifier;
     private final WalletMapper walletMapper;
     private final TransactionMapper transactionMapper;
 
@@ -237,6 +249,204 @@ public class WalletServiceImpl implements WalletService {
         }
 
     }
+
+    // ==================== CASSO/VIETQR METHODS ====================
+
+    @Override
+    @Transactional
+    public CassoDepositResponse createDepositCasso(Long userId, Long amount, String ipAddress, String userAgent) {
+        
+        UserEntity userEntity = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        WalletEntity walletEntity = walletRepository.findByUserId(userId)
+                .orElseGet(() -> {
+                    createWallet(userId);
+                    return walletRepository.findByUserId(userId)
+                            .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+                });
+
+        if (walletEntity.getIsLocked()) {
+            throw new BusinessException(ErrorCode.WALLET_LOCKED);
+        }
+
+        // Validate amount
+        validateDepositAmount(amount);
+
+        // Generate unique transaction code
+        Long transactionCode = System.currentTimeMillis();
+        String transferContent = "NAPTIEN" + transactionCode;
+
+        // Generate VietQR URL
+        String qrCodeUrl = cassoService.generateQRCodeUrl(amount, transactionCode);
+
+        // Create PENDING transaction
+        TransactionEntity txn = TransactionEntity.builder()
+                .transactionCode(transactionCode)
+                .user(userEntity)
+                .wallet(walletEntity)
+                .type(TransactionTypeEnum.DEPOSIT)
+                .amount(amount)
+                .balanceBefore(walletEntity.getBalance())
+                .status(TransactionStatusEnum.PENDING)
+                .description(transferContent)
+                .paymentMethod("CASSO")
+                .ipAddress(ipAddress)
+                .userAgent(userAgent)
+                .build();
+
+        transactionRepository.save(txn);
+
+        log.info("Created Casso deposit - User: {}, Amount: {}, TransactionCode: {}", 
+                userId, amount, transactionCode);
+
+        return CassoDepositResponse.builder()
+                .qrCodeUrl(qrCodeUrl)
+                .transactionCode(transactionCode)
+                .amount(amount)
+                .transferContent(transferContent)
+                .bankName(cassoService.getBankName(cassoProvider.getBankCode()))
+                .accountNumber(cassoProvider.getBankAccount())
+                .accountName(cassoProvider.getAccountName())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void processCassoCallback(CassoWebhookDTO webhook) {
+        if (webhook == null || webhook.getData() == null || webhook.getData().isEmpty()) {
+            log.warn("Empty Casso webhook received");
+            return;
+        }
+
+        // Check for error
+        if (webhook.getError() != null && webhook.getError() != 0) {
+            log.warn("Casso webhook returned error: {}", webhook.getError());
+            return;
+        }
+
+        // Process each transaction in the list
+        for (CassoTransactionDTO txnData : webhook.getData()) {
+            try {
+                processCassoTransaction(txnData);
+            } catch (Exception e) {
+                log.error("Failed to process Casso transaction: {}", txnData.getId(), e);
+            }
+        }
+    }
+
+    private void processCassoTransaction(CassoTransactionDTO txnData) {
+        // Pattern to match NAPTIEN + transaction code
+        Pattern pattern = Pattern.compile("NAPTIEN(\\d+)");
+        
+        String description = txnData.getDescription();
+        if (Strings.isBlank(description)) {
+            log.debug("Skipping Casso transaction without description: {}", txnData.getId());
+            return;
+        }
+
+        // Try to extract transaction code from description
+        Matcher matcher = pattern.matcher(description.toUpperCase().replaceAll("\\s+", ""));
+        if (!matcher.find()) {
+            log.debug("No NAPTIEN pattern found in description: {}", description);
+            return;
+        }
+
+        String codeStr = matcher.group(1);
+        Long transactionCode;
+        try {
+            transactionCode = Long.parseLong(codeStr);
+        } catch (NumberFormatException e) {
+            log.warn("Invalid transaction code in description: {}", codeStr);
+            return;
+        }
+
+        // Check for duplicate using Casso ID
+        if (txnData.getId() != null) {
+            boolean exists = transactionRepository.existsByPaymentReference(String.valueOf(txnData.getId()));
+            if (exists) {
+                log.debug("Casso transaction already processed: {}", txnData.getId());
+                return;
+            }
+        }
+
+        // Find matching PENDING transaction
+        Optional<TransactionEntity> optTxn = transactionRepository.findByTransactionCode(transactionCode);
+        if (optTxn.isEmpty()) {
+            log.debug("No matching transaction found for code: {}", transactionCode);
+            return;
+        }
+
+        TransactionEntity txn = optTxn.get();
+
+        // Skip if already processed
+        if (txn.getStatus() == TransactionStatusEnum.SUCCESS) {
+            log.debug("Transaction already processed: {}", transactionCode);
+            return;
+        }
+
+        // Verify amount matches (allow some tolerance for fees)
+        Long webhookAmount = txnData.getAmount();
+        if (webhookAmount == null) {
+            log.warn("Casso webhook missing amount for transaction: {}", transactionCode);
+            return;
+        }
+        
+        if (!txn.getAmount().equals(webhookAmount)) {
+            log.warn("Amount mismatch - Expected: {}, Got: {} for transaction: {}", 
+                    txn.getAmount(), webhookAmount, transactionCode);
+            // Still process if amount is greater (in case of tips)
+            if (webhookAmount < txn.getAmount()) {
+                return;
+            }
+        }
+
+        // Process successful deposit
+        try {
+            WalletEntity walletEntity = walletRepository.findByUserIdWithLock(txn.getUser().getId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+
+            Long depositAmount = webhookAmount;
+            Long userId = txn.getUser().getId();
+
+            // Calculate bonus based on user's rank
+            Long bonusAmount = rankService.calculateDepositBonus(userId, depositAmount);
+            Long totalAmount = depositAmount + bonusAmount;
+
+            // Add to wallet
+            walletEntity.addBalance(totalAmount);
+
+            // Update transaction
+            if (bonusAmount > 0) {
+                txn.setDescription(txn.getDescription() + " (Bonus +" + bonusAmount + " VNĐ)");
+            }
+            txn.setAmount(depositAmount); // Update to actual received amount
+            txn.setBalanceAfter(walletEntity.getBalance());
+            txn.setPaymentReference(txnData.getId() != null ? String.valueOf(txnData.getId()) : txnData.getReference());
+            txn.markAsSuccess();
+
+            walletRepository.save(walletEntity);
+            transactionRepository.save(txn);
+
+            log.info("Casso deposit successful - User: {}, Amount: {}, Bonus: {}, Total: {}", 
+                    userId, depositAmount, bonusAmount, totalAmount);
+
+            // Send WebSocket notification to frontend
+            depositNotifier.notifyDepositSuccess(
+                    userId, 
+                    transactionCode, 
+                    depositAmount, 
+                    bonusAmount, 
+                    totalAmount, 
+                    walletEntity.getBalance()
+            );
+
+        } catch (PessimisticLockException | CannotAcquireLockException e) {
+            log.warn("Wallet locked during Casso callback. Transaction: {}", transactionCode);
+        }
+    }
+
+    // ==================== END CASSO METHODS ====================
 
     @Override
     @Transactional(readOnly = true)

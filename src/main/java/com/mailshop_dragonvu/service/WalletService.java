@@ -1,5 +1,7 @@
 package com.mailshop_dragonvu.service;
 
+import com.mailshop_dragonvu.dto.casso.CassoDepositResponse;
+import com.mailshop_dragonvu.dto.casso.CassoWebhookDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionFilterDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.users.UserFilterDTO;
@@ -35,6 +37,16 @@ public interface WalletService {
      * Process PayOS webhook callback
      */
     void processPayOSCallback(Webhook webhook);
+
+    /**
+     * Create deposit transaction and generate Casso/VietQR
+     */
+    CassoDepositResponse createDepositCasso(Long userId, Long amount, String ipAddress, String userAgent);
+
+    /**
+     * Process Casso webhook callback
+     */
+    void processCassoCallback(CassoWebhookDTO webhook);
 
     /**
      * Get user transaction history
@@ -78,3 +90,4 @@ public interface WalletService {
      */
     TransactionResponseDTO updateTransactionStatus(Long transactionId, Integer newStatus, String reason);
 }
+
