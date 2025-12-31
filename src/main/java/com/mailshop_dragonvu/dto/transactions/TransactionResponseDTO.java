@@ -29,5 +29,6 @@ public class TransactionResponseDTO {
     private String description;
     private String paymentMethod;
     private String paymentReference;
+    private LocalDateTime createdAt;
     private LocalDateTime completedAt;
 }

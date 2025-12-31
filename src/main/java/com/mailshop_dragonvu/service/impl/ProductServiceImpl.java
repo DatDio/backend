@@ -231,9 +231,10 @@ public class ProductServiceImpl implements ProductService {
 
             // ---- STATUS ----
             if (!ObjectUtils.isEmpty(req.getStatus()) && !req.getStatus().isBlank()) {
-                Set<Integer> status = Arrays.stream(req.getStatus().split(",")).map(Integer::valueOf)
+                Set<ActiveStatusEnum> statusEnums = Arrays.stream(req.getStatus().split(","))
+                        .map(s -> ActiveStatusEnum.fromKey(Integer.valueOf(s.trim())))
                         .collect(Collectors.toSet());
-                predicates.add(root.get("status").in(status));
+                predicates.add(root.get("status").in(statusEnums));
             }
 
             // ---- MIN STOCK (số lượng còn lại >= minStock) ----

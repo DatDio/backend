@@ -15,7 +15,7 @@ public interface ProductItemService {
 
     Page<ProductItemResponseDTO> searchProductItems(ProductItemFilterDTO productItemFilterDTO);
 
-    List<ProductItemEntity> getRandomUnsoldItems(Long productId, int quantity);
+    List<ProductItemEntity> getNewestUnsoldItems(Long productId, int quantity);
 
     int importItems(Long productId, MultipartFile file, ExpirationType expirationType);
 

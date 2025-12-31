@@ -87,7 +87,7 @@ public class ProductItemServiceImpl implements ProductItemService {
         }
 
         // 2. Lấy tất cả email đã có trong DB cho product này
-        List<ProductItemEntity> existingItems = productItemRepository.findByProductIdAndSoldFalse(
+        List<ProductItemEntity> existingItems = productItemRepository.findByProductId(
                 productItemCreateDTO.getProductId());
         
         Set<String> existingEmails = existingItems.stream()
@@ -210,21 +210,23 @@ public class ProductItemServiceImpl implements ProductItemService {
     }
 
     /**
-     * Lấy random items từ kho PHỤ (SECONDARY) để bán
+     * Lấy items MỚI NHẤT từ kho PHỤ (SECONDARY) để bán
      * Chỉ bán từ kho phụ, không bán từ kho chính
      * Tự động loại bỏ items đã hết hạn trước khi trả về
+     * 
+     * FOR UPDATE SKIP LOCKED: đảm bảo nhiều người mua cùng lúc không lấy trùng items
      */
     @Override
-    public List<ProductItemEntity> getRandomUnsoldItems(Long productId, int quantity) {
+    public List<ProductItemEntity> getNewestUnsoldItems(Long productId, int quantity) {
         productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
         // 1. Đánh dấu các items đã hết hạn trước khi lấy (dựa trên expiresAt của từng item)
         markExpiredItems(productId);
 
-        // 2. Lấy từ kho SECONDARY (đã loại bỏ expired items trong query)
+        // 2. Lấy từ kho SECONDARY - MỚI NHẤT trước (đã loại bỏ expired items trong query)
         List<ProductItemEntity> items =
-                productItemRepository.findRandomUnsoldSecondaryItems(productId, quantity);
+                productItemRepository.findNewestUnsoldSecondaryItems(productId, quantity);
 
         if (items.size() < quantity) {
             // Có thể kho phụ không đủ, thử trigger chuyển kho rồi lấy lại
@@ -233,7 +235,7 @@ public class ProductItemServiceImpl implements ProductItemService {
             // Đánh dấu expired lần nữa cho items mới chuyển sang
             markExpiredItems(productId);
 
-            items = productItemRepository.findRandomUnsoldSecondaryItems(productId, quantity);
+            items = productItemRepository.findNewestUnsoldSecondaryItems(productId, quantity);
 
             if (items.size() < quantity) {
                 throw new BusinessException(ErrorCode.NOT_ENOUGH_STOCK);
@@ -344,7 +346,7 @@ public class ProductItemServiceImpl implements ProductItemService {
         }
 
         // 2. Lấy tất cả email đã có trong DB cho product này
-        List<ProductItemEntity> existingItems = productItemRepository.findByProductIdAndSoldFalse(productId);
+        List<ProductItemEntity> existingItems = productItemRepository.findByProductId(productId);
         
         Set<String> existingEmails = existingItems.stream()
                 .map(item -> extractEmail(item.getAccountData()))
@@ -428,6 +430,10 @@ public class ProductItemServiceImpl implements ProductItemService {
 
     // ============ BULK OPERATIONS ============
 
+    /**
+     * Xóa items theo danh sách email (chỉ cần email, không cần full accountData)
+     * Input: mỗi dòng là 1 email hoặc accountData (sẽ extract email từ đó)
+     */
     @Override
     @Transactional
     public int deleteByAccountData(Long productId, String accountDataList) {
@@ -435,26 +441,47 @@ public class ProductItemServiceImpl implements ProductItemService {
             return 0;
         }
 
-        // Parse input - mỗi dòng là một account data
+        // Parse input - extract email từ mỗi dòng
         String[] lines = accountDataList.split("\\r?\\n");
-        Set<String> accountDataSet = new HashSet<>();
+        Set<String> inputEmails = new HashSet<>();
         for (String line : lines) {
             String trimmed = line.trim();
             if (!trimmed.isEmpty()) {
-                accountDataSet.add(trimmed);
+                // Extract email từ input (có thể là email hoặc full accountData)
+                String email = extractEmail(trimmed);
+                inputEmails.add(email);
             }
         }
 
-        if (accountDataSet.isEmpty()) {
+        if (inputEmails.isEmpty()) {
             return 0;
         }
 
-        int deleted = productItemRepository.deleteByAccountDataIn(productId, accountDataSet);
-        if (deleted > 0) {
-            log.info("Product {}: Deleted {} items by account data", productId, deleted);
-            productQuantityNotifier.publishAfterCommit(productId);
+        // Lấy tất cả items của product này (chưa bán)
+        List<ProductItemEntity> allItems = productItemRepository.findByProductId(productId);
+        
+        // Tìm items có email match với input
+        List<Long> idsToDelete = new ArrayList<>();
+        for (ProductItemEntity item : allItems) {
+            if (item.getSold()) continue; // Skip items đã bán
+            
+            String itemEmail = extractEmail(item.getAccountData());
+            if (inputEmails.contains(itemEmail)) {
+                idsToDelete.add(item.getId());
+            }
         }
-        return deleted;
+
+        if (idsToDelete.isEmpty()) {
+            return 0;
+        }
+
+        // Delete by IDs
+        productItemRepository.deleteAllById(idsToDelete);
+        
+        log.info("Product {}: Deleted {} items by email match", productId, idsToDelete.size());
+        productQuantityNotifier.publishAfterCommit(productId);
+        
+        return idsToDelete.size();
     }
 
     @Override

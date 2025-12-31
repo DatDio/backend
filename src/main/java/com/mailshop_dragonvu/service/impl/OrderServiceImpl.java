@@ -90,7 +90,7 @@ public class OrderServiceImpl implements OrderService {
                 .orderStatus(OrderStatusEnum.COMPLETED)
                 .build();
 
-        List<ProductItemEntity> productItems = productItemService.getRandomUnsoldItems(request.getProductId(), request.getQuantity());
+        List<ProductItemEntity> productItems = productItemService.getNewestUnsoldItems(request.getProductId(), request.getQuantity());
 
         for (var productItem : productItems) {
             OrderItemEntity orderItemEntity = new OrderItemEntity().builder()

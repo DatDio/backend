@@ -273,8 +273,8 @@ public class WalletServiceImpl implements WalletService {
         // Validate amount
         validateDepositAmount(amount);
 
-        // Generate unique transaction code
-        Long transactionCode = System.currentTimeMillis();
+        // Generate unique transaction code (timestamp + 3 random digits to prevent collision)
+        Long transactionCode = System.currentTimeMillis() * 1000 + ThreadLocalRandom.current().nextInt(100, 999);
         String transferContent = "NAPTIEN" + transactionCode;
 
         // Generate VietQR URL

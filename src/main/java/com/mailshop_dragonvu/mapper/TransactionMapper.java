@@ -30,6 +30,7 @@ public class TransactionMapper {
                 .description(transactionEntity.getDescription())
                 .paymentMethod(transactionEntity.getPaymentMethod())
                 .paymentReference(transactionEntity.getPaymentReference())
+                .createdAt(transactionEntity.getCreatedAt())
                 .completedAt(transactionEntity.getCompletedAt())
                 .build();
     }

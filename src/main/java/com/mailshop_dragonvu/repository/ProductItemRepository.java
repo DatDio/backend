@@ -23,8 +23,8 @@ public interface ProductItemRepository extends JpaRepository<ProductItemEntity, 
     @Query("SELECT COUNT(pi) FROM ProductItemEntity pi WHERE pi.product.id = :productId AND pi.sold = false AND pi.expired = false")
     long countAvailableItems(@Param("productId") Long productId);
 
-    // Lấy tất cả items chưa bán (dùng để check trùng email)
-    List<ProductItemEntity> findByProductIdAndSoldFalse(Long productId);
+    // Lấy tất cả items (dùng để check trùng email)
+    List<ProductItemEntity> findByProductId(Long productId);
 
     // Đếm items trong kho PHỤ (SECONDARY) - hiển thị cho khách hàng, chưa hết hạn
     @Query("SELECT COUNT(pi) FROM ProductItemEntity pi WHERE pi.product.id = :productId AND pi.sold = false AND pi.expired = false AND pi.warehouseType = 'SECONDARY'")
@@ -36,15 +36,16 @@ public interface ProductItemRepository extends JpaRepository<ProductItemEntity, 
 
     // ==================== FETCHING FOR SALE ====================
     
-    // Lấy random items từ kho PHỤ để bán (chỉ bán từ kho phụ, chưa hết hạn)
+    // Lấy items MỚI NHẤT từ kho PHỤ để bán (chỉ bán từ kho phụ, chưa hết hạn)
+    // FOR UPDATE SKIP LOCKED: đảm bảo nhiều người mua cùng lúc không lấy trùng items
     @Query(value = """
         SELECT * FROM product_items
         WHERE product_id = :productId AND sold = false AND expired = false AND warehouse_type = 'SECONDARY'
-        ORDER BY RAND()
+        ORDER BY created_at DESC
         LIMIT :quantity
         FOR UPDATE SKIP LOCKED
     """, nativeQuery = true)
-    List<ProductItemEntity> findRandomUnsoldSecondaryItems(
+    List<ProductItemEntity> findNewestUnsoldSecondaryItems(
             @Param("productId") Long productId,
             @Param("quantity") int quantity
     );
