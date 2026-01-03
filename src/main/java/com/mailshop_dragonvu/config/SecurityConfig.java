@@ -70,10 +70,13 @@ public class SecurityConfig {
                 configuration.setAllowCredentials(true);
                 configuration.setMaxAge(3600L);
 
-                // Cho phép local + mọi domain vercel
+                // Cho phép local + production + vercel
                 configuration.setAllowedOrigins(List.of(
                                 "http://localhost:4200",
-                                "http://localhost:3000"));
+                                "http://localhost:3000",
+                                "https://emailsieure.com",
+                                "http://emailsieure.com",
+                                "http://140.245.40.124"));
                 configuration.addAllowedOriginPattern("https://*.vercel.app");
 
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
