@@ -293,6 +293,7 @@ public class WalletServiceImpl implements WalletService {
                 .paymentMethod("CASSO")
                 .ipAddress(ipAddress)
                 .userAgent(userAgent)
+                .createdAt(LocalDateTime.now())
                 .build();
 
         transactionRepository.save(txn);
@@ -784,23 +785,48 @@ public class WalletServiceImpl implements WalletService {
             throw new BusinessException(ErrorCode.TRANSACTION_ALREADY_PROCESSED);
         }
 
-        // Nếu chuyển sang SUCCESS và là giao dịch DEPOSIT -> cộng tiền vào wallet
+        // Nếu chuyển sang SUCCESS và là giao dịch DEPOSIT -> cộng tiền vào wallet + bonus + websocket
         if (targetStatus == TransactionStatusEnum.SUCCESS && transaction.getType() == TransactionTypeEnum.DEPOSIT) {
             WalletEntity wallet = walletRepository.findByUserIdWithLock(transaction.getUser().getId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
 
+            Long depositAmount = transaction.getAmount();
+            Long userId = transaction.getUser().getId();
             Long balanceBefore = wallet.getBalance();
-            wallet.addBalance(transaction.getAmount());
-            wallet.setTotalDeposited(wallet.getTotalDeposited() + transaction.getAmount());
+
+            // Calculate bonus based on user's rank (giống processCassoTransaction)
+            Long bonusAmount = rankService.calculateDepositBonus(userId, depositAmount);
+            Long totalAmount = depositAmount + bonusAmount;
+
+            // Add both deposit and bonus to wallet
+            wallet.addBalance(totalAmount);
+            wallet.setTotalDeposited(wallet.getTotalDeposited() + depositAmount);
             walletRepository.save(wallet);
+
+            // Update transaction with bonus info
+            if (bonusAmount > 0) {
+                String originalDesc = transaction.getDescription() != null ? transaction.getDescription() : "Nạp tiền";
+                transaction.setDescription(originalDesc + " (Bonus +" + bonusAmount + " VNĐ)");
+            }
 
             // Update transaction với balance before/after
             transaction.setBalanceBefore(balanceBefore);
             transaction.setBalanceAfter(wallet.getBalance());
             transaction.markAsSuccess();
 
-            log.info("Admin approved deposit - userId: {}, amount: {}, balanceBefore: {}, balanceAfter: {}",
-                    transaction.getUser().getId(), transaction.getAmount(), balanceBefore, wallet.getBalance());
+            log.info("Admin approved deposit - userId: {}, depositAmount: {}, bonus: {}, totalAmount: {}, balanceBefore: {}, balanceAfter: {}",
+                    userId, depositAmount, bonusAmount, totalAmount, balanceBefore, wallet.getBalance());
+
+            // Send WebSocket notification to frontend (giống processCassoTransaction)
+            depositNotifier.notifyDepositSuccess(
+                    userId,
+                    transaction.getTransactionCode(),
+                    depositAmount,
+                    bonusAmount,
+                    totalAmount,
+                    wallet.getBalance()
+            );
+
         } else if (targetStatus == TransactionStatusEnum.FAILED) {
             transaction.markAsFailed(reason != null ? reason : "Admin từ chối giao dịch");
             log.info("Admin rejected transaction - transactionId: {}, reason: {}", transactionId, reason);

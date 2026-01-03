@@ -28,6 +28,7 @@ public class TransactionMapper {
                 .balanceAfter(toBigDecimal(transactionEntity.getBalanceAfter()))
                 .status(transactionEntity.getStatus() != null ? String.valueOf(transactionEntity.getStatus()) : null)
                 .description(transactionEntity.getDescription())
+                .errorMessage(transactionEntity.getErrorMessage())
                 .paymentMethod(transactionEntity.getPaymentMethod())
                 .paymentReference(transactionEntity.getPaymentReference())
                 .createdAt(transactionEntity.getCreatedAt())

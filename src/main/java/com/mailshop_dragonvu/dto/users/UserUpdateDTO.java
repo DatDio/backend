@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -27,4 +29,9 @@ public class UserUpdateDTO {
 
     private String avatarUrl;
 
+    private Integer status; // 0: INACTIVE, 1: ACTIVE
+
+    private List<String> roles; // List of role names (e.g., ["ADMIN", "USER"])
+
 }
+

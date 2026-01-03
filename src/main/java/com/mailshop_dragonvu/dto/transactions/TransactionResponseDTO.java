@@ -27,6 +27,7 @@ public class TransactionResponseDTO {
     private BigDecimal balanceAfter;
     private String status;
     private String description;
+    private String errorMessage; // Lý do thất bại hoặc ghi chú
     private String paymentMethod;
     private String paymentReference;
     private LocalDateTime createdAt;

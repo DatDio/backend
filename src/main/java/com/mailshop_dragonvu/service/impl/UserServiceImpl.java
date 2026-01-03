@@ -109,6 +109,24 @@ public class UserServiceImpl implements UserService {
         }
 
         userMapper.updateEntity(userEntity, request);
+
+        // Handle status update (only admin can change status)
+        if (isAdmin && request.getStatus() != null) {
+            ActiveStatusEnum statusEnum = ActiveStatusEnum.fromKey(request.getStatus());
+            if (statusEnum != null) {
+                userEntity.setStatus(statusEnum);
+            }
+        }
+
+        // Handle roles update (only admin can change roles)
+        if (isAdmin && request.getRoles() != null && !request.getRoles().isEmpty()) {
+            Set<RoleEntity> newRoles = request.getRoles().stream()
+                    .map(roleName -> roleRepository.findByName(roleName)
+                            .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND)))
+                    .collect(Collectors.toSet());
+            userEntity.setRoles(newRoles);
+        }
+
         userEntity = userRepository.save(userEntity);
 
         log.info("User updated successfully with ID: {}", id);
