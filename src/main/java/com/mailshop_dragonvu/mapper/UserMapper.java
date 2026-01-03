@@ -28,6 +28,10 @@ public interface UserMapper {
         return status != null ? status.getKey() : null;
     }
 
+    default ActiveStatusEnum mapStatusToEnum(Integer status) {
+        return status != null ? ActiveStatusEnum.fromKey(status) : null;
+    }
+
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "refreshToken", ignore = true)
