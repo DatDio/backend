@@ -139,5 +139,17 @@ public interface ProductItemRepository extends JpaRepository<ProductItemEntity, 
                OR (expires_at IS NOT NULL AND expires_at < NOW()))
     """, nativeQuery = true)
     int deleteAllExpiredItems(@Param("productId") Long productId);
+
+    // Tìm TẤT CẢ items hết hạn (tất cả products) chưa được đánh dấu - dùng cho scheduler
+    @Query(value = """
+        SELECT * FROM product_items
+        WHERE sold = false 
+          AND expired = false
+          AND expires_at IS NOT NULL
+          AND expires_at < NOW()
+        LIMIT 1000
+    """, nativeQuery = true)
+    List<ProductItemEntity> findAllExpiredItemsToMark();
 }
+
 

@@ -536,27 +536,9 @@ public class WalletServiceImpl implements WalletService {
             throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE);
         }
 
-        UserEntity userEntity = walletEntity.getUser();
-        Long balanceBefore = walletEntity.getBalance();
-
-        TransactionEntity transactionEntity = TransactionEntity.builder()
-                .transactionCode(generateOrderCode())
-                .user(userEntity)
-                .wallet(walletEntity)
-                .type(TransactionTypeEnum.PURCHASE)
-                .amount(amount)
-                .balanceBefore(balanceBefore)
-                .status(TransactionStatusEnum.SUCCESS)
-                .description(description != null ? description : "Thanh toán đơn hàng")
-                .paymentMethod("WALLET")
-                .build();
-
+        // Chỉ trừ tiền, không tạo transaction (lịch sử mua hàng đã lưu trong orders)
         walletEntity.deductBalance(amount);
-        transactionEntity.setBalanceAfter(walletEntity.getBalance());
-        transactionEntity.setCompletedAt(LocalDateTime.now());
-
         walletRepository.save(walletEntity);
-        transactionRepository.save(transactionEntity);
 
         return walletMapper.toResponse(walletEntity);
     }
