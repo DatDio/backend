@@ -1,9 +1,7 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.users.UserCreateDTO;
-import com.mailshop_dragonvu.dto.users.UserFilterDTO;
-import com.mailshop_dragonvu.dto.users.UserResponseDTO;
-import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
+import com.mailshop_dragonvu.dto.ranks.UserRankInfoDTO;
+import com.mailshop_dragonvu.dto.users.*;
 import com.mailshop_dragonvu.entity.RoleEntity;
 import com.mailshop_dragonvu.entity.UserEntity;
 import com.mailshop_dragonvu.entity.WalletEntity;
@@ -17,8 +15,8 @@ import com.mailshop_dragonvu.repository.WalletRepository;
 import com.mailshop_dragonvu.service.RankService;
 import com.mailshop_dragonvu.service.UserService;
 import com.mailshop_dragonvu.utils.Constants;
-import com.mailshop_dragonvu.utils.Utils;
 import com.mailshop_dragonvu.utils.EnumParseUtils;
+import com.mailshop_dragonvu.utils.Utils;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
@@ -26,8 +24,6 @@ import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -41,7 +37,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -90,7 +85,7 @@ public class UserServiceImpl implements UserService {
         // Get current user to check if admin
         UserEntity currentUser = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        
+
         boolean isAdmin = currentUser.getRoles().stream()
                 .anyMatch(role -> Constants.ROLE_ADMIN.equals(role.getName()));
 
@@ -140,18 +135,18 @@ public class UserServiceImpl implements UserService {
 
         UserEntity userEntity = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        
+
         // Get wallet info
         WalletEntity wallet = walletRepository.findByUserId(id).orElse(null);
         Long balance = wallet != null ? wallet.getBalance() : 0L;
         Long totalDeposit = wallet != null ? wallet.getTotalDeposited() : 0L;
         Long totalSpent = wallet != null ? wallet.getTotalSpent() : 0L;
-        
+
         UserResponseDTO response = userMapper.toResponse(userEntity);
         response.setBalance(balance);
         response.setTotalDeposit(totalDeposit);
         response.setTotalSpent(totalSpent);
-        
+
         // Get user rank info
         try {
             var rankInfo = rankService.getUserRankInfo(id);
@@ -159,7 +154,40 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             log.warn("Could not get rank info for user {}: {}", id, e.getMessage());
         }
-        
+
+        return response;
+    }
+    @Override
+    //@Cacheable(value = "users", key = "#id")
+    public UserResponseClientDTO getUserByIdForClient(Long id) {
+        log.debug("Fetching user by ID: {}", id);
+        UserRankInfoDTO rankInfo = null;
+        UserEntity userEntity = userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // Get wallet info
+        WalletEntity wallet = walletRepository.findByUserId(id).orElse(null);
+        Long balance = wallet != null ? wallet.getBalance() : 0L;
+        Long totalDeposit = wallet != null ? wallet.getTotalDeposited() : 0L;
+        Long totalSpent = wallet != null ? wallet.getTotalSpent() : 0L;
+
+        // Get user rank info
+        try {
+            rankInfo = rankService.getUserRankInfo(id);
+        } catch (Exception e) {
+            log.warn("Could not get rank info for user {}: {}", id, e.getMessage());
+        }
+
+        UserResponseClientDTO response = new UserResponseClientDTO().builder()
+                .balance(balance)
+                .phone(userEntity.getPhone())
+                .email(userEntity.getEmail())
+                .totalDeposit(totalDeposit)
+                .totalSpent(totalSpent)
+                .rankName(rankInfo.getRankName())
+                .bonusPercent(rankInfo.getBonusPercent())
+                .build();
+
         return response;
     }
 
@@ -185,6 +213,7 @@ public class UserServiceImpl implements UserService {
 
         return page;
     }
+
     private Specification<UserEntity> getSearchSpecification(
             final UserFilterDTO request) {
         return new Specification<UserEntity>() {
@@ -252,7 +281,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-   // @CacheEvict(value = "users", key = "#userId")
+    // @CacheEvict(value = "users", key = "#userId")
     public void removeRolesFromUser(Long userId, List<Long> roleIds) {
         log.info("Removing roles from user ID: {}", userId);
 

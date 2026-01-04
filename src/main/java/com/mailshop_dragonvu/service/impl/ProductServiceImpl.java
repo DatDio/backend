@@ -1,9 +1,6 @@
 package com.mailshop_dragonvu.service.impl;
 
-import com.mailshop_dragonvu.dto.products.ProductCreateDTO;
-import com.mailshop_dragonvu.dto.products.ProductFilterDTO;
-import com.mailshop_dragonvu.dto.products.ProductResponseDTO;
-import com.mailshop_dragonvu.dto.products.ProductUpdateDTO;
+import com.mailshop_dragonvu.dto.products.*;
 import com.mailshop_dragonvu.entity.CategoryEntity;
 import com.mailshop_dragonvu.entity.ProductEntity;
 import com.mailshop_dragonvu.entity.ProductItemEntity;
@@ -51,7 +48,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ProductResponseDTO> getAllActiveProducts() {
+    public List<ProductResponseClientDTO> getAllActiveProducts() {
         return productRepository.findAllByStatus(ActiveStatusEnum.ACTIVE)
                 .stream()
                 .map(this::toProductResponseClient)
@@ -295,11 +292,11 @@ public class ProductServiceImpl implements ProductService {
                 .build();
     }
 
-    private ProductResponseDTO toProductResponseClient(ProductEntity product) {
+    private ProductResponseClientDTO toProductResponseClient(ProductEntity product) {
         // Số lượng kho PHỤ - hiển thị cho khách hàng
         long secondaryQuantity = productItemRepository.countSecondaryItems(product.getId());
 
-        return ProductResponseDTO.builder()
+        return ProductResponseClientDTO.builder()
                 .id(product.getId())
                 .name(product.getName())
                 .description(product.getDescription())
@@ -307,14 +304,7 @@ public class ProductServiceImpl implements ProductService {
                 .liveTime(product.getLiveTime())
                 .country(product.getCountry())
                 .imageUrl(product.getImageUrl())
-                .categoryId(product.getCategory().getId())
-                .categoryName(product.getCategory().getName())
-                .status(product.getStatus().getKey())
                 .quantity(secondaryQuantity)           // Kho phụ - hiển thị cho khách
-                .minSecondaryStock(product.getMinSecondaryStock())
-                .maxSecondaryStock(product.getMaxSecondaryStock())
-                .expirationHours(product.getExpirationHours())
-                .sortOrder(product.getSortOrder())
                 .build();
     }
 }

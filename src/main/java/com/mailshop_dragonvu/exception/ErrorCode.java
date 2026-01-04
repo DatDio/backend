@@ -95,7 +95,7 @@ public enum ErrorCode {
     NOT_ENOUGH_STOCK("1111","Tồn kho không đủ"),
 
     // Security Errors (10100-10199)
-    RATE_LIMIT_EXCEEDED("10100", "Vượt quá giới hạn truy cập, vui lòng thử lại sau"),
+    RATE_LIMIT_EXCEEDED("429", "Vượt quá giới hạn truy cập, vui lòng thử lại sau"),
     SUSPICIOUS_ACTIVITY("10101", "Phát hiện hoạt động đáng ngờ"),
     IP_BLOCKED("10102", "Địa chỉ IP của bạn đã bị chặn"),
 

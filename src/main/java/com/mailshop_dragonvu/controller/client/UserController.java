@@ -1,6 +1,7 @@
 package com.mailshop_dragonvu.controller.client;
 
 import com.mailshop_dragonvu.dto.ApiResponse;
+import com.mailshop_dragonvu.dto.users.UserResponseClientDTO;
 import com.mailshop_dragonvu.dto.users.UserResponseDTO;
 import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
 import com.mailshop_dragonvu.security.UserPrincipal;
@@ -24,10 +25,10 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
     private final UserService userService;
     @GetMapping("/me")
-    public ApiResponse<UserResponseDTO> getProfile(
+    public ApiResponse<UserResponseClientDTO> getProfile(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
-        UserResponseDTO user = userService.getUserById(userPrincipal.getId());
+        UserResponseClientDTO user = userService.getUserByIdForClient(userPrincipal.getId());
         return ApiResponse.success(user);
     }
     @PutMapping("update/{id}")

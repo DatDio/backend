@@ -1,9 +1,6 @@
 package com.mailshop_dragonvu.service;
 
-import com.mailshop_dragonvu.dto.products.ProductCreateDTO;
-import com.mailshop_dragonvu.dto.products.ProductResponseDTO;
-import com.mailshop_dragonvu.dto.products.ProductFilterDTO;
-import com.mailshop_dragonvu.dto.products.ProductUpdateDTO;
+import com.mailshop_dragonvu.dto.products.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -11,7 +8,7 @@ import java.util.List;
 
 public interface ProductService {
 
-    List<ProductResponseDTO> getAllActiveProducts();
+    List<ProductResponseClientDTO> getAllActiveProducts();
     // Admin operations
     ProductResponseDTO createProduct(ProductCreateDTO request);
 

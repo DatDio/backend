@@ -71,7 +71,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             
             ApiResponse<Object> errorResponse = ApiResponse.error(
                 ErrorCode.RATE_LIMIT_EXCEEDED.getCode(),
-                "Too many requests. Please try again later."
+                "Vượt quá giới hạn truy cập, vui lòng thử lại sau!"
             );
             
             response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
