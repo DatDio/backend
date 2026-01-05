@@ -31,7 +31,8 @@ import java.util.List;
 public class SecurityConfig {
 
         private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-        private final RateLimitingFilter rateLimitingFilter;
+        // Disabled: sử dụng Cloudflare + Nginx để chống DDoS thay vì Java rate limit
+        // private final RateLimitingFilter rateLimitingFilter;
         private final UserDetailsService userDetailsService;
 
         // Đăng ký JwtAuthenticationFilter là Bean
@@ -122,7 +123,8 @@ public class SecurityConfig {
                                                 .anyRequest()
                                                 .authenticated())
                                 .authenticationProvider(authenticationProvider(null))
-                                .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                                // Disabled: sử dụng Cloudflare + Nginx để chống DDoS
+                                // .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 

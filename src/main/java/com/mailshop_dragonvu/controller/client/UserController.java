@@ -24,13 +24,23 @@ import org.springframework.web.bind.annotation.*;
 @SecurityRequirement(name = "Bearer Authentication")
 public class UserController {
     private final UserService userService;
-    @GetMapping("/me")
-    public ApiResponse<UserResponseClientDTO> getProfile(
+
+    @GetMapping("/balance")
+    public ApiResponse<UserResponseClientDTO> getBalance(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         UserResponseClientDTO user = userService.getUserByIdForClient(userPrincipal.getId());
         return ApiResponse.success(user);
     }
+
+    @GetMapping("/me")
+    public ApiResponse<UserResponseDTO> getProfile(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        UserResponseDTO user = userService.getUserById(userPrincipal.getId());
+        return ApiResponse.success(user);
+    }
+
     @PutMapping("update/{id}")
     public ApiResponse<UserResponseDTO> updateUser(
             @PathVariable Long id,

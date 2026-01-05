@@ -157,6 +157,7 @@ public class UserServiceImpl implements UserService {
 
         return response;
     }
+
     @Override
     //@Cacheable(value = "users", key = "#id")
     public UserResponseClientDTO getUserByIdForClient(Long id) {
@@ -180,8 +181,10 @@ public class UserServiceImpl implements UserService {
 
         UserResponseClientDTO response = new UserResponseClientDTO().builder()
                 .balance(balance)
-                .phone(userEntity.getPhone())
+                //.phone(userEntity.getPhone())
+                //.address(userEntity.getAddress())
                 .email(userEntity.getEmail())
+                //.fullName(userEntity.getFullName())
                 .totalDeposit(totalDeposit)
                 .totalSpent(totalSpent)
                 .rankName(rankInfo.getRankName())

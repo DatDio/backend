@@ -10,10 +10,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserResponseClientDTO {
     private String email;
-    private String fullName;
-    private String phone;
-    private String address;
-    private String avatarUrl;
+    //private String fullName;
+    //private String phone;
+    //private String address;
+    //private String avatarUrl;
     private Long balance; // Wallet balance
     private Long totalDeposit; // Total deposited amount
     private Long totalSpent; // Total spent amount
