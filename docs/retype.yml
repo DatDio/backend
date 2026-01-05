@@ -1,0 +1,38 @@
+input: .
+output: .retype
+url: https://docs.emailsieure.com
+
+branding:
+  title: EmailSieuRe API
+  label: Docs
+  logo: 
+  logoAlign: left
+
+links:
+  - text: Trang chủ
+    icon: home
+    link: https://emailsieure.com
+  - text: Telegram
+    icon: comment
+    link: https://t.me/emailsieure
+
+footer:
+  copyright: "© 2026 EmailSieuRe. All rights reserved."
+
+poweredByRetype: true
+
+navbar:
+  - text: Getting Started
+    link: /
+
+sidebar:
+  - separator: GETTING STARTED
+  - text: Kiểm tra số dư
+    icon: verified
+    link: kiem-tra-so-du.md
+  - text: Lấy danh sách sản phẩm
+    icon: package
+    link: lay-danh-sach-san-pham.md
+  - text: Mua mail
+    icon: credit-card
+    link: mua-mail.md
