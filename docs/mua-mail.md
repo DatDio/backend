@@ -70,15 +70,28 @@ https://emailsieure.com/api/v1/orders/buy?productId=1&quantity=2&apikey=YOUR_API
 
 Mỗi tài khoản có định dạng:
 ```
-email|password|cookies
+email|password|refresh_token|client_id
+```
+
+---
+
+## Response thất bại
+
+```json
+{
+    "success": false,
+    "message": "Tồn kho không đủ",
+    "errorCode": "1111",
+    "timestamp": "2026-01-06T21:52:16.6720379"
+}
 ```
 
 ---
 
 ## Lỗi thường gặp
 
-| Error | Nguyên nhân |
+| errorCode  | message |
 |-------|-------------|
-| `Không đủ số dư` | Số dư không đủ để mua |
-| `Không đủ số lượng` | Kho không đủ mail |
-| `Sản phẩm không tồn tại` | ID sản phẩm không hợp lệ |
+| `1111` | Tồn kho không đủ |
+| `10003` | Số dư ví không đủ |
+| `401` | Chưa xác thực(sai api key) |
