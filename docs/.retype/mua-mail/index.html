@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="turbo-cache-control" content="no-cache" data-turbo-track="reload" data-track-token="3.11.0.821009753802">
+    <meta name="turbo-cache-control" content="no-cache" data-turbo-track="reload" data-track-token="3.11.0.821029362451">
 
     <!-- See retype.com -->
     <meta name="generator" content="Retype 3.11.0">
@@ -30,12 +30,12 @@
 
     <script data-cfasync="false">(function(){var cl=document.documentElement.classList,ls=localStorage.getItem("retype_scheme"),hd=cl.contains("dark"),hl=cl.contains("light"),wm=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;if(ls==="dark"||(!ls&&wm&&!hd&&!hl)){cl.remove("light");cl.add("dark")}else if(ls==="light"||(!ls&&!wm&&!hd&&!hl)){cl.remove("dark");cl.add("light")}})();</script>
 
-    <link href="../resources/css/retype.css?v=3.11.0.821009753802" rel="stylesheet">
+    <link href="../resources/css/retype.css?v=3.11.0.821029362451" rel="stylesheet">
 
-    <script data-cfasync="false" src="../resources/js/config.js?v=3.11.0.821009753802" data-turbo-eval="false" defer></script>
+    <script data-cfasync="false" src="../resources/js/config.js?v=3.11.0.821029362451" data-turbo-eval="false" defer></script>
     <script data-cfasync="false" src="../resources/js/retype.js?v=3.11.0" data-turbo-eval="false" defer></script>
-    <script id="lunr-js" data-cfasync="false" src="../resources/js/lunr.js?v=3.11.0.821009753802" data-turbo-eval="false" defer></script>
-    <script id="prism-js" data-cfasync="false" src="../resources/js/prism.js?v=3.11.0.821009753802" defer></script>
+    <script id="lunr-js" data-cfasync="false" src="../resources/js/lunr.js?v=3.11.0.821029362451" data-turbo-eval="false" defer></script>
+    <script id="prism-js" data-cfasync="false" src="../resources/js/prism.js?v=3.11.0.821029362451" defer></script>
 </head>
 <body>
     <div id="retype-app" class="relative text-base antialiased text-base-text bg-base-bg font-body">
@@ -336,6 +336,21 @@
 <pre translate="no" class="language-none"><code v-pre class="language-none">email|password|refresh_token|client_id</code></pre>
 </doc-codeblock></div>
 <hr>
+<doc-anchor-target id="response-thất-bại">
+    <h2>
+        <doc-anchor-trigger class="header-anchor-trigger" to="#response-thất-bại">#</doc-anchor-trigger>
+        <span>Response thất bại</span>
+    </h2>
+</doc-anchor-target>
+<div class="codeblock-wrapper"><doc-codeblock>
+<pre translate="no" class="language-json"><code v-pre class="language-json">{
+    &quot;success&quot;: false,
+    &quot;message&quot;: &quot;Tồn kho không đủ&quot;,
+    &quot;errorCode&quot;: &quot;1111&quot;,
+    &quot;timestamp&quot;: &quot;2026-01-06T21:52:16.6720379&quot;
+}</code></pre>
+</doc-codeblock></div>
+<hr>
 <doc-anchor-target id="lỗi-thường-gặp">
     <h2>
         <doc-anchor-trigger class="header-anchor-trigger" to="#lỗi-thường-gặp">#</doc-anchor-trigger>
@@ -346,22 +361,22 @@
 <table class="comfortable">
 <thead>
 <tr>
-<th>Error</th>
-<th>Nguyên nhân</th>
+<th>errorCode</th>
+<th>message</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code v-pre>Không đủ số dư</code></td>
-<td>Số dư không đủ để mua</td>
+<td><code v-pre>1111</code></td>
+<td>Tồn kho không đủ</td>
 </tr>
 <tr>
-<td><code v-pre>Không đủ số lượng</code></td>
-<td>Kho không đủ mail</td>
+<td><code v-pre>10003</code></td>
+<td>Số dư ví không đủ</td>
 </tr>
 <tr>
-<td><code v-pre>Sản phẩm không tồn tại</code></td>
-<td>ID sản phẩm không hợp lệ</td>
+<td><code v-pre>401</code></td>
+<td>Chưa xác thực(sai api key)</td>
 </tr>
 </tbody>
 </table>

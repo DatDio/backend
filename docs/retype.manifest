@@ -1,6 +1,6 @@
 {
   "version": "3.11.0",
-  "created": "2026-01-06T10:15:55Z",
+  "created": "2026-01-06T15:42:44Z",
   "files": [
     {
       "path": ".nojekyll"
@@ -12,6 +12,9 @@
       "path": "CNAME"
     },
     {
+      "path": "favicon.png"
+    },
+    {
       "path": "index.html"
     },
     {
@@ -19,6 +22,9 @@
     },
     {
       "path": "lay-danh-sach-san-pham\\index.html"
+    },
+    {
+      "path": "logo.png"
     },
     {
       "path": "mua-mail\\index.html"

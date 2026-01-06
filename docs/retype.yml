@@ -5,8 +5,8 @@ url: https://docs.emailsieure.com
 branding:
   title: EmailSieuRe API
   label: Docs
-  logo: 
   logoAlign: left
+  favicon: favicon.png
 
 links:
   - text: Trang chủ
