@@ -83,8 +83,8 @@ public class CassoServiceImpl implements CassoService {
         String accountNo = cassoProvider.getBankAccount();
         String accountName = cassoProvider.getAccountName();
         
-        // Generate transfer content with transaction code
-        String transferContent = "NAPTIEN" + transactionCode;
+        // Generate transfer content with transaction code (no prefix)
+        String transferContent = String.valueOf(transactionCode);
         
         try {
             String encodedContent = URLEncoder.encode(transferContent, StandardCharsets.UTF_8.toString());

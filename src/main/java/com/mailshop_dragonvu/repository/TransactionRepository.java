@@ -94,4 +94,9 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
      * Check if transaction with payment reference exists (for deduplication)
      */
     boolean existsByPaymentReference(String paymentReference);
+
+    /**
+     * Find transactions by status created before a certain time (for timeout scheduler)
+     */
+    List<TransactionEntity> findByStatusAndCreatedAtBefore(TransactionStatusEnum status, LocalDateTime cutoffTime);
 }

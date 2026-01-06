@@ -10,7 +10,7 @@ public enum ErrorCode {
     INVALID_REQUEST("1001", "Yêu cầu không hợp lệ"),
     RESOURCE_NOT_FOUND("1002", "Không tìm thấy tài nguyên"),
     VALIDATION_ERROR("1003", "Lỗi xác thực"),
-    UNAUTHORIZED("1004", "Chưa xác thực"),
+    UNAUTHORIZED("401", "Chưa xác thực"),
     FORBIDDEN("1005", "Không có quyền truy cập"),
     BAD_REQUEST("1006", "Yêu cầu không hợp lệ"),
     METHOD_NOT_ALLOWED("1006", "Method không hợp lệ"),

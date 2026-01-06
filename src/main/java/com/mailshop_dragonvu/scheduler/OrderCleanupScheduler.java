@@ -5,9 +5,9 @@ import com.mailshop_dragonvu.entity.OrderItemEntity;
 import com.mailshop_dragonvu.entity.ProductItemEntity;
 import com.mailshop_dragonvu.repository.OrderRepository;
 import com.mailshop_dragonvu.repository.ProductItemRepository;
+import com.mailshop_dragonvu.service.SystemSettingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +19,7 @@ import java.util.List;
 /**
  * Scheduled job to cleanup old orders
  * Runs daily at 2:00 AM to delete orders older than configured days
+ * Số ngày có thể cấu hình qua Admin Settings (key: scheduler.order_cleanup_days)
  */
 @Component
 @RequiredArgsConstructor
@@ -27,13 +28,11 @@ public class OrderCleanupScheduler {
 
     private final OrderRepository orderRepository;
     private final ProductItemRepository productItemRepository;
+    private final SystemSettingService systemSettingService;
 
-    /**
-     * Number of days after which orders will be deleted
-     * Default: 3 days, configurable via application.properties
-     */
-    @Value("${app.order.cleanup.days:3}")
-    private int cleanupDays;
+    // Default: 3 ngày
+    private static final int DEFAULT_CLEANUP_DAYS = 3;
+    private static final String SETTING_KEY = "scheduler.order_cleanup_days";
 
     /**
      * Cleanup old orders - runs every day at 2:00 AM
@@ -47,9 +46,11 @@ public class OrderCleanupScheduler {
     @Scheduled(cron = "${app.order.cleanup.cron:0 0 2 * * ?}")
     @Transactional
     public void cleanupOldOrders() {
+        // Đọc số ngày từ database settings
+        int cleanupDays = systemSettingService.getIntValue(SETTING_KEY, DEFAULT_CLEANUP_DAYS);
         LocalDateTime cutoffDate = LocalDateTime.now().minusDays(cleanupDays);
 
-        log.info("Starting order cleanup job. Deleting orders created before: {}", cutoffDate);
+        log.info("Starting order cleanup job. Deleting orders created before: {} ({} days)", cutoffDate, cleanupDays);
 
         try {
             List<OrderEntity> oldOrders = orderRepository.findByCreatedAtBefore(cutoffDate);

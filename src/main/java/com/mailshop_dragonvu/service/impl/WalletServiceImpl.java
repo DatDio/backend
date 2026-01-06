@@ -275,7 +275,7 @@ public class WalletServiceImpl implements WalletService {
 
         // Generate unique transaction code (timestamp + 3 random digits to prevent collision)
         Long transactionCode = System.currentTimeMillis() * 1000 + ThreadLocalRandom.current().nextInt(100, 999);
-        String transferContent = "NAPTIEN" + transactionCode;
+        String transferContent = String.valueOf(transactionCode);
 
         // Generate VietQR URL
         String qrCodeUrl = cassoService.generateQRCodeUrl(amount, transactionCode);
@@ -337,8 +337,8 @@ public class WalletServiceImpl implements WalletService {
     }
 
     private void processCassoTransaction(CassoTransactionDTO txnData) {
-        // Pattern to match NAPTIEN + transaction code
-        Pattern pattern = Pattern.compile("NAPTIEN(\\d+)");
+        // Pattern to match transaction code (just numbers)
+        Pattern pattern = Pattern.compile("(\\d{13,})");
         
         String description = txnData.getDescription();
         if (Strings.isBlank(description)) {
@@ -346,10 +346,10 @@ public class WalletServiceImpl implements WalletService {
             return;
         }
 
-        // Try to extract transaction code from description
-        Matcher matcher = pattern.matcher(description.toUpperCase().replaceAll("\\s+", ""));
+        // Try to extract transaction code from description (remove spaces)
+        Matcher matcher = pattern.matcher(description.replaceAll("\\s+", ""));
         if (!matcher.find()) {
-            log.debug("No NAPTIEN pattern found in description: {}", description);
+            log.debug("No transaction code found in description: {}", description);
             return;
         }
 
@@ -762,8 +762,8 @@ public class WalletServiceImpl implements WalletService {
         TransactionStatusEnum currentStatus = transaction.getStatus();
         TransactionStatusEnum targetStatus = TransactionStatusEnum.fromKey(newStatus);
 
-        // Chỉ cho phép update từ PENDING
-        if (currentStatus != TransactionStatusEnum.PENDING) {
+        // Cho phép update từ PENDING hoặc FAILED (cho trường hợp timeout rồi admin duyệt lại)
+        if (currentStatus != TransactionStatusEnum.PENDING && currentStatus != TransactionStatusEnum.FAILED) {
             throw new BusinessException(ErrorCode.TRANSACTION_ALREADY_PROCESSED);
         }
 
