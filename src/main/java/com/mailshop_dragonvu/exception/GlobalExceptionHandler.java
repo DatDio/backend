@@ -1,6 +1,8 @@
 package com.mailshop_dragonvu.exception;
 
 import com.mailshop_dragonvu.dto.ApiResponse;
+import com.mailshop_dragonvu.service.MessageService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,18 +21,29 @@ import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final MessageService messageService;
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<?>> handleBusinessException(
             BusinessException ex, WebRequest request) {
         log.error("Business exception: {} - {}", ex.getErrorCode().getCode(), ex.getMessage());
         
+        // Get localized message based on current request locale
+        String localizedMessage = messageService.getErrorMessage(ex.getErrorCode().getCode());
+        
+        // If custom message is provided and different from default, use it
+        if (ex.getCustomMessage() != null && !ex.getCustomMessage().equals(ex.getErrorCode().getMessage())) {
+            localizedMessage = ex.getCustomMessage();
+        }
+        
         ApiResponse<?> response = ApiResponse.error(
-                ex.getCustomMessage(),
+                localizedMessage,
                 ex.getErrorCode().getCode()
         );
-         log.error("PayOS create link failed", ex);
+        
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
@@ -48,11 +61,13 @@ public class GlobalExceptionHandler {
 
         log.error("Validation error: {}", errors);
 
+        String localizedMessage = messageService.getErrorMessage(ErrorCode.VALIDATION_ERROR.getCode());
+
         ApiResponse<?> response = ApiResponse.builder()
                 .success(false)
-                .message(errors.toString())
+                .message(localizedMessage + ": " + errors.toString())
                 .errorCode(ErrorCode.VALIDATION_ERROR.getCode())
-                .data(null)
+                .data(errors)
                 .build();
 
         return ResponseEntity
@@ -65,8 +80,10 @@ public class GlobalExceptionHandler {
             BadCredentialsException ex) {
         log.error("Bad credentials: {}", ex.getMessage());
         
+        String localizedMessage = messageService.getErrorMessage(ErrorCode.INVALID_CREDENTIALS.getCode());
+        
         ApiResponse<?> response = ApiResponse.error(
-                ErrorCode.INVALID_CREDENTIALS.getMessage(),
+                localizedMessage,
                 ErrorCode.INVALID_CREDENTIALS.getCode()
         );
         
@@ -80,8 +97,10 @@ public class GlobalExceptionHandler {
             AuthenticationException ex) {
         log.error("Authentication exception: {}", ex.getMessage());
         
+        String localizedMessage = messageService.getErrorMessage(ErrorCode.UNAUTHORIZED.getCode());
+        
         ApiResponse<?> response = ApiResponse.error(
-                ErrorCode.UNAUTHORIZED.getMessage(),
+                localizedMessage,
                 ErrorCode.UNAUTHORIZED.getCode()
         );
         
@@ -95,8 +114,10 @@ public class GlobalExceptionHandler {
             AccessDeniedException ex) {
         log.error("Access denied: {}", ex.getMessage());
         
+        String localizedMessage = messageService.getErrorMessage(ErrorCode.FORBIDDEN.getCode());
+        
         ApiResponse<?> response = ApiResponse.error(
-                ErrorCode.FORBIDDEN.getMessage(),
+                localizedMessage,
                 ErrorCode.FORBIDDEN.getCode()
         );
         
@@ -110,8 +131,10 @@ public class GlobalExceptionHandler {
             IllegalArgumentException ex) {
         log.error("Illegal argument: {}", ex.getMessage());
         
+        String localizedMessage = messageService.getErrorMessage(ErrorCode.BAD_REQUEST.getCode());
+        
         ApiResponse<?> response = ApiResponse.error(
-                ex.getMessage(),
+                ex.getMessage() != null ? ex.getMessage() : localizedMessage,
                 ErrorCode.BAD_REQUEST.getCode()
         );
         
@@ -119,12 +142,15 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
     }
+
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiResponse<?>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
         log.error("Method not allowed: {}", ex.getMessage());
 
+        String localizedMessage = messageService.getMessage("common.method.not_allowed", new Object[]{ex.getMethod()});
+
         ApiResponse<?> response = ApiResponse.error(
-                "Yêu cầu " + ex.getMethod() + " không hợp lệ!",
+                localizedMessage,
                 ErrorCode.METHOD_NOT_ALLOWED.getCode()
         );
 
@@ -138,9 +164,10 @@ public class GlobalExceptionHandler {
             Exception ex, WebRequest request) {
         log.error("Unexpected error occurred: ", ex);
         
+        String localizedMessage = messageService.getErrorMessage(ErrorCode.INTERNAL_SERVER_ERROR.getCode());
+        
         ApiResponse<?> response = ApiResponse.error(
-                //ErrorCode.INTERNAL_SERVER_ERROR.getMessage(),
-                ex.getMessage(),
+                localizedMessage,
                 ErrorCode.INTERNAL_SERVER_ERROR.getCode()
         );
         
@@ -148,14 +175,17 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(response);
     }
+
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
     public ResponseEntity<ApiResponse<?>> handleNoResourceFoundException(
             org.springframework.web.servlet.resource.NoResourceFoundException ex) {
 
         log.error("Resource not found: {}", ex.getMessage());
 
+        String localizedMessage = messageService.getMessage("common.api.not_found");
+
         ApiResponse<?> response = ApiResponse.error(
-                "API không tồn tại hoặc URL không hợp lệ!",
+                localizedMessage,
                 ErrorCode.RESOURCE_NOT_FOUND.getCode()
         );
 
@@ -163,5 +193,4 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.NOT_FOUND)
                 .body(response);
     }
-
 }
