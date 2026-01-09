@@ -1,5 +1,6 @@
 package com.mailshop_dragonvu.service.impl;
 
+import com.mailshop_dragonvu.dto.productitems.ImportResultDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemCreateDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemFilterDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemResponseDTO;
@@ -44,6 +45,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -134,15 +137,22 @@ public class ProductItemServiceImpl implements ProductItemService {
         // 6. Async notifications
         productQuantityNotifier.publishAfterCommit(productItemCreateDTO.getProductId());
         
-        // 7. Async warehouse check - không block response
+        // 7. Async warehouse check - chạy SAU KHI transaction commit
         final Long finalProductId = productId;
-        java.util.concurrent.CompletableFuture.runAsync(() -> {
-            try {
-                warehouseService.checkAndTransferStock(finalProductId);
-            } catch (Exception e) {
-                log.warn("Async warehouse check failed for product {}: {}", finalProductId, e.getMessage());
-            }
-        });
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    java.util.concurrent.CompletableFuture.runAsync(() -> {
+                        try {
+                            warehouseService.checkAndTransferStock(finalProductId);
+                        } catch (Exception e) {
+                            log.warn("Async warehouse check failed for product {}: {}", finalProductId, e.getMessage());
+                        }
+                    });
+                }
+            });
+        }
 
         return nonEmptyInputCount - newAccountDataList.size();
     }
@@ -312,7 +322,7 @@ public class ProductItemServiceImpl implements ProductItemService {
     }
 
     @Override
-    public int importItems(Long productId, MultipartFile file, ExpirationType expirationType) {
+    public ImportResultDTO importItems(Long productId, MultipartFile file, ExpirationType expirationType) {
         ProductEntity product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
@@ -333,8 +343,14 @@ public class ProductItemServiceImpl implements ProductItemService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Lỗi đọc file");
         }
 
+        int totalInput = accountDataList.size();
+        
         if (accountDataList.isEmpty()) {
-            return 0;
+            return ImportResultDTO.builder()
+                    .importedCount(0)
+                    .duplicateCount(0)
+                    .totalInput(0)
+                    .build();
         }
 
         // 1. Deduplicate input by email - optimized
@@ -359,8 +375,14 @@ public class ProductItemServiceImpl implements ProductItemService {
                 .map(emailToAccountData::get)
                 .collect(Collectors.toList());
 
+        int duplicateCount = emailToAccountData.size() - newAccountDataList.size();
+        
         if (newAccountDataList.isEmpty()) {
-            return 0;
+            return ImportResultDTO.builder()
+                    .importedCount(0)
+                    .duplicateCount(duplicateCount)
+                    .totalInput(totalInput)
+                    .build();
         }
 
         // 4. JDBC Batch Insert với BATCH SIZE 5000
@@ -384,22 +406,33 @@ public class ProductItemServiceImpl implements ProductItemService {
             ps.setTimestamp(9, now);
         });
 
-        log.info("Imported {} items for product {} with expirationType {}",
-                newAccountDataList.size(), productId, expirationType);
+        log.info("Imported {} items for product {} with expirationType {} (duplicates: {})",
+                newAccountDataList.size(), productId, expirationType, duplicateCount);
 
         productQuantityNotifier.publishAfterCommit(productId);
         
-        // Async warehouse check
+        // Async warehouse check - chạy SAU KHI transaction commit
         final Long finalProductId = productId;
-        java.util.concurrent.CompletableFuture.runAsync(() -> {
-            try {
-                warehouseService.checkAndTransferStock(finalProductId);
-            } catch (Exception e) {
-                log.warn("Async warehouse check failed for product {}: {}", finalProductId, e.getMessage());
-            }
-        });
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    java.util.concurrent.CompletableFuture.runAsync(() -> {
+                        try {
+                            warehouseService.checkAndTransferStock(finalProductId);
+                        } catch (Exception e) {
+                            log.warn("Async warehouse check failed for product {}: {}", finalProductId, e.getMessage());
+                        }
+                    });
+                }
+            });
+        }
 
-        return newAccountDataList.size();
+        return ImportResultDTO.builder()
+                .importedCount(newAccountDataList.size())
+                .duplicateCount(duplicateCount)
+                .totalInput(totalInput)
+                .build();
     }
 
     // Convert ENTITY → DTO

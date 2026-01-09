@@ -49,8 +49,8 @@ public class ProductItemController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "expirationType", defaultValue = "NONE") ExpirationType expirationType
     ) {
-        int count = productItemService.importItems(productId, file, expirationType);
-        return ApiResponse.success("Import thành công " + count + " tài khoản");
+        var result = productItemService.importItems(productId, file, expirationType);
+        return ApiResponse.success(result.getMessage());
     }
 
     // DELETE ITEM

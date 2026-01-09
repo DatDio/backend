@@ -1,5 +1,6 @@
 package com.mailshop_dragonvu.service;
 
+import com.mailshop_dragonvu.dto.productitems.ImportResultDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemCreateDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemFilterDTO;
 import com.mailshop_dragonvu.dto.productitems.ProductItemResponseDTO;
@@ -17,7 +18,7 @@ public interface ProductItemService {
 
     List<ProductItemEntity> getNewestUnsoldItems(Long productId, int quantity);
 
-    int importItems(Long productId, MultipartFile file, ExpirationType expirationType);
+    ImportResultDTO importItems(Long productId, MultipartFile file, ExpirationType expirationType);
 
     void deleteItem(Long id);
 
