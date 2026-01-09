@@ -155,6 +155,17 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public void deleteProduct(Long id) {
         ProductEntity product = findProductOrThrow(id);
+        
+        // Kiểm tra có ProductItem nào đã bán và đang trong Order không
+        long soldItemsInOrders = productItemRepository.countSoldItemsInOrders(id);
+        if (soldItemsInOrders > 0) {
+            throw new BusinessException("Không thể xóa sản phẩm có " + soldItemsInOrders + " tài khoản đã bán trong đơn hàng");
+        }
+        
+        // Xóa tất cả ProductItem của sản phẩm này trước
+        productItemRepository.deleteByProductId(id);
+        
+        // Xóa Product
         productRepository.delete(product);
     }
 

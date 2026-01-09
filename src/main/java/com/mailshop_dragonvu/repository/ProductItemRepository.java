@@ -154,6 +154,22 @@ public interface ProductItemRepository extends JpaRepository<ProductItemEntity, 
         LIMIT 1000
     """, nativeQuery = true)
     List<ProductItemEntity> findAllExpiredItemsToMark();
+
+    // ==================== DELETE PRODUCT ====================
+    
+    // Kiểm tra xem product có item nào đã bán và đang liên kết với order không
+    @Query("""
+        SELECT COUNT(pi) FROM ProductItemEntity pi 
+        WHERE pi.product.id = :productId 
+          AND pi.sold = true 
+          AND EXISTS (SELECT 1 FROM OrderItemEntity oi WHERE oi.productItem.id = pi.id)
+    """)
+    long countSoldItemsInOrders(@Param("productId") Long productId);
+    
+    // Xóa tất cả ProductItem theo productId (dùng khi xóa Product)
+    @Modifying
+    @Query("DELETE FROM ProductItemEntity pi WHERE pi.product.id = :productId")
+    void deleteByProductId(@Param("productId") Long productId);
 }
 
 
