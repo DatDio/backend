@@ -23,8 +23,12 @@ public interface ProductItemRepository extends JpaRepository<ProductItemEntity, 
     @Query("SELECT COUNT(pi) FROM ProductItemEntity pi WHERE pi.product.id = :productId AND pi.sold = false AND pi.expired = false")
     long countAvailableItems(@Param("productId") Long productId);
 
-    // Lấy tất cả items (dùng để check trùng email)
+    // Lấy tất cả items (dùng để check trùng email) - DEPRECATED: dùng findAccountDataByProductId thay vì
     List<ProductItemEntity> findByProductId(Long productId);
+    
+    // CHỈ LẤY ACCOUNT DATA STRING - tối ưu cho check trùng email (không load toàn bộ entity)
+    @Query("SELECT pi.accountData FROM ProductItemEntity pi WHERE pi.product.id = :productId")
+    List<String> findAccountDataByProductId(@Param("productId") Long productId);
 
     // Đếm items trong kho PHỤ (SECONDARY) - hiển thị cho khách hàng, chưa hết hạn
     @Query("SELECT COUNT(pi) FROM ProductItemEntity pi WHERE pi.product.id = :productId AND pi.sold = false AND pi.expired = false AND pi.warehouseType = 'SECONDARY'")

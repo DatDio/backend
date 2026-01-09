@@ -69,16 +69,15 @@ public class ProductItemServiceImpl implements ProductItemService {
 
         String[] lines = productItemCreateDTO.getAccountData().split("\\r?\\n");
 
-        // 1. Deduplicate input by email (phần trước dấu |)
-        Map<String, String> emailToAccountData = new LinkedHashMap<>(); // giữ nguyên thứ tự
+        // 1. Deduplicate input by email - optimized với putIfAbsent
+        Map<String, String> emailToAccountData = new LinkedHashMap<>();
+        int nonEmptyInputCount = 0;
         for (String line : lines) {
             String trimmed = line.trim();
             if (!trimmed.isEmpty()) {
+                nonEmptyInputCount++;
                 String email = extractEmail(trimmed);
-                // Nếu email chưa có trong map thì thêm vào (giữ dòng đầu tiên)
-                if (!emailToAccountData.containsKey(email)) {
-                    emailToAccountData.put(email, trimmed);
-                }
+                emailToAccountData.putIfAbsent(email, trimmed);
             }
         }
 
@@ -86,78 +85,81 @@ public class ProductItemServiceImpl implements ProductItemService {
             return 0;
         }
 
-        // 2. Lấy tất cả email đã có trong DB cho product này
-        List<ProductItemEntity> existingItems = productItemRepository.findByProductId(
-                productItemCreateDTO.getProductId());
-        
-        Set<String> existingEmails = existingItems.stream()
-                .map(item -> extractEmail(item.getAccountData()))
+        // 2. CHỈ QUERY ACCOUNT DATA STRING - không load toàn bộ entity (tối ưu memory + speed)
+        Set<String> existingEmails = productItemRepository
+                .findAccountDataByProductId(productItemCreateDTO.getProductId())
+                .stream()
+                .map(this::extractEmail)
                 .collect(Collectors.toSet());
 
-        // 3. Filter new items (email chưa có trong DB)
-        List<String> newAccountDataList = new ArrayList<>();
-        for (Map.Entry<String, String> entry : emailToAccountData.entrySet()) {
-            if (!existingEmails.contains(entry.getKey())) {
-                newAccountDataList.add(entry.getValue());
-            }
+        // 3. Filter new items - dùng Set operation
+        Set<String> inputEmails = new HashSet<>(emailToAccountData.keySet());
+        inputEmails.removeAll(existingEmails);
+        
+        List<String> newAccountDataList = inputEmails.stream()
+                .map(emailToAccountData::get)
+                .collect(Collectors.toList());
+
+        if (newAccountDataList.isEmpty()) {
+            return nonEmptyInputCount; // All duplicates
         }
 
-        // 4. Batch insert using JDBC - Tất cả mail mới vào kho PRIMARY
-        if (!newAccountDataList.isEmpty()) {
-            Long productId = product.getId();
-            Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+        // 4. Prepare batch insert parameters
+        Long productId = product.getId();
+        Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+        ExpirationType expirationType = resolveExpirationType(productItemCreateDTO);
+        Timestamp expiresAt = expirationType != ExpirationType.NONE 
+                ? Timestamp.valueOf(LocalDateTime.now().plusHours(expirationType.getHours()))
+                : null;
+        String expirationTypeName = expirationType.name();
 
-            // Xác định ExpirationType - ưu tiên expirationType enum, fallback expirationHours
-            ExpirationType expirationType;
-            if (productItemCreateDTO.getExpirationType() != null && !productItemCreateDTO.getExpirationType().isEmpty()) {
-                try {
-                    expirationType = ExpirationType.valueOf(productItemCreateDTO.getExpirationType());
-                } catch (IllegalArgumentException e) {
-                    expirationType = ExpirationType.NONE;
-                }
-            } else {
-                Integer expirationHours = productItemCreateDTO.getExpirationHours();
-                expirationType = ExpirationType.fromHours(expirationHours);
+        // 5. Batch insert với BATCH SIZE LỚN HƠN (2000 thay vì 500)
+        String sql = "INSERT INTO product_items (product_id, account_data, sold, expired, warehouse_type, expiration_type, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        jdbcTemplate.batchUpdate(sql, newAccountDataList, 2000, (ps, accountData) -> {
+            ps.setLong(1, productId);
+            ps.setString(2, accountData);
+            ps.setBoolean(3, false);
+            ps.setBoolean(4, false);
+            ps.setString(5, WarehouseType.PRIMARY.name());
+            ps.setString(6, expirationTypeName);
+            ps.setTimestamp(7, expiresAt);
+            ps.setTimestamp(8, now);
+            ps.setTimestamp(9, now);
+        });
+
+        log.info("Batch inserted {} product items for product {} (expirationType: {})",
+                newAccountDataList.size(), productId, expirationType);
+
+        // 6. Async notifications
+        productQuantityNotifier.publishAfterCommit(productItemCreateDTO.getProductId());
+        
+        // 7. Async warehouse check - không block response
+        final Long finalProductId = productId;
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                warehouseService.checkAndTransferStock(finalProductId);
+            } catch (Exception e) {
+                log.warn("Async warehouse check failed for product {}: {}", finalProductId, e.getMessage());
             }
+        });
 
-            Timestamp expiresAt = null;
-            if (expirationType != ExpirationType.NONE) {
-                expiresAt = Timestamp.valueOf(LocalDateTime.now().plusHours(expirationType.getHours()));
+        return nonEmptyInputCount - newAccountDataList.size();
+    }
+
+    /**
+     * Resolve ExpirationType from DTO
+     */
+    private ExpirationType resolveExpirationType(ProductItemCreateDTO dto) {
+        if (StringUtils.hasText(dto.getExpirationType())) {
+            try {
+                return ExpirationType.valueOf(dto.getExpirationType());
+            } catch (IllegalArgumentException e) {
+                return ExpirationType.NONE;
             }
-            final Timestamp finalExpiresAt = expiresAt;
-            final String expirationTypeName = expirationType.name();
-
-            // Thêm warehouse_type = 'PRIMARY', expiration_type và expires_at khi insert
-            String sql = "INSERT INTO product_items (product_id, account_data, sold, expired, warehouse_type, expiration_type, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-            jdbcTemplate.batchUpdate(sql, newAccountDataList, 500, (ps, accountData) -> {
-                ps.setLong(1, productId);
-                ps.setString(2, accountData);
-                ps.setBoolean(3, false);
-                ps.setBoolean(4, false);
-                ps.setString(5, WarehouseType.PRIMARY.name()); // Tất cả vào kho PRIMARY
-                ps.setString(6, expirationTypeName); // Loại thời gian hết hạn
-                ps.setTimestamp(7, finalExpiresAt); // expiresAt per item
-                ps.setTimestamp(8, now);
-                ps.setTimestamp(9, now);
-            });
-
-            log.info("Batch inserted {} product items into PRIMARY warehouse for product {} (expirationType: {}, expiresAt: {})",
-                    newAccountDataList.size(), productId, expirationType, expiresAt);
-
-            productQuantityNotifier.publishAfterCommit(productItemCreateDTO.getProductId());
-
-            // Trigger warehouse check - chuyển từ PRIMARY sang SECONDARY nếu cần
-            warehouseService.checkAndTransferStock(productId);
         }
-
-        // Calculate duplicates count
-        long nonEmptyInputCount = 0;
-        for (String line : lines) {
-            if (!line.trim().isEmpty()) nonEmptyInputCount++;
-        }
-
-        return (int) (nonEmptyInputCount - newAccountDataList.size());
+        Integer expirationHours = dto.getExpirationHours();
+        return expirationHours != null ? ExpirationType.fromHours(expirationHours) : ExpirationType.NONE;
     }
 
     @Override
@@ -335,54 +337,49 @@ public class ProductItemServiceImpl implements ProductItemService {
             return 0;
         }
 
-        // 1. Deduplicate input by email (phần trước dấu |)
+        // 1. Deduplicate input by email - optimized
         Map<String, String> emailToAccountData = new LinkedHashMap<>();
         for (String line : accountDataList) {
             String email = extractEmail(line);
-            // Nếu email chưa có trong map thì thêm vào (giữ dòng đầu tiên)
-            if (!emailToAccountData.containsKey(email)) {
-                emailToAccountData.put(email, line);
-            }
+            emailToAccountData.putIfAbsent(email, line);
         }
 
-        // 2. Lấy tất cả email đã có trong DB cho product này
-        List<ProductItemEntity> existingItems = productItemRepository.findByProductId(productId);
-        
-        Set<String> existingEmails = existingItems.stream()
-                .map(item -> extractEmail(item.getAccountData()))
+        // 2. CHỈ QUERY ACCOUNT DATA STRING - không load toàn bộ entity
+        Set<String> existingEmails = productItemRepository
+                .findAccountDataByProductId(productId)
+                .stream()
+                .map(this::extractEmail)
                 .collect(Collectors.toSet());
 
-        // 3. Filter new items (email chưa có trong DB)
-        List<String> newAccountDataList = new ArrayList<>();
-        for (Map.Entry<String, String> entry : emailToAccountData.entrySet()) {
-            if (!existingEmails.contains(entry.getKey())) {
-                newAccountDataList.add(entry.getValue());
-            }
-        }
+        // 3. Filter new items - dùng Set operation
+        Set<String> inputEmails = new HashSet<>(emailToAccountData.keySet());
+        inputEmails.removeAll(existingEmails);
+        
+        List<String> newAccountDataList = inputEmails.stream()
+                .map(emailToAccountData::get)
+                .collect(Collectors.toList());
 
         if (newAccountDataList.isEmpty()) {
             return 0;
         }
 
-        // JDBC Batch Insert với ExpirationType
+        // 4. JDBC Batch Insert với BATCH SIZE LỚN
         Timestamp now = Timestamp.valueOf(LocalDateTime.now());
-        Timestamp expiresAt = null;
-        if (expirationType != ExpirationType.NONE) {
-            expiresAt = Timestamp.valueOf(LocalDateTime.now().plusHours(expirationType.getHours()));
-        }
-        final Timestamp finalExpiresAt = expiresAt;
-        final String expirationTypeName = expirationType.name();
+        Timestamp expiresAt = expirationType != ExpirationType.NONE
+                ? Timestamp.valueOf(LocalDateTime.now().plusHours(expirationType.getHours()))
+                : null;
+        String expirationTypeName = expirationType.name();
 
         String sql = "INSERT INTO product_items (product_id, account_data, sold, expired, warehouse_type, expiration_type, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        jdbcTemplate.batchUpdate(sql, newAccountDataList, 500, (ps, accountData) -> {
+        jdbcTemplate.batchUpdate(sql, newAccountDataList, 2000, (ps, accountData) -> {
             ps.setLong(1, productId);
             ps.setString(2, accountData);
             ps.setBoolean(3, false);
             ps.setBoolean(4, false);
             ps.setString(5, WarehouseType.PRIMARY.name());
             ps.setString(6, expirationTypeName);
-            ps.setTimestamp(7, finalExpiresAt);
+            ps.setTimestamp(7, expiresAt);
             ps.setTimestamp(8, now);
             ps.setTimestamp(9, now);
         });
@@ -391,7 +388,16 @@ public class ProductItemServiceImpl implements ProductItemService {
                 newAccountDataList.size(), productId, expirationType);
 
         productQuantityNotifier.publishAfterCommit(productId);
-        warehouseService.checkAndTransferStock(productId);
+        
+        // Async warehouse check
+        final Long finalProductId = productId;
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                warehouseService.checkAndTransferStock(finalProductId);
+            } catch (Exception e) {
+                log.warn("Async warehouse check failed for product {}: {}", finalProductId, e.getMessage());
+            }
+        });
 
         return newAccountDataList.size();
     }
