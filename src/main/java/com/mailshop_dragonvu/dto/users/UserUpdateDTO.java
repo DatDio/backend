@@ -1,6 +1,8 @@
 package com.mailshop_dragonvu.dto.users;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,5 +35,9 @@ public class UserUpdateDTO {
 
     private List<String> roles; // List of role names (e.g., ["ADMIN", "USER"])
 
-}
+    private Boolean isCollaborator;
 
+    @Min(value = 0, message = "Phần trăm bonus không được nhỏ hơn 0")
+    @Max(value = 100, message = "Phần trăm bonus không được lớn hơn 100")
+    private Integer bonusPercent;
+}

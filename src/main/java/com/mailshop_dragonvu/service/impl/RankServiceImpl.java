@@ -2,11 +2,13 @@ package com.mailshop_dragonvu.service.impl;
 
 import com.mailshop_dragonvu.dto.ranks.*;
 import com.mailshop_dragonvu.entity.RankEntity;
+import com.mailshop_dragonvu.entity.UserEntity;
 import com.mailshop_dragonvu.enums.ActiveStatusEnum;
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.mapper.RankMapper;
 import com.mailshop_dragonvu.repository.RankRepository;
 import com.mailshop_dragonvu.repository.TransactionRepository;
+import com.mailshop_dragonvu.repository.UserRepository;
 import com.mailshop_dragonvu.service.FileUploadService;
 import com.mailshop_dragonvu.service.RankService;
 import com.mailshop_dragonvu.service.SystemSettingService;
@@ -37,6 +39,7 @@ public class RankServiceImpl implements RankService {
 
     private final RankRepository rankRepository;
     private final TransactionRepository transactionRepository;
+    private final UserRepository userRepository;
     private final RankMapper rankMapper;
     private final SystemSettingService systemSettingService;
     private final FileUploadService fileUploadService;
@@ -159,11 +162,18 @@ public class RankServiceImpl implements RankService {
         Long totalDeposit = getTotalDepositInPeriod(userId, periodDays);
 
         if (allRanks.isEmpty()) {
+            // Get CTV info from user even if no ranks
+            UserEntity user = userRepository.findById(userId).orElse(null);
+            Boolean isCollaborator = user != null && Boolean.TRUE.equals(user.getIsCollaborator());
+            Integer ctvBonusPercent = (user != null && isCollaborator) ? user.getBonusPercent() : 0;
+            
             return UserRankInfoDTO.builder()
                     .rankName("Không có")
                     .bonusPercent(0)
                     .currentDeposit(totalDeposit)
                     .periodDays(periodDays)
+                    .isCollaborator(isCollaborator)
+                    .ctvBonusPercent(ctvBonusPercent != null ? ctvBonusPercent : 0)
                     .build();
         }
 
@@ -192,6 +202,11 @@ public class RankServiceImpl implements RankService {
             }
         }
 
+        // Get CTV info from user
+        UserEntity user = userRepository.findById(userId).orElse(null);
+        Boolean isCollaborator = user != null && Boolean.TRUE.equals(user.getIsCollaborator());
+        Integer ctvBonusPercent = (user != null && isCollaborator) ? user.getBonusPercent() : 0;
+
         return UserRankInfoDTO.builder()
                 .rankId(currentRank != null ? currentRank.getId() : null)
                 .rankName(currentRank != null ? currentRank.getName() : "Không có")
@@ -202,6 +217,8 @@ public class RankServiceImpl implements RankService {
                 .nextRankMinDeposit(nextRank != null ? nextRank.getMinDeposit() : null)
                 .nextRankName(nextRank != null ? nextRank.getName() : null)
                 .periodDays(periodDays)
+                .isCollaborator(isCollaborator)
+                .ctvBonusPercent(ctvBonusPercent != null ? ctvBonusPercent : 0)
                 .build();
     }
 
@@ -209,14 +226,28 @@ public class RankServiceImpl implements RankService {
     @Transactional(readOnly = true)
     public Long calculateDepositBonus(Long userId, Long depositAmount) {
         UserRankInfoDTO rankInfo = getUserRankInfo(userId);
-        int bonusPercent = rankInfo.getBonusPercent();
+        int rankBonus = rankInfo.getBonusPercent();
         
-        if (bonusPercent <= 0) {
+        // Get collaborator bonus from user
+        int ctvBonus = 0;
+        UserEntity user = userRepository.findById(userId).orElse(null);
+        if (user != null && Boolean.TRUE.equals(user.getIsCollaborator())) {
+            ctvBonus = user.getBonusPercent() != null ? user.getBonusPercent() : 0;
+            log.info("CTV bonus for user {}: {}%", userId, ctvBonus);
+        }
+        
+        // Total bonus = Rank bonus + CTV bonus
+        int totalBonusPercent = rankBonus + ctvBonus;
+        
+        if (totalBonusPercent <= 0) {
             return 0L;
         }
 
-        // Calculate bonus: depositAmount * bonusPercent / 100
-        return (depositAmount * bonusPercent) / 100;
+        // Calculate bonus: depositAmount * totalBonusPercent / 100
+        Long bonus = (depositAmount * totalBonusPercent) / 100;
+        log.info("Deposit bonus for user {}: {}% (rank: {}% + ctv: {}%) = {} VND", 
+                userId, totalBonusPercent, rankBonus, ctvBonus, bonus);
+        return bonus;
     }
 
     @Override

@@ -14,4 +14,7 @@ public class UserFilterDTO extends PageFilterDTO {
     private String fullName;
 
     private String status;
+
+    private Boolean isCollaborator;
 }
+

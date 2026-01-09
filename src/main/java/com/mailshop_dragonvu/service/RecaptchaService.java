@@ -2,6 +2,7 @@ package com.mailshop_dragonvu.service;
 
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.exception.ErrorCode;
+import com.mailshop_dragonvu.utils.MessageKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +30,7 @@ public class RecaptchaService {
     private double threshold;
 
     private final RestTemplate restTemplate;
+    private final MessageService messageService;
 
     /**
      * Verify reCAPTCHA token with Google API
@@ -39,7 +41,7 @@ public class RecaptchaService {
     public void verify(String token, String action) {
         if (!StringUtils.hasText(token)) {
             log.warn("reCAPTCHA token is empty for action: {}", action);
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "Vui lòng xác nhận bạn không phải robot");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, messageService.getMessage(MessageKeys.Captcha.REQUIRED));
         }
 
         try {
@@ -56,7 +58,7 @@ public class RecaptchaService {
 
             if (response.getBody() == null) {
                 log.error("Empty response from reCAPTCHA API");
-                throw new BusinessException(ErrorCode.BAD_REQUEST, "Không thể xác thực captcha");
+                throw new BusinessException(ErrorCode.BAD_REQUEST, messageService.getMessage(MessageKeys.Captcha.VERIFY_FAILED));
             }
 
             Map<String, Object> body = response.getBody();
@@ -68,12 +70,12 @@ public class RecaptchaService {
 
             if (!Boolean.TRUE.equals(success)) {
                 log.warn("reCAPTCHA verification failed for action: {}", action);
-                throw new BusinessException(ErrorCode.BAD_REQUEST, "Xác thực captcha thất bại");
+                throw new BusinessException(ErrorCode.BAD_REQUEST, messageService.getMessage(MessageKeys.Captcha.FAILED));
             }
 
             if (score < threshold) {
                 log.warn("reCAPTCHA score {} is below threshold {} for action: {}", score, threshold, action);
-                throw new BusinessException(ErrorCode.SUSPICIOUS_ACTIVITY, "Phát hiện hoạt động đáng ngờ. Vui lòng thử lại.");
+                throw new BusinessException(ErrorCode.SUSPICIOUS_ACTIVITY, messageService.getMessage(MessageKeys.Captcha.SUSPICIOUS));
             }
 
             // Optionally verify action matches (if provided by frontend)
@@ -88,7 +90,8 @@ public class RecaptchaService {
             throw e;
         } catch (Exception e) {
             log.error("Error verifying reCAPTCHA token: {}", e.getMessage());
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "Không thể xác thực captcha. Vui lòng thử lại.");
+            throw new BusinessException(ErrorCode.BAD_REQUEST, messageService.getMessage(MessageKeys.Captcha.RETRY));
         }
     }
 }
+

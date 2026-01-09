@@ -19,4 +19,6 @@ public class UserResponseClientDTO {
     private Long totalSpent; // Total spent amount
     private String rankName;
     private Integer bonusPercent;
+    private Boolean isCollaborator;
+    private Integer ctvBonusPercent;
 }

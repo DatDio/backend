@@ -5,8 +5,10 @@ import com.mailshop_dragonvu.dto.users.UserResponseClientDTO;
 import com.mailshop_dragonvu.dto.users.UserResponseDTO;
 import com.mailshop_dragonvu.dto.users.UserUpdateDTO;
 import com.mailshop_dragonvu.security.UserPrincipal;
+import com.mailshop_dragonvu.service.MessageService;
 import com.mailshop_dragonvu.service.UserService;
 import com.mailshop_dragonvu.utils.Constants;
+import com.mailshop_dragonvu.utils.MessageKeys;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 @SecurityRequirement(name = "Bearer Authentication")
 public class UserController {
     private final UserService userService;
+    private final MessageService messageService;
 
     @GetMapping("/balance")
     public ApiResponse<UserResponseClientDTO> getBalance(
@@ -46,6 +49,8 @@ public class UserController {
             @PathVariable Long id,
             @Valid @RequestBody UserUpdateDTO request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ApiResponse.success("Cập nhật thành công", userService.updateUser(id, request, userPrincipal.getId()));
+        return ApiResponse.success(messageService.getMessage(MessageKeys.User.UPDATED), userService.updateUser(id, request, userPrincipal.getId()));
     }
 }
+
+

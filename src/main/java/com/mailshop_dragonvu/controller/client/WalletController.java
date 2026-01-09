@@ -8,8 +8,10 @@ import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
 import com.mailshop_dragonvu.security.UserPrincipal;
 import com.mailshop_dragonvu.service.CassoService;
+import com.mailshop_dragonvu.service.MessageService;
 import com.mailshop_dragonvu.service.WalletService;
 import com.mailshop_dragonvu.utils.Constants;
+import com.mailshop_dragonvu.utils.MessageKeys;
 import com.mailshop_dragonvu.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -43,6 +45,7 @@ public class WalletController {
 
     private final WalletService walletService;
     private final CassoService cassoService;
+    private final MessageService messageService;
 
     @GetMapping("/me")
     public ApiResponse<WalletResponse> getMyWallet(
@@ -169,7 +172,7 @@ public class WalletController {
     public ApiResponse<Void> deleteTransaction(@AuthenticationPrincipal UserPrincipal userPrincipal,
                                                @PathVariable Long orderCode) {
         walletService.deleteByTransactionCode(orderCode);
-        return ApiResponse.success("Xóa giao dịch thành công!");
+        return ApiResponse.success(messageService.getMessage(MessageKeys.Transaction.DELETED));
     }
 }
 

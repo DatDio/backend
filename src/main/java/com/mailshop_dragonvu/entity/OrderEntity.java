@@ -77,16 +77,21 @@ public class OrderEntity extends BaseEntity {
         item.setOrder(null);
     }
 
+    /**
+     * Calculate total amount from order items
+     */
     public void calculationTotalAmount() {
-        long total = 0L;
+        long subtotal = 0L;
 
         for (OrderItemEntity item : orderItems) {
             Long price = item.getProductItem().getProduct().getPrice();
-            total += price; // mỗi OrderItem = 1 sản phẩm
+            subtotal += price; // mỗi OrderItem = 1 sản phẩm
         }
 
-        this.totalAmount = total;
+        this.totalAmount = subtotal;
         this.quantity = orderItems.size();
     }
 
 }
+
+

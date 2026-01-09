@@ -63,4 +63,12 @@ public class UserEntity extends BaseEntity {
     @Builder.Default
     @Column(name = "status", nullable = false)
     private ActiveStatusEnum status = ActiveStatusEnum.ACTIVE;
+
+    @Column(name = "is_collaborator")
+    @Builder.Default
+    private Boolean isCollaborator = false;
+
+    @Column(name = "bonus_percent")
+    @Builder.Default
+    private Integer bonusPercent = 0;  // 0-100% bonus khi nạp tiền
 }

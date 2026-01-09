@@ -68,6 +68,7 @@ public class OrderServiceImpl implements OrderService {
 
         // VALIDATION: Kiểm tra số dư TRƯỚC KHI lock product items ==========
         Long estimatedTotal = productResponseDTO.getPrice() * request.getQuantity();
+        
         WalletEntity wallet = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
         

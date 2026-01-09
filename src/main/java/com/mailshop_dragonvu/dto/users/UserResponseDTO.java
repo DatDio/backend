@@ -31,6 +31,6 @@ public class UserResponseDTO {
     private Long totalDeposit; // Total deposited amount
     private Long totalSpent; // Total spent amount
     private UserRankInfoDTO rank; // User's current rank info
-
+    private Boolean isCollaborator;
+    private Integer bonusPercent;
 }
-

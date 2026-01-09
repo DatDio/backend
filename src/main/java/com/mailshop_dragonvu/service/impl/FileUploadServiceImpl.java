@@ -2,6 +2,9 @@ package com.mailshop_dragonvu.service.impl;
 
 import com.mailshop_dragonvu.exception.BusinessException;
 import com.mailshop_dragonvu.service.FileUploadService;
+import com.mailshop_dragonvu.service.MessageService;
+import com.mailshop_dragonvu.utils.MessageKeys;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -18,6 +21,7 @@ import java.util.UUID;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class FileUploadServiceImpl implements FileUploadService {
 
     private static final List<String> ALLOWED_IMAGE_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "gif", "webp", "svg");
@@ -29,6 +33,8 @@ public class FileUploadServiceImpl implements FileUploadService {
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
+    private final MessageService messageService;
+
     @Override
     public String uploadImage(MultipartFile file, String folder) {
         if (file == null || file.isEmpty()) {
@@ -37,20 +43,20 @@ public class FileUploadServiceImpl implements FileUploadService {
 
         // Validate file size
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new BusinessException("Kích thước file không được vượt quá 5MB");
+            throw new BusinessException(messageService.getMessage(MessageKeys.File.TOO_LARGE));
         }
 
         // Get file extension
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null || !originalFilename.contains(".")) {
-            throw new BusinessException("File không hợp lệ");
+            throw new BusinessException(messageService.getMessage(MessageKeys.File.INVALID));
         }
 
         String extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
 
         // Validate extension
         if (!ALLOWED_IMAGE_EXTENSIONS.contains(extension)) {
-            throw new BusinessException("Chỉ chấp nhận file ảnh: " + String.join(", ", ALLOWED_IMAGE_EXTENSIONS));
+            throw new BusinessException(messageService.getMessage(MessageKeys.File.IMAGE_ONLY, new Object[]{String.join(", ", ALLOWED_IMAGE_EXTENSIONS)}));
         }
 
         try {
@@ -73,9 +79,10 @@ public class FileUploadServiceImpl implements FileUploadService {
             return baseUrl + relativePath;
         } catch (IOException e) {
             log.error("Error uploading file", e);
-            throw new BusinessException("Lỗi khi upload file: " + e.getMessage());
+            throw new BusinessException(messageService.getMessage(MessageKeys.File.UPLOAD_FAILED, new Object[]{e.getMessage()}));
         }
     }
+
 
     @Override
     public void deleteFile(String fileUrl) {

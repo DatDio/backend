@@ -22,6 +22,8 @@ public interface UserMapper {
     @Mapping(target = "roles", expression = "java(mapRolesToStrings(userEntity.getRoles()))")
     @Mapping(target = "authProvider", expression = "java(userEntity.getAuthProvider().name())")
     @Mapping(target = "status", source = "status")
+    @Mapping(target = "isCollaborator", source = "isCollaborator")
+    @Mapping(target = "bonusPercent", source = "bonusPercent")
     UserResponseDTO toResponse(UserEntity userEntity);
 
     default Integer mapStatus(ActiveStatusEnum status) {

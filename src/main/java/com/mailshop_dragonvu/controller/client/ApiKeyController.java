@@ -6,7 +6,9 @@ import com.mailshop_dragonvu.dto.apikeys.ApiKeyGeneratedResponse;
 import com.mailshop_dragonvu.dto.apikeys.ApiKeyResponse;
 import com.mailshop_dragonvu.security.UserPrincipal;
 import com.mailshop_dragonvu.service.ApiKeyService;
+import com.mailshop_dragonvu.service.MessageService;
 import com.mailshop_dragonvu.utils.Constants;
+import com.mailshop_dragonvu.utils.MessageKeys;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +34,7 @@ import java.util.List;
 public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
+    private final MessageService messageService;
 
     @PostMapping("/generate")
     @PreAuthorize("isAuthenticated()")
@@ -99,6 +102,8 @@ public class ApiKeyController {
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         apiKeyService.deleteApiKey(id, currentUser.getId());
-        return ApiResponse.success("Xoá thành công");
+        return ApiResponse.success(messageService.getMessage(MessageKeys.ApiKey.DELETED));
     }
 }
+
+

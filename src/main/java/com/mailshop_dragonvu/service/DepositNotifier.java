@@ -1,6 +1,7 @@
 package com.mailshop_dragonvu.service;
 
 import com.mailshop_dragonvu.dto.websocket.DepositSuccessMessage;
+import com.mailshop_dragonvu.utils.MessageKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -19,6 +20,7 @@ public class DepositNotifier {
     private static final String DESTINATION_TEMPLATE = "/topic/deposit/%d";
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final MessageService messageService;
 
     /**
      * Send deposit success notification after transaction commits
@@ -37,7 +39,7 @@ public class DepositNotifier {
                 .bonusAmount(bonusAmount)
                 .totalAmount(totalAmount)
                 .newBalance(newBalance)
-                .message("Nạp tiền thành công!")
+                .message(messageService.getMessage(MessageKeys.Notification.DEPOSIT_SUCCESS))
                 .build();
 
         // Send after transaction commits to ensure data consistency

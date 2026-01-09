@@ -3,8 +3,10 @@ package com.mailshop_dragonvu.controller.client;
 import com.mailshop_dragonvu.dto.orders.*;
 import com.mailshop_dragonvu.dto.ApiResponse;
 import com.mailshop_dragonvu.security.UserPrincipal;
+import com.mailshop_dragonvu.service.MessageService;
 import com.mailshop_dragonvu.service.OrderService;
 import com.mailshop_dragonvu.utils.Constants;
+import com.mailshop_dragonvu.utils.MessageKeys;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class OrderController {
 
     private final OrderService orderService;
+    private final MessageService messageService;
 
     /**
      * Mua mail - hỗ trợ cả header và query parameter apikey
@@ -28,7 +31,7 @@ public class OrderController {
     public ApiResponse<ClientOrderCreateResponseDTO> createOrder(
             @Valid OrderCreateDTO request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ApiResponse.success("Mua hàng thành công",
+        return ApiResponse.success(messageService.getMessage(MessageKeys.Order.PURCHASE),
                 orderService.createOrder(request, userPrincipal.getId()));
     }
 
@@ -48,6 +51,5 @@ public class OrderController {
 
         return ApiResponse.success(orderService.search(filterDTO));
     }
-
 
 }

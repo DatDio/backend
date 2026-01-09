@@ -122,6 +122,16 @@ public class UserServiceImpl implements UserService {
             userEntity.setRoles(newRoles);
         }
 
+        // Handle collaborator update (only admin can change)
+        if (isAdmin) {
+            if (request.getIsCollaborator() != null) {
+                userEntity.setIsCollaborator(request.getIsCollaborator());
+            }
+            if (request.getBonusPercent() != null) {
+                userEntity.setBonusPercent(request.getBonusPercent());
+            }
+        }
+
         userEntity = userRepository.save(userEntity);
 
         log.info("User updated successfully with ID: {}", id);
@@ -189,6 +199,8 @@ public class UserServiceImpl implements UserService {
                 .totalSpent(totalSpent)
                 .rankName(rankInfo.getRankName())
                 .bonusPercent(rankInfo.getBonusPercent())
+                .isCollaborator(userEntity.getIsCollaborator())
+                .ctvBonusPercent(userEntity.getBonusPercent())
                 .build();
 
         return response;
@@ -244,6 +256,11 @@ public class UserServiceImpl implements UserService {
                             ActiveStatusEnum::fromKey
                     );
                     predicates.add(root.get("status").in(statusSet));
+                }
+
+                // Filter by collaborator type
+                if (request.getIsCollaborator() != null) {
+                    predicates.add(criteriaBuilder.equal(root.get("isCollaborator"), request.getIsCollaborator()));
                 }
 
                 return criteriaBuilder.and(predicates.toArray(new Predicate[0]));

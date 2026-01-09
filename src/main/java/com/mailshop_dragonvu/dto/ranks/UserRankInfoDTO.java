@@ -20,4 +20,8 @@ public class UserRankInfoDTO {
     private Long nextRankMinDeposit; // Min deposit for next rank (null if at highest)
     private String nextRankName; // Name of next rank (null if at highest)
     private Integer periodDays;
+    
+    // CTV bonus info (realtime from DB)
+    private Boolean isCollaborator;
+    private Integer ctvBonusPercent;
 }
