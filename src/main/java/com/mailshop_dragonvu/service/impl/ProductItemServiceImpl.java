@@ -113,10 +113,10 @@ public class ProductItemServiceImpl implements ProductItemService {
                 : null;
         String expirationTypeName = expirationType.name();
 
-        // 5. Batch insert với BATCH SIZE LỚN HƠN (2000 thay vì 500)
+        // 5. Batch insert với BATCH SIZE 5000
         String sql = "INSERT INTO product_items (product_id, account_data, sold, expired, warehouse_type, expiration_type, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        jdbcTemplate.batchUpdate(sql, newAccountDataList, 2000, (ps, accountData) -> {
+        jdbcTemplate.batchUpdate(sql, newAccountDataList, 5000, (ps, accountData) -> {
             ps.setLong(1, productId);
             ps.setString(2, accountData);
             ps.setBoolean(3, false);
@@ -363,7 +363,7 @@ public class ProductItemServiceImpl implements ProductItemService {
             return 0;
         }
 
-        // 4. JDBC Batch Insert với BATCH SIZE LỚN
+        // 4. JDBC Batch Insert với BATCH SIZE 5000
         Timestamp now = Timestamp.valueOf(LocalDateTime.now());
         Timestamp expiresAt = expirationType != ExpirationType.NONE
                 ? Timestamp.valueOf(LocalDateTime.now().plusHours(expirationType.getHours()))
@@ -372,7 +372,7 @@ public class ProductItemServiceImpl implements ProductItemService {
 
         String sql = "INSERT INTO product_items (product_id, account_data, sold, expired, warehouse_type, expiration_type, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        jdbcTemplate.batchUpdate(sql, newAccountDataList, 2000, (ps, accountData) -> {
+        jdbcTemplate.batchUpdate(sql, newAccountDataList, 5000, (ps, accountData) -> {
             ps.setLong(1, productId);
             ps.setString(2, accountData);
             ps.setBoolean(3, false);
