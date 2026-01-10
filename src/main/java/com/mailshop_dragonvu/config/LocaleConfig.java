@@ -9,6 +9,8 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.i18n.LocaleChangeInterceptor;
 
+import org.springframework.context.i18n.LocaleContextHolder;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Locale;
@@ -61,7 +63,10 @@ public class LocaleConfig implements WebMvcConfigurer {
             
             @Override
             public void setLocale(HttpServletRequest request, HttpServletResponse response, Locale locale) {
-                // Not storing locale in session/cookie - stateless approach
+                // Update LocaleContextHolder so MessageService can use the correct locale
+                if (locale != null) {
+                    LocaleContextHolder.setLocale(locale);
+                }
             }
         };
     }

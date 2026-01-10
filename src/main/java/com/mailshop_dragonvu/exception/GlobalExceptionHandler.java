@@ -31,12 +31,12 @@ public class GlobalExceptionHandler {
             BusinessException ex, WebRequest request) {
         log.error("Business exception: {} - {}", ex.getErrorCode().getCode(), ex.getMessage());
         
-        // Get localized message based on current request locale
-        String localizedMessage = messageService.getErrorMessage(ex.getErrorCode().getCode());
-        
-        // If custom message is provided and different from default, use it
-        if (ex.getCustomMessage() != null && !ex.getCustomMessage().equals(ex.getErrorCode().getMessage())) {
+        // Use custom message if provided, otherwise lookup from i18n
+        String localizedMessage;
+        if (ex.getCustomMessage() != null) {
             localizedMessage = ex.getCustomMessage();
+        } else {
+            localizedMessage = messageService.getErrorMessage(ex.getErrorCode().getCode());
         }
         
         ApiResponse<?> response = ApiResponse.error(

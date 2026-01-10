@@ -13,7 +13,7 @@ public enum ErrorCode {
     UNAUTHORIZED("401", "Chưa xác thực"),
     FORBIDDEN("1005", "Không có quyền truy cập"),
     BAD_REQUEST("1006", "Yêu cầu không hợp lệ"),
-    METHOD_NOT_ALLOWED("1006", "Method không hợp lệ"),
+    METHOD_NOT_ALLOWED("1007", "Method không hợp lệ"),
 
     // Authentication Errors (2000-2999)
     INVALID_CREDENTIALS("2000", "Tên đăng nhập hoặc mật khẩu không hợp lệ"),
@@ -25,7 +25,7 @@ public enum ErrorCode {
     ACCOUNT_DISABLED("2006", "Tài khoản đã bị vô hiệu hóa"),
     EMAIL_NOT_VERIFIED("2007", "Email chưa được xác minh"),
     OAUTH2_AUTHENTICATION_FAILED("2008", "Xác thực OAuth2 thất bại"),
-    INVALID_GOOGLE_TOKEN("2009", "Token Google không hợp lệ"), // Dịch theo key (INVALID_GOOGLE_TOKEN)
+    INVALID_GOOGLE_TOKEN("2009", "Token Google không hợp lệ"),
 
     // User Errors (3000-3999)
     USER_NOT_FOUND("3000", "Không tìm thấy người dùng"),
@@ -33,10 +33,12 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS("3002", "Email đã tồn tại"),
     INVALID_PASSWORD("3003", "Định dạng mật khẩu không hợp lệ"),
     PASSWORD_MISMATCH("3004", "Mật khẩu không khớp"),
+    CURRENT_PASSWORD_INCORRECT("3005", "Mật khẩu hiện tại không đúng"),
+    NEW_PASSWORD_SAME_AS_CURRENT("3006", "Mật khẩu mới không được trùng mật khẩu hiện tại"),
 
     // Role & Permission Errors (4000-4999)
     ROLE_NOT_FOUND("4000", "Không tìm thấy role"),
-    ROLE_ALREADY_EXISTS("4001", "role đã tồn tại"),
+    ROLE_ALREADY_EXISTS("4001", "Role đã tồn tại"),
     PERMISSION_NOT_FOUND("4002", "Không tìm thấy quyền"),
     PERMISSION_DENIED("4003", "Không có quyền"),
 
@@ -47,15 +49,14 @@ public enum ErrorCode {
     INVALID_ORDER_STATUS("5003", "Trạng thái đơn hàng không hợp lệ"),
     ORDER_ITEM_NOT_FOUND("5004", "Không tìm thấy mặt hàng trong đơn hàng"),
 
-
     // Payment Errors (7000-7999)
     PAYMENT_NOT_FOUND("7000", "Không tìm thấy thanh toán"),
     PAYMENT_FAILED("7001", "Thanh toán thất bại"),
     PAYMENT_ALREADY_PROCESSED("7002", "Thanh toán đã được xử lý"),
     INVALID_PAYMENT_METHOD("7003", "Phương thức thanh toán không hợp lệ"),
     PAYMENT_AMOUNT_MISMATCH("7004", "Số tiền thanh toán không khớp"),
-    PAYMENT_CREATION_FAILED("7021", "Lỗi tạo thanh toán "),
-    HMAC_GENERATION_FAILED("7022", "Lỗi tạo thanh toán "),
+    PAYMENT_CREATION_FAILED("7021", "Lỗi tạo thanh toán"),
+    HMAC_GENERATION_FAILED("7022", "Lỗi tạo thanh toán"),
     INVALID_WEBHOOK("7023", "Lỗi xác thực thanh toán"),
     PAYMENT_CONFIGURATION_ERROR("7024", "Chưa cấu hình thanh toán"),
 
@@ -88,11 +89,16 @@ public enum ErrorCode {
     TOO_MANY_PENDING_TRANSACTIONS("10009", "Có quá nhiều giao dịch đang chờ xử lý"),
     DUPLICATE_TRANSACTION("10010", "Phát hiện giao dịch trùng lặp"),
     TRANSACTION_TIMEOUT("10011", "Giao dịch đã quá hạn"),
-    INVALID_AMOUNT("10011", "Amount không hợp lệ"),
+    INVALID_AMOUNT("10012", "Số tiền không hợp lệ"),
 
-    //Product
-    PRODUCT_NOT_FOUND("10000", "Không tìm thấy sản phẩm"),
-    NOT_ENOUGH_STOCK("1111","Tồn kho không đủ"),
+    // Product Errors (11000-11999)
+    PRODUCT_NOT_FOUND("11000", "Không tìm thấy sản phẩm"),
+    NOT_ENOUGH_STOCK("11001", "Tồn kho không đủ"),
+    PRODUCT_EMPTY_CONTENT("11002", "Nội dung rỗng"),
+
+    // Category Errors (12000-12999)
+    CATEGORY_NOT_FOUND("12000", "Không tìm thấy danh mục"),
+    CATEGORY_ENUM_CONVERT_ERROR("12001", "Lỗi convert enum"),
 
     // Security Errors (10100-10199)
     RATE_LIMIT_EXCEEDED("429", "Vượt quá giới hạn truy cập, vui lòng thử lại sau"),
@@ -109,5 +115,4 @@ public enum ErrorCode {
         this.code = code;
         this.message = message;
     }
-
 }

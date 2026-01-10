@@ -128,12 +128,12 @@ public class AuthServiceImpl implements AuthService {
 
         // Kiểm tra mật khẩu cũ
         if (!passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPassword())) {
-            throw new BusinessException("Mật khẩu hiện tại không đúng");
+            throw new BusinessException(ErrorCode.CURRENT_PASSWORD_INCORRECT);
         }
 
         // Không cho trùng mật khẩu cũ
         if (passwordEncoder.matches(request.getNewPassword(), currentUser.getPassword())) {
-            throw new BusinessException("Mật khẩu mới không được trùng mật khẩu hiện tại");
+            throw new BusinessException(ErrorCode.NEW_PASSWORD_SAME_AS_CURRENT);
         }
 
         currentUser.setPassword(passwordEncoder.encode(request.getNewPassword()));

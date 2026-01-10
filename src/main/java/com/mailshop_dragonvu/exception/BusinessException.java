@@ -11,13 +11,15 @@ public class BusinessException extends RuntimeException {
     public BusinessException(ErrorCode errorCode) {
         super(errorCode.getMessage());
         this.errorCode = errorCode;
-        this.customMessage = errorCode.getMessage();
+        this.customMessage = null;
     }
-    public BusinessException(String customMessage) {
 
+    public BusinessException(String customMessage) {
+        super(customMessage);
         this.errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
-        this.customMessage =customMessage;
+        this.customMessage = customMessage;
     }
+
     public BusinessException(ErrorCode errorCode, String customMessage) {
         super(customMessage);
         this.errorCode = errorCode;
@@ -27,7 +29,7 @@ public class BusinessException extends RuntimeException {
     public BusinessException(ErrorCode errorCode, Throwable cause) {
         super(errorCode.getMessage(), cause);
         this.errorCode = errorCode;
-        this.customMessage = errorCode.getMessage();
+        this.customMessage = null;
     }
 
     public BusinessException(ErrorCode errorCode, String customMessage, Throwable cause) {
@@ -35,5 +37,4 @@ public class BusinessException extends RuntimeException {
         this.errorCode = errorCode;
         this.customMessage = customMessage;
     }
-
 }

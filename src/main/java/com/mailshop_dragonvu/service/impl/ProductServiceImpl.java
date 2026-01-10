@@ -269,7 +269,7 @@ public class ProductServiceImpl implements ProductService {
 
     private ProductEntity findProductOrThrow(Long id) {
         return productRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Không tìm thấy sản phẩm"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
     }
 
     /**

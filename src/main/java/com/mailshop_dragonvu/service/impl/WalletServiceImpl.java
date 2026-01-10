@@ -480,10 +480,10 @@ public class WalletServiceImpl implements WalletService {
 
             List<Predicate> predicates = new ArrayList<>();
 
-            // ✅ Giao dịch thuộc user hiện tại
+            //  Giao dịch thuộc user hiện tại
             predicates.add(cb.equal(root.get("user").get("id"), userId));
 
-            // ✅ Filter theo mã giao dịch (Long -> String for like search)
+            // Filter theo mã giao dịch (Long -> String for like search)
             if (Strings.isNotBlank(request.getTransactionCode())) {
                 predicates.add(
                         cb.like(
@@ -491,7 +491,7 @@ public class WalletServiceImpl implements WalletService {
                                 "%" + request.getTransactionCode().trim() + "%"));
             }
 
-            // ✅ From date
+            //  From date
             if (request.getDateFrom() != null) {
                 predicates.add(
                         cb.greaterThanOrEqualTo(
@@ -499,7 +499,7 @@ public class WalletServiceImpl implements WalletService {
                                 request.getDateFrom()));
             }
 
-            // ✅ To date
+            //  To date
             if (request.getDateTo() != null) {
                 predicates.add(
                         cb.lessThanOrEqualTo(

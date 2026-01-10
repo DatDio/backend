@@ -139,7 +139,7 @@ public class CategoryServiceImpl implements CategoryService {
                         Integer.parseInt(request.getStatus())
                 );
             } catch (NumberFormatException e) {
-                throw new BusinessException("Lỗi convert enum");
+                throw new BusinessException(ErrorCode.CATEGORY_ENUM_CONVERT_ERROR);
             }
         }
 
@@ -167,6 +167,6 @@ public class CategoryServiceImpl implements CategoryService {
 
     private CategoryEntity findCategoryOrThrow(Long id) {
         return categoryRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Không tìm thấy danh mục"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
     }
 }
