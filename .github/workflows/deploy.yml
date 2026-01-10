@@ -1,60 +1,89 @@
 name: Backend CI/CD
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHẦN 1: TRIGGER - Khi nào workflow chạy?
+# ═══════════════════════════════════════════════════════════════════════════════
 on:
   push:
-    branches: [main, master]
+    branches: [master]        # Chạy khi push vào branch master
   pull_request:
-    branches: [main, master]
+    branches: [master]        # Chạy khi tạo PR vào master (chỉ build, ko deploy)
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHẦN 2: JOBS - Các công việc cần thực hiện
+# ═══════════════════════════════════════════════════════════════════════════════
 jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 1: BUILD - Chạy trên GitHub Runner (máy ảo Ubuntu của GitHub)
+  # ─────────────────────────────────────────────────────────────────────────────
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest    # Sử dụng máy ảo Ubuntu mới nhất của GitHub (miễn phí)
 
     steps:
+      # Bước 1: Clone code từ repo về máy ảo GitHub
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Bước 2: Cài đặt Java 21 (Temurin distribution)
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: maven
+          java-version: '21'           # Version Java
+          distribution: 'temurin'      # Bản phân phối Eclipse Temurin
+          cache: maven                 # Cache Maven dependencies để lần sau build nhanh hơn
 
+      # Bước 3: Build project với Maven
       - name: Build with Maven
-        run: mvn clean package -DskipTests
+        run: mvn clean package -DskipTests    # Build JAR file, bỏ qua test để nhanh
 
+      # Bước 4: Chạy unit tests
       - name: Run tests
         run: mvn test
-        continue-on-error: true
+        continue-on-error: true        # Nếu test fail vẫn tiếp tục workflow
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 2: DEPLOY - SSH vào VPS và deploy
+  # ─────────────────────────────────────────────────────────────────────────────
   deploy:
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    needs: build                       # ⚠️ Phải đợi job "build" hoàn thành trước
+    
+    # Điều kiện: Chỉ deploy khi PUSH vào master (không deploy khi tạo PR)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
 
     steps:
+      # SSH vào VPS và chạy các lệnh deploy
       - name: Deploy Backend to VPS
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.0.3   # Action SSH phổ biến nhất
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
+          # Thông tin kết nối VPS (lấy từ GitHub Secrets)
+          host: ${{ secrets.VPS_HOST }}         # IP hoặc domain VPS
+          username: ${{ secrets.VPS_USERNAME }} # Username SSH (vd: ubuntu, root)
+          key: ${{ secrets.VPS_SSH_KEY }}       # Private key SSH
+          port: ${{ secrets.VPS_PORT }}         # Port SSH (thường là 22)
+          
+          # Script chạy trên VPS
           script: |
-            cd ${{ secrets.PROJECT_PATH }}
+            set -e  # Dừng ngay nếu có lỗi
             
-            # Pull latest backend code
-            cd backend
-            git pull origin main
-            cd ..
+            echo "📁 Navigating to project..."
+            cd ${{ secrets.PROJECT_PATH }}      # Vào /opt/mailshop
             
-            # Rebuild only backend container
-            docker-compose stop backend
-            docker-compose build --no-cache backend
-            docker-compose up -d backend
+            echo "📥 Pulling latest backend code..."
+            cd backend                          # Vào folder backend
+            git fetch --all                     # Fetch tất cả changes từ remote
+            git reset --hard origin/master      # Reset về commit mới nhất của origin/master
+            cd ..                               # Quay lại /opt/mailshop
             
-            # Clean up
-            docker image prune -f
+            echo "🔄 Rebuilding backend container..."
+            docker-compose stop backend                   # Dừng container cũ
+            docker-compose build --no-cache backend       # Build lại image (không dùng cache)
+            docker-compose up -d backend                  # Chạy container mới ở background
+            
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f               # Xóa images cũ không dùng
+            
+            echo "📊 Container status:"
+            docker-compose ps backend           # Hiển thị trạng thái container
             
             echo "✅ Backend deployed successfully!"
