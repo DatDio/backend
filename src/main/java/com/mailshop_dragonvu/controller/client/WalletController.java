@@ -188,12 +188,6 @@ public class WalletController {
         log.info("Received FPayment webhook - requestId: {}, transId: {}, status: {}", 
                 requestId, transId, status);
 
-        // Handle empty/test requests
-        if (requestId == null || status == null) {
-            log.info("FPayment webhook test/verification request received");
-            return ResponseEntity.ok().body("{\"status\":\"success\",\"message\":\"Callback đã được xử lý thành công.\"}");
-        }
-
         // Build webhook DTO
         FPaymentWebhookDTO webhook = FPaymentWebhookDTO.builder()
                 .requestId(requestId)
@@ -218,51 +212,51 @@ public class WalletController {
      * FPayment webhook callback - POST method with form data
      * Supports both form-urlencoded and query params
      */
-    @PostMapping(value = "/fpayment/webhook", consumes = {
-            org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED_VALUE,
-            org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE,
-            org.springframework.http.MediaType.ALL_VALUE
-    })
-    @Operation(summary = "Webhook nhận thông báo từ FPayment (POST)")
-    public ResponseEntity<String> fpaymentWebhookPost(
-            @ModelAttribute FPaymentWebhookDTO webhook,
-            @RequestParam Map<String, String> allParams) {
-
-        log.info("Received FPayment webhook (POST) - allParams: {}", allParams);
-        log.info("Received FPayment webhook (POST) - requestId: {}, transId: {}, status: {}", 
-                webhook.getRequestId(), webhook.getTransId(), webhook.getStatus());
-
-        // Try to get from allParams if DTO is empty
-        String requestId = webhook.getRequestId() != null ? webhook.getRequestId() : allParams.get("request_id");
-        String status = webhook.getStatus() != null ? webhook.getStatus() : allParams.get("status");
-
-        // Handle empty/test requests
-        if (requestId == null || status == null) {
-            log.info("FPayment webhook test/verification request received (POST)");
-            return ResponseEntity.ok().body("{\"status\":\"success\",\"message\":\"Callback đã được xử lý thành công.\"}");
-        }
-
-        // Build webhook DTO from params if needed
-        if (webhook.getRequestId() == null) {
-            webhook = FPaymentWebhookDTO.builder()
-                    .requestId(allParams.get("request_id"))
-                    .transId(allParams.get("trans_id"))
-                    .merchantId(allParams.get("merchant_id"))
-                    .apiKey(allParams.get("api_key"))
-                    .amount(allParams.get("amount"))
-                    .received(allParams.get("received"))
-                    .status(allParams.get("status"))
-                    .fromAddress(allParams.get("from_address"))
-                    .transactionId(allParams.get("transaction_id"))
-                    .build();
-        }
-
-        // Process the webhook
-        walletService.processFPaymentCallback(webhook);
-
-        // Return success response as required by FPayment
-        return ResponseEntity.ok().body("{\"status\":\"success\",\"message\":\"Callback đã được xử lý thành công.\"}");
-    }
+//    @PostMapping(value = "/fpayment/webhook", consumes = {
+//            org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+//            org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE,
+//            org.springframework.http.MediaType.ALL_VALUE
+//    })
+//    @Operation(summary = "Webhook nhận thông báo từ FPayment (POST)")
+//    public ResponseEntity<String> fpaymentWebhookPost(
+//            @ModelAttribute FPaymentWebhookDTO webhook,
+//            @RequestParam Map<String, String> allParams) {
+//
+//        log.info("Received FPayment webhook (POST) - allParams: {}", allParams);
+//        log.info("Received FPayment webhook (POST) - requestId: {}, transId: {}, status: {}",
+//                webhook.getRequestId(), webhook.getTransId(), webhook.getStatus());
+//
+//        // Try to get from allParams if DTO is empty
+//        String requestId = webhook.getRequestId() != null ? webhook.getRequestId() : allParams.get("request_id");
+//        String status = webhook.getStatus() != null ? webhook.getStatus() : allParams.get("status");
+//
+//        // Handle empty/test requests
+//        if (requestId == null || status == null) {
+//            log.info("FPayment webhook test/verification request received (POST)");
+//            return ResponseEntity.ok().body("{\"status\":\"success\",\"message\":\"Callback đã được xử lý thành công.\"}");
+//        }
+//
+//        // Build webhook DTO from params if needed
+//        if (webhook.getRequestId() == null) {
+//            webhook = FPaymentWebhookDTO.builder()
+//                    .requestId(allParams.get("request_id"))
+//                    .transId(allParams.get("trans_id"))
+//                    .merchantId(allParams.get("merchant_id"))
+//                    .apiKey(allParams.get("api_key"))
+//                    .amount(allParams.get("amount"))
+//                    .received(allParams.get("received"))
+//                    .status(allParams.get("status"))
+//                    .fromAddress(allParams.get("from_address"))
+//                    .transactionId(allParams.get("transaction_id"))
+//                    .build();
+//        }
+//
+//        // Process the webhook
+//        walletService.processFPaymentCallback(webhook);
+//
+//        // Return success response as required by FPayment
+//        return ResponseEntity.ok().body("{\"status\":\"success\",\"message\":\"Callback đã được xử lý thành công.\"}");
+//    }
 
     /**
      * Check FPayment transaction status (for polling when callback doesn't work)
