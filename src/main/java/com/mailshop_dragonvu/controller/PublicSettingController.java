@@ -25,7 +25,8 @@ public class PublicSettingController {
     // Keys that can be exposed publicly
     private static final List<String> PUBLIC_KEYS = List.of(
             "social.telegram_group",
-            "social.telegram_channel"
+            "social.telegram_channel",
+            "fpayment.usd_vnd_rate"
     );
 
     @GetMapping("/public")

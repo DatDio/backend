@@ -99,4 +99,18 @@ public interface TransactionRepository extends JpaRepository<TransactionEntity, 
      * Find transactions by status created before a certain time (for timeout scheduler)
      */
     List<TransactionEntity> findByStatusAndCreatedAtBefore(TransactionStatusEnum status, LocalDateTime cutoffTime);
+
+    /**
+     * Find pending FPayment transactions for polling
+     * Only returns transactions created after cutoffTime (within polling window)
+     */
+    @Query("SELECT t FROM TransactionEntity t " +
+           "WHERE t.status = :status " +
+           "AND t.paymentMethod = :paymentMethod " +
+           "AND t.createdAt > :cutoffTime " +
+           "ORDER BY t.createdAt ASC")
+    List<TransactionEntity> findPendingFPaymentTransactions(
+            @Param("status") TransactionStatusEnum status,
+            @Param("paymentMethod") String paymentMethod,
+            @Param("cutoffTime") LocalDateTime cutoffTime);
 }

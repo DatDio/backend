@@ -53,18 +53,26 @@ public interface WalletService {
     /**
      * Create deposit transaction via FPayment/Crypto
      * @param userId User ID
-     * @param amountVnd Amount in VND (will be converted to USDT)
+     * @param amountUsdt Amount in USDT (directly from frontend)
      * @param ipAddress Client IP address
      * @param userAgent Client user agent
      * @return FPayment deposit response with payment URL
      */
-    FPaymentDepositResponse createDepositFPayment(Long userId, Long amountVnd, String ipAddress, String userAgent);
+    FPaymentDepositResponse createDepositFPayment(Long userId, java.math.BigDecimal amountUsdt, String ipAddress, String userAgent);
 
     /**
      * Process FPayment webhook callback
      * @param webhook Webhook data from FPayment
      */
     void processFPaymentCallback(FPaymentWebhookDTO webhook);
+
+    /**
+     * Check FPayment invoice status and process if completed
+     * Used for polling when callback doesn't work
+     * @param transactionCode Internal transaction code
+     * @return Status of the transaction (waiting, completed, expired, not_found, already_processed)
+     */
+    String checkFPaymentStatus(Long transactionCode);
 
     /**
      * Get user transaction history
