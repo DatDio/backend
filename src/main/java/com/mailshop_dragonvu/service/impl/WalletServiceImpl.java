@@ -3,6 +3,9 @@ package com.mailshop_dragonvu.service.impl;
 import com.mailshop_dragonvu.dto.casso.CassoDepositResponse;
 import com.mailshop_dragonvu.dto.casso.CassoTransactionDTO;
 import com.mailshop_dragonvu.dto.casso.CassoWebhookDTO;
+import com.mailshop_dragonvu.dto.fpayment.FPaymentApiResponse;
+import com.mailshop_dragonvu.dto.fpayment.FPaymentDepositResponse;
+import com.mailshop_dragonvu.dto.fpayment.FPaymentWebhookDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionFilterDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
@@ -21,6 +24,8 @@ import com.mailshop_dragonvu.repository.WalletRepository;
 import com.mailshop_dragonvu.service.CassoProvider;
 import com.mailshop_dragonvu.service.CassoService;
 import com.mailshop_dragonvu.service.DepositNotifier;
+import com.mailshop_dragonvu.service.FPaymentProvider;
+import com.mailshop_dragonvu.service.FPaymentService;
 import com.mailshop_dragonvu.service.PayOSService;
 import com.mailshop_dragonvu.service.RankService;
 import com.mailshop_dragonvu.service.WalletService;
@@ -66,6 +71,8 @@ public class WalletServiceImpl implements WalletService {
     private final PayOSService payOSService;
     private final CassoService cassoService;
     private final CassoProvider cassoProvider;
+    private final FPaymentService fpaymentService;
+    private final FPaymentProvider fpaymentProvider;
     private final RankService rankService;
     private final DepositNotifier depositNotifier;
     private final WalletMapper walletMapper;
@@ -448,6 +455,198 @@ public class WalletServiceImpl implements WalletService {
     }
 
     // ==================== END CASSO METHODS ====================
+
+    // ==================== FPAYMENT/CRYPTO METHODS ====================
+
+    @Override
+    @Transactional
+    public FPaymentDepositResponse createDepositFPayment(Long userId, Long amountVnd, String ipAddress, String userAgent) {
+        
+        UserEntity userEntity = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        WalletEntity walletEntity = walletRepository.findByUserId(userId)
+                .orElseGet(() -> {
+                    createWallet(userId);
+                    return walletRepository.findByUserId(userId)
+                            .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+                });
+
+        if (walletEntity.getIsLocked()) {
+            throw new BusinessException(ErrorCode.WALLET_LOCKED);
+        }
+
+        // Validate amount
+        validateDepositAmount(amountVnd);
+
+        // Generate unique transaction code
+        Long transactionCode = System.currentTimeMillis() * 1000 + ThreadLocalRandom.current().nextInt(100, 999);
+        String requestId = String.valueOf(transactionCode);
+
+        // Convert VND to USDT
+        java.math.BigDecimal amountUsdt = fpaymentService.convertVndToUsdt(amountVnd);
+
+        // Build callback URLs
+        String callbackUrl = frontendUrl.replace("localhost:4200", "api.emailsieure.com") 
+                + "/api/v1/wallets/fpayment/webhook";
+        if (callbackUrl.contains("localhost")) {
+            // For local testing, use a placeholder (webhook won't work locally)
+            callbackUrl = "https://api.emailsieure.com/api/v1/wallets/fpayment/webhook";
+        }
+        String successUrl = frontendUrl + "/transactions";
+        String cancelUrl = frontendUrl + "/transactions";
+
+        // Call FPayment API to create invoice
+        FPaymentApiResponse apiResponse = fpaymentService.createInvoice(
+                "Nạp tiền vào ví EmailSieuRe",
+                userEntity.getEmail(),
+                amountUsdt,
+                requestId,
+                callbackUrl,
+                successUrl,
+                cancelUrl
+        );
+
+        // Create PENDING transaction
+        TransactionEntity txn = TransactionEntity.builder()
+                .transactionCode(transactionCode)
+                .user(userEntity)
+                .wallet(walletEntity)
+                .type(TransactionTypeEnum.DEPOSIT)
+                .amount(amountVnd)
+                .balanceBefore(walletEntity.getBalance())
+                .status(TransactionStatusEnum.PENDING)
+                .description("Nạp tiền Crypto - " + amountUsdt + " USDT")
+                .paymentMethod("FPAYMENT")
+                .paymentReference(apiResponse.getData().getTransId())
+                .ipAddress(ipAddress)
+                .userAgent(userAgent)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        transactionRepository.save(txn);
+
+        log.info("Created FPayment deposit - User: {}, AmountVnd: {}, AmountUsdt: {}, TransactionCode: {}", 
+                userId, amountVnd, amountUsdt, transactionCode);
+
+        return FPaymentDepositResponse.builder()
+                .urlPayment(apiResponse.getData().getUrlPayment())
+                .transId(apiResponse.getData().getTransId())
+                .amountUsdt(amountUsdt)
+                .amountVnd(amountVnd)
+                .transactionCode(transactionCode)
+                .exchangeRate(fpaymentProvider.getUsdVndRate())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void processFPaymentCallback(FPaymentWebhookDTO webhook) {
+        if (webhook == null) {
+            log.warn("Empty FPayment webhook received");
+            return;
+        }
+
+        // Verify webhook credentials
+        if (!fpaymentService.verifyWebhook(webhook.getMerchantId(), webhook.getApiKey())) {
+            log.warn("Invalid FPayment webhook credentials");
+            return;
+        }
+
+        String status = webhook.getStatus();
+        String requestId = webhook.getRequestId();
+
+        log.info("Processing FPayment callback - requestId: {}, status: {}", requestId, status);
+
+        // Only process completed transactions
+        if (!"completed".equalsIgnoreCase(status)) {
+            log.debug("FPayment callback status is not completed: {}", status);
+            return;
+        }
+
+        // Parse transaction code from request_id
+        Long transactionCode;
+        try {
+            transactionCode = Long.parseLong(requestId);
+        } catch (NumberFormatException e) {
+            log.warn("Invalid request_id format in FPayment callback: {}", requestId);
+            return;
+        }
+
+        // Check for duplicate using FPayment trans_id
+        if (Strings.isNotBlank(webhook.getTransId())) {
+            boolean exists = transactionRepository.existsByPaymentReference(webhook.getTransId());
+            if (exists) {
+                // Check if already SUCCESS
+                Optional<TransactionEntity> existingTxn = transactionRepository.findByTransactionCode(transactionCode);
+                if (existingTxn.isPresent() && existingTxn.get().getStatus() == TransactionStatusEnum.SUCCESS) {
+                    log.debug("FPayment transaction already processed: {}", webhook.getTransId());
+                    return;
+                }
+            }
+        }
+
+        // Find matching PENDING transaction
+        Optional<TransactionEntity> optTxn = transactionRepository.findByTransactionCode(transactionCode);
+        if (optTxn.isEmpty()) {
+            log.debug("No matching transaction found for code: {}", transactionCode);
+            return;
+        }
+
+        TransactionEntity txn = optTxn.get();
+
+        // Skip if already processed
+        if (txn.getStatus() == TransactionStatusEnum.SUCCESS) {
+            log.debug("Transaction already processed: {}", transactionCode);
+            return;
+        }
+
+        // Process successful deposit
+        try {
+            WalletEntity walletEntity = walletRepository.findByUserIdWithLock(txn.getUser().getId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+
+            // Use the VND amount from the original transaction (already calculated at creation)
+            Long depositAmount = txn.getAmount();
+            Long userId = txn.getUser().getId();
+
+            // Calculate bonus based on user's rank
+            Long bonusAmount = rankService.calculateDepositBonus(userId, depositAmount);
+            Long totalAmount = depositAmount + bonusAmount;
+
+            // Add to wallet
+            walletEntity.addBalance(totalAmount);
+
+            // Update transaction
+            if (bonusAmount > 0) {
+                txn.setDescription(txn.getDescription() + " (Bonus +" + bonusAmount + " VNĐ)");
+            }
+            txn.setBalanceAfter(walletEntity.getBalance());
+            txn.setPaymentReference(webhook.getTransId());
+            txn.markAsSuccess();
+
+            walletRepository.save(walletEntity);
+            transactionRepository.save(txn);
+
+            log.info("FPayment deposit successful - User: {}, Amount: {}, Bonus: {}, Total: {}", 
+                    userId, depositAmount, bonusAmount, totalAmount);
+
+            // Send WebSocket notification to frontend
+            depositNotifier.notifyDepositSuccess(
+                    userId, 
+                    transactionCode, 
+                    depositAmount, 
+                    bonusAmount, 
+                    totalAmount, 
+                    walletEntity.getBalance()
+            );
+
+        } catch (PessimisticLockException | CannotAcquireLockException e) {
+            log.warn("Wallet locked during FPayment callback. Transaction: {}", transactionCode);
+        }
+    }
+
+    // ==================== END FPAYMENT METHODS ====================
 
     @Override
     @Transactional(readOnly = true)

@@ -2,6 +2,8 @@ package com.mailshop_dragonvu.service;
 
 import com.mailshop_dragonvu.dto.casso.CassoDepositResponse;
 import com.mailshop_dragonvu.dto.casso.CassoWebhookDTO;
+import com.mailshop_dragonvu.dto.fpayment.FPaymentDepositResponse;
+import com.mailshop_dragonvu.dto.fpayment.FPaymentWebhookDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionFilterDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.users.UserFilterDTO;
@@ -47,6 +49,22 @@ public interface WalletService {
      * Process Casso webhook callback
      */
     void processCassoCallback(CassoWebhookDTO webhook);
+
+    /**
+     * Create deposit transaction via FPayment/Crypto
+     * @param userId User ID
+     * @param amountVnd Amount in VND (will be converted to USDT)
+     * @param ipAddress Client IP address
+     * @param userAgent Client user agent
+     * @return FPayment deposit response with payment URL
+     */
+    FPaymentDepositResponse createDepositFPayment(Long userId, Long amountVnd, String ipAddress, String userAgent);
+
+    /**
+     * Process FPayment webhook callback
+     * @param webhook Webhook data from FPayment
+     */
+    void processFPaymentCallback(FPaymentWebhookDTO webhook);
 
     /**
      * Get user transaction history

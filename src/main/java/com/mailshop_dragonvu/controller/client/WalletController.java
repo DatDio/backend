@@ -3,6 +3,8 @@ package com.mailshop_dragonvu.controller.client;
 import com.mailshop_dragonvu.dto.ApiResponse;
 import com.mailshop_dragonvu.dto.casso.CassoDepositResponse;
 import com.mailshop_dragonvu.dto.casso.CassoWebhookDTO;
+import com.mailshop_dragonvu.dto.fpayment.FPaymentDepositResponse;
+import com.mailshop_dragonvu.dto.fpayment.FPaymentWebhookDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionFilterDTO;
 import com.mailshop_dragonvu.dto.transactions.TransactionResponseDTO;
 import com.mailshop_dragonvu.dto.wallets.WalletResponse;
@@ -144,6 +146,74 @@ public class WalletController {
     }
 
     // ==================== END CASSO ENDPOINTS ====================
+
+    // ==================== FPAYMENT ENDPOINTS ====================
+
+    /**
+     * Create deposit with FPayment/Crypto (USDT)
+     */
+    @PostMapping("/fpayment/deposit")
+    @Operation(summary = "Tạo yêu cầu nạp tiền qua FPayment/Crypto (USDT)")
+    public ApiResponse<FPaymentDepositResponse> createDepositFPayment(
+            @RequestParam Long amountVnd,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest httpRequest) {
+
+        String ipAddress = SecurityUtils.getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
+
+        FPaymentDepositResponse response = walletService.createDepositFPayment(
+                userPrincipal.getId(), amountVnd, ipAddress, userAgent);
+
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * FPayment webhook callback - receives payment notifications (GET method as per FPayment docs)
+     */
+    @GetMapping("/fpayment/webhook")
+    @Operation(summary = "Webhook nhận thông báo từ FPayment")
+    public ResponseEntity<String> fpaymentWebhook(
+            @RequestParam(value = "request_id", required = false) String requestId,
+            @RequestParam(value = "trans_id", required = false) String transId,
+            @RequestParam(value = "merchant_id", required = false) String merchantId,
+            @RequestParam(value = "api_key", required = false) String apiKey,
+            @RequestParam(value = "amount", required = false) String amount,
+            @RequestParam(value = "received", required = false) String received,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "from_address", required = false) String fromAddress,
+            @RequestParam(value = "transaction_id", required = false) String transactionId) {
+
+        log.info("Received FPayment webhook - requestId: {}, transId: {}, status: {}", 
+                requestId, transId, status);
+
+        // Handle empty/test requests
+        if (requestId == null || status == null) {
+            log.info("FPayment webhook test/verification request received");
+            return ResponseEntity.ok().body("{\"status\":\"success\",\"message\":\"Callback đã được xử lý thành công.\"}");
+        }
+
+        // Build webhook DTO
+        FPaymentWebhookDTO webhook = FPaymentWebhookDTO.builder()
+                .requestId(requestId)
+                .transId(transId)
+                .merchantId(merchantId)
+                .apiKey(apiKey)
+                .amount(amount)
+                .received(received)
+                .status(status)
+                .fromAddress(fromAddress)
+                .transactionId(transactionId)
+                .build();
+
+        // Process the webhook
+        walletService.processFPaymentCallback(webhook);
+
+        // Return success response as required by FPayment
+        return ResponseEntity.ok().body("{\"status\":\"success\",\"message\":\"Callback đã được xử lý thành công.\"}");
+    }
+
+    // ==================== END FPAYMENT ENDPOINTS ====================
 
     @GetMapping("/transactions/search")
     @Operation(summary = "Search my transactions with filter")
