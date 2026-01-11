@@ -1,5 +1,6 @@
 package com.mailshop_dragonvu.dto.casso;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,12 +29,18 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CassoTransactionDTO {
     
     /**
      * Casso internal transaction ID - used for deduplication
      */
     private Long id;
+    
+    /**
+     * Transaction ID (alternative field name from Casso)
+     */
+    private String tid;
     
     /**
      * Bank reference number
