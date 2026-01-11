@@ -491,7 +491,7 @@ public class WalletServiceImpl implements WalletService {
 //        String callbackUrl = frontendUrl.replace("localhost:4200", "api.emailsieure.com")
 //                + "/api/v1/wallets/fpayment/webhook";
 
-        String callbackUrl = "https://4ecbbed01450.ngrok-free.app/api/v1/wallets/fpayment/webhook";
+        String callbackUrl = "https://emailsieure.com/api/v1/wallets/fpayment/webhook";
         if (callbackUrl.contains("localhost")) {
             // For local testing, use a placeholder (webhook won't work locally)
             callbackUrl = "https://api.emailsieure.com/api/v1/wallets/fpayment/webhook";
